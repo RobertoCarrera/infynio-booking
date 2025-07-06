@@ -1,0 +1,18 @@
+<div class="container mt-4">
+  <div class="btn-group mb-3">
+    <button class="btn btn-primary" (click)="setView(CalendarView.Week)">Semana</button>
+    <button class="btn btn-secondary" (click)="setView(CalendarView.Month)">Mes</button>
+  </div>
+  <mwl-calendar-week-view
+    *ngIf="view === CalendarView.Week"
+    [viewDate]="viewDate"
+    [excludeDays]="excludeDays"
+    [hourSegments]="hourSegments"
+    [dayStartHour]="dayStartHour"
+    [dayEndHour]="dayEndHour">
+  </mwl-calendar-week-view>
+  <mwl-calendar-month-view
+    *ngIf="view === CalendarView.Month"
+    [viewDate]="viewDate">
+  </mwl-calendar-month-view>
+</div>
