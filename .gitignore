@@ -38,6 +38,10 @@ testem.log
 /typings
 .env.local
 
+# Environments (proteger API keys)
+/src/environments/environment.ts
+/src/environments/environment.prod.ts
+
 # System files
 .DS_Store
 Thumbs.db
