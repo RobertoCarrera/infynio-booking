@@ -30,6 +30,13 @@ export class CalendarComponent {
   dayStartHour = 9;
   dayEndHour = 19;
   weekStartsOn = DAYS_OF_WEEK.MONDAY;
+  daysInWeek = 5;
+  DAYS_OF_WEEK = DAYS_OF_WEEK;
+
+  ngOnInit() {
+    this.viewDate = new Date();
+    this.weekStartsOn = this.viewDate.getDay(); // El día actual será el primero
+  }
 
   setView(view: CalendarView) {
     this.view = view;

@@ -9,10 +9,13 @@
     [excludeDays]="excludeDays"
     [hourSegments]="hourSegments"
     [dayStartHour]="dayStartHour"
-    [dayEndHour]="dayEndHour">
+    [dayEndHour]="dayEndHour"
+    [daysInWeek]="daysInWeek"
+    [weekStartsOn]="weekStartsOn">
   </mwl-calendar-week-view>
   <mwl-calendar-month-view
     *ngIf="view === CalendarView.Month"
-    [viewDate]="viewDate">
+    [viewDate]="viewDate"
+    [weekStartsOn]="DAYS_OF_WEEK.MONDAY">
   </mwl-calendar-month-view>
 </div>

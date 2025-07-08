@@ -24,6 +24,15 @@
   cursor: not-allowed;
 }
 
+/* Sábados y domingos en gris en la vista mensual */
+::ng-deep mwl-calendar-month-view .cal-cell:nth-child(6n),
+::ng-deep mwl-calendar-month-view .cal-cell:nth-child(7n) {
+  background: #e0e0e0 !important;
+  opacity: 0.7;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 /*
 Para volver atrás, simplemente elimina este bloque de CSS.
 */
