@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Observable, map } from 'rxjs';
-import { ClientProfile } from '../components/profile/profile.component';
+import { User } from '../models/user';
 
 function capitalize(str: string) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
@@ -15,7 +15,7 @@ export class UsersService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(page = 1, limit = 10): Observable<ClientProfile[]> {
+  getAll(page = 1, limit = 10): Observable<User[]> {
     return this.http.get<any>(`${this.base}/read/users`, {
       params: { Instance: this.instance, page, limit }
     }).pipe(
@@ -23,17 +23,16 @@ export class UsersService {
         const usersRaw = Array.isArray(data) ? data : (data.data || []);
         return usersRaw.map((user: any) => ({
           ...user,
-          nombre: capitalize(user.nombre),
-          apellidos: capitalize(user.apellidos),
+          first_name: capitalize(user.first_name),
+          last_name: capitalize(user.last_name),
           email: user.email,
-          telefono: user.telefono,
-          bonosRestantes: user.bonosRestantes
+          telefono: user.telefono
         }));
       })
     );
   }
 
-  getById(id: string): Observable<ClientProfile> {
+  getById(id: string): Observable<User> {
     return this.http.get<any>(`${this.base}/read/users/${id}`, {
       params: { Instance: this.instance }
     }).pipe(
@@ -41,11 +40,10 @@ export class UsersService {
         const user = data.data || data;
         return {
           ...user,
-          nombre: capitalize(user.nombre),
-          apellidos: capitalize(user.apellidos),
+          nombre: capitalize(user.first_name),
+          apellidos: capitalize(user.last_name),
           email: user.email,
-          telefono: user.telefono,
-          bonosRestantes: user.bonosRestantes
+          telefono: user.telefono
         };
       })
     );

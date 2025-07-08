@@ -2,14 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UsersService } from '../../services/users.service';
-
-export interface ClientProfile {
-  nombre: string;
-  apellidos: string;
-  email: string;
-  telefono: string;
-  bonosRestantes?: number;
-}
+import { User } from '../../models/user';
 
 @Component({
   selector: 'app-profile',
@@ -18,9 +11,9 @@ export interface ClientProfile {
   styleUrls: ['./profile.component.css']
 })
 export class ProfileComponent implements OnInit {
-  @Input() cliente!: ClientProfile;
-  users: ClientProfile[] = [];
-  selectedUser?: ClientProfile;
+  @Input() cliente!: User;
+  users: User[] = [];
+  selectedUser?: User;
 
   constructor(private usersService: UsersService) {}
 
