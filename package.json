@@ -7,6 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "build:ssr": "ng build && ng run mars-studio:server",
+    "serve:ssr": "node dist/mars-studio/server/server.mjs",
     "serve:ssr:mars-studio": "node dist/mars-studio/server/server.mjs"
   },
   "private": true,

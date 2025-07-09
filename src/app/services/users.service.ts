@@ -43,6 +43,21 @@ export class UsersService {
     );
   }
 
+  getByAuthUserId(auth_user_id: string): Observable<User | null> {
+    return from(
+      this.supabase
+        .from('users')
+        .select('*')
+        .eq('auth_user_id', auth_user_id)
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error && error.code !== 'PGRST116') throw error; // PGRST116: No rows found
+        return data as User;
+      })
+    );
+  }
+
   search(filters: any): Observable<User[]> {
     let query = this.supabase.from('users').select('*');
     if (filters) {
