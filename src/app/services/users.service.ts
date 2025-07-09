@@ -1,50 +1,106 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Observable, from } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { Observable, map } from 'rxjs';
 import { User } from '../models/user';
-
-function capitalize(str: string) {
-  return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
-}
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
-  private instance = '48534_mars_studio';
-  private base = environment.apiBaseUrl;
+  private supabase: SupabaseClient;
 
-  constructor(private http: HttpClient) {}
+  constructor() {
+    this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
+  }
 
   getAll(page = 1, limit = 10): Observable<User[]> {
-    return this.http.get<any>(`${this.base}/read/users`, {
-      params: { Instance: this.instance, page, limit }
-    }).pipe(
-      map(data => {
-        const usersRaw = Array.isArray(data) ? data : (data.data || []);
-        return usersRaw.map((user: any) => ({
-          ...user,
-          first_name: capitalize(user.first_name),
-          last_name: capitalize(user.last_name),
-          email: user.email,
-          telefono: user.telefono
-        }));
+    const fromIndex = (page - 1) * limit;
+    return from(
+      this.supabase
+        .from('users')
+        .select('*')
+        .range(fromIndex, fromIndex + limit - 1)
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []) as User[];
       })
     );
   }
 
-  getById(id: string): Observable<User> {
-    return this.http.get<any>(`${this.base}/read/users/${id}`, {
-      params: { Instance: this.instance }
-    }).pipe(
-      map(data => {
-        const user = data.data || data;
-        return {
-          ...user,
-          nombre: capitalize(user.first_name),
-          apellidos: capitalize(user.last_name),
-          email: user.email,
-          telefono: user.telefono
-        };
+  getById(id: string): Observable<User | null> {
+    return from(
+      this.supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as User;
+      })
+    );
+  }
+
+  search(filters: any): Observable<User[]> {
+    let query = this.supabase.from('users').select('*');
+    if (filters) {
+      Object.keys(filters).forEach(key => {
+        if (filters[key] !== undefined && filters[key] !== null) {
+          query = query.eq(key, filters[key]);
+        }
+      });
+    }
+    return from(query).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []) as User[];
+      })
+    );
+  }
+
+  create(user: Partial<User>): Observable<User> {
+    return from(
+      this.supabase
+        .from('users')
+        .insert([user])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as User;
+      })
+    );
+  }
+
+  update(id: string, user: Partial<User>): Observable<User> {
+    return from(
+      this.supabase
+        .from('users')
+        .update(user)
+        .eq('id', id)
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as User;
+      })
+    );
+  }
+
+  delete(id: string): Observable<any> {
+    return from(
+      this.supabase
+        .from('users')
+        .delete()
+        .eq('id', id)
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data;
       })
     );
   }

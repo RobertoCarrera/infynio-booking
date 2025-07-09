@@ -1,10 +1,10 @@
 <div class="profile-container" *ngIf="selectedUser">
   <h2>Perfil del Cliente</h2>
   <div class="profile-info">
-    <p><strong>Nombre:</strong> {{ selectedUser.first_name }}</p>
-    <p><strong>Apellidos:</strong> {{ selectedUser.last_name }}</p>
+    <p><strong>Nombre:</strong> {{ selectedUser.name }}</p>
+    <p><strong>Apellidos:</strong> {{ selectedUser.surname }}</p>
     <p><strong>Email:</strong> {{ selectedUser.email }}</p>
-    <p><strong>Teléfono:</strong> {{ selectedUser.phone }}</p>
+    <p><strong>Teléfono:</strong> {{ selectedUser.telephone }}</p>
     <!-- <ng-container *ngIf="selectedUser.bonosRestantes !== undefined">
       <p><strong>Bonos restantes:</strong> {{ selectedUser.bonosRestantes }}</p>
     </ng-container> -->
@@ -15,7 +15,7 @@
   <label>Seleccionar cliente:
     <select [(ngModel)]="selectedUser" [ngModelOptions]="{standalone: true}">
       <option *ngFor="let user of users" [ngValue]="user">
-        {{ user.first_name }} {{ user.last_name }}
+        {{ user.name }} {{ user.surname }}
       </option>
     </select>
   </label>

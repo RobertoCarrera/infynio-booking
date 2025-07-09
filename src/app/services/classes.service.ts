@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Observable, from } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { inject } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { Observable, map } from 'rxjs';
 
 export interface Clase {
   id: string;
@@ -13,104 +15,111 @@ export interface Clase {
   schedule_date?: string;
   schedule_time?: string;
   price: number;
-  // Agrega más campos según la API
-}
-
-function capitalize(str: string) {
-  return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 }
 
 @Injectable({ providedIn: 'root' })
 export class ClassesService {
-  private instance = '48534_mars_studio';
-  private base = environment.apiBaseUrl;
+  private supabase: SupabaseClient;
 
-  constructor(private http: HttpClient) {}
+  constructor() {
+    // Inicializa el cliente de Supabase
+    this.supabase = inject(SupabaseClient, { optional: true }) ||
+      (window as any).supabaseClient ||
+      (window as any).supabase ||
+      (window as any).createClient?.(environment.supabaseUrl, environment.supabaseKey) ||
+      require('@supabase/supabase-js').createClient(environment.supabaseUrl, environment.supabaseKey);
+  }
 
   getAll(page = 1, limit = 10): Observable<Clase[]> {
-    return this.http.get<any>(`${this.base}/read/classes`, {
-      params: { Instance: this.instance, page, limit }
-    }).pipe(
-      map(data => {
-        const clasesRaw = Array.isArray(data) ? data : (data.data || []);
-        return clasesRaw.map((clase: Clase) => ({
-          ...clase,
-          name: capitalize(clase.name),
-          type: capitalize(clase.type),
-          description: capitalize(clase.description || clase.type)
-        }));
+    const fromIndex = (page - 1) * limit;
+    return from(
+      this.supabase
+        .from('class_sessions')
+        .select('*')
+        .range(fromIndex, fromIndex + limit - 1)
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []) as Clase[];
       })
     );
   }
 
-  getById(id: string): Observable<Clase> {
-    return this.http.get<any>(`${this.base}/read/classes/${id}`, {
-      params: { Instance: this.instance }
-    }).pipe(
-      map(data => {
-        const clase = data.data || data;
-        return {
-          ...clase,
-          name: capitalize(clase.name),
-          type: capitalize(clase.type),
-          description: capitalize(clase.description || clase.type)
-        };
+  getById(id: string): Observable<Clase | null> {
+    return from(
+      this.supabase
+        .from('class_sessions')
+        .select('*')
+        .eq('id', id)
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as Clase;
       })
     );
   }
 
-  search(body: any): Observable<Clase[]> {
-    return this.http.post<any>(`${this.base}/search/classes`, body, {
-      params: { Instance: this.instance }
-    }).pipe(
-      map(data => {
-        const clasesRaw = Array.isArray(data) ? data : (data.data || []);
-        return clasesRaw.map((clase: Clase) => ({
-          ...clase,
-          name: capitalize(clase.name),
-          type: capitalize(clase.type),
-          description: capitalize(clase.description || clase.type)
-        }));
+  search(filters: any): Observable<Clase[]> {
+    // Puedes adaptar los filtros según tus necesidades
+    let query = this.supabase.from('class_sessions').select('*');
+    if (filters) {
+      Object.keys(filters).forEach(key => {
+        if (filters[key] !== undefined && filters[key] !== null) {
+          query = query.eq(key, filters[key]);
+        }
+      });
+    }
+    return from(query).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []) as Clase[];
       })
     );
   }
 
   create(clase: Partial<Clase>): Observable<Clase> {
-    return this.http.post<any>(`${this.base}/create/classes`, clase, {
-      params: { Instance: this.instance }
-    }).pipe(
-      map(data => {
-        const c = data.data || data;
-        return {
-          ...c,
-          name: capitalize(c.name),
-          type: capitalize(c.type),
-          description: capitalize(c.description || clase.type)
-          
-        };
+    return from(
+      this.supabase
+        .from('class_sessions')
+        .insert([clase])
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as Clase;
       })
     );
   }
 
   update(id: string, clase: Partial<Clase>): Observable<Clase> {
-    return this.http.put<any>(`${this.base}/update/classes/${id}`, clase, {
-      params: { Instance: this.instance }
-    }).pipe(
-      map(data => {
-        const c = data.data || data;
-        return {
-          ...c,
-          name: capitalize(c.name),
-          type: capitalize(c.type),
-          description: capitalize(c.description || clase.type)
-        };
+    return from(
+      this.supabase
+        .from('class_sessions')
+        .update(clase)
+        .eq('id', id)
+        .select()
+        .single()
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data as Clase;
       })
     );
   }
 
   delete(id: string): Observable<any> {
-    return this.http.delete(`${this.base}/delete/classes/${id}`, {
-      params: { Instance: this.instance }
-    });
+    return from(
+      this.supabase
+        .from('class_sessions')
+        .delete()
+        .eq('id', id)
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data;
+      })
+    );
   }
 }
