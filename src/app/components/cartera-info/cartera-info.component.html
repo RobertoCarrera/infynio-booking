@@ -1,0 +1,9 @@
+<div class="cartera-tooltip">
+  <h6>Bonos activados</h6>
+  <ul class="list-unstyled" *ngIf="bonos && bonos.length; else noBonos">
+    <li *ngFor="let bono of bonos">{{ bono.nombre }} - {{ bono.valor }}</li>
+  </ul>
+  <ng-template #noBonos>
+    <span>No hay bonos activos.</span>
+  </ng-template>
+</div>
