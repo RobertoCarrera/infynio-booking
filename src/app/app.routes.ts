@@ -3,11 +3,24 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./components/calendar/calendar.component').then(m => m.CalendarComponent)
+    redirectTo: '/login',
+    pathMatch: 'full'
   },
   {
     path: 'login',
     loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent)
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () => import('./components/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent)
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./components/reset-password/reset-password.component').then(m => m.ResetPasswordComponent)
+  },
+  {
+    path: 'calendario',
+    loadComponent: () => import('./components/calendar/calendar.component').then(m => m.CalendarComponent)
   },
   {
     path: 'clases',
@@ -18,12 +31,12 @@ export const routes: Routes = [
     loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent)
   },
   {
-    path: 'calendario',
-    loadComponent: () => import('./components/calendar/calendar.component').then(m => m.CalendarComponent)
+    path: 'debug',
+    loadComponent: () => import('./components/debug/debug.component').then(m => m.DebugComponent)
   },
   {
     path: '**',
-    redirectTo: 'login',
+    redirectTo: '/login',
     pathMatch: 'full'
   }
 ];

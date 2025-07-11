@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Procesando autenticación</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    pre { text-align: left; background: #f5f5f5; padding: 10px; border-radius: 5px; max-width: 800px; margin: 20px auto; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Procesando tu solicitud</h1>
+  <div class="loader"></div>
+  <p id="status">Analizando parámetros...</p>
+  
+  <pre id="debug"></pre>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const debugElement = document.getElementById('debug');
+      const statusElement = document.getElementById('status');
+      
+      // Función para mostrar información de debug
+      function log(message) {
+        console.log(message);
+        debugElement.textContent += message + '\n';
+      }
+      
+      // Mostrar información de la URL
+      log('URL completa: ' + window.location.href);
+      log('Search params: ' + window.location.search);
+      log('Hash: ' + window.location.hash);
+      
+      // Extraer parámetros del hash
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const searchParams = new URLSearchParams(window.location.search);
+      
+      // Mostrar todos los parámetros encontrados
+      log('\nParámetros en el hash:');
+      for (const [key, value] of hashParams.entries()) {
+        log(`${key}: ${value.substring(0, 20)}...`);
+      }
+      
+      log('\nParámetros en search:');
+      for (const [key, value] of searchParams.entries()) {
+        log(`${key}: ${value.substring(0, 20)}...`);
+      }
+      
+      // Extraer tokens
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type') || searchParams.get('type');
+      const token = searchParams.get('token');
+      
+      // Construir la URL de redirección
+      let redirectUrl = 'http://localhost:4200/reset-password';
+      let queryString = '?';
+      
+      if (accessToken) queryString += `access_token=${encodeURIComponent(accessToken)}&`;
+      if (refreshToken) queryString += `refresh_token=${encodeURIComponent(refreshToken)}&`;
+      if (type) queryString += `type=${encodeURIComponent(type)}&`;
+      if (token) queryString += `token=${encodeURIComponent(token)}&`;
+      
+      // Eliminar el último & si existe
+      if (queryString.endsWith('&')) {
+        queryString = queryString.slice(0, -1);
+      }
+      
+      // Si solo tenemos el ? sin parámetros, no lo incluimos
+      if (queryString === '?') {
+        redirectUrl = redirectUrl;
+      } else {
+        redirectUrl = redirectUrl + queryString;
+      }
+      
+      log('\nRedirigiendo a: ' + redirectUrl);
+      statusElement.textContent = 'Redirigiendo a la aplicación...';
+      
+      // Redirigir después de 3 segundos para que se pueda ver la información
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+      }, 3000);
+    });
+  </script>
+</body>
+</html>

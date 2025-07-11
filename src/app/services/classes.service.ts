@@ -1,8 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, from } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { inject } from '@angular/core';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 
 export interface Clase {
@@ -22,14 +21,12 @@ export class ClassesService {
   private supabase: SupabaseClient;
 
   constructor() {
-    // Inicializa el cliente de Supabase
-    this.supabase = inject(SupabaseClient, { optional: true }) ||
-      (window as any).supabaseClient ||
-      (window as any).supabase ||
-      (window as any).createClient?.(environment.supabaseUrl, environment.supabaseKey) ||
-      require('@supabase/supabase-js').createClient(environment.supabaseUrl, environment.supabaseKey);
+    // Inicializa el cliente de Supabase directamente
+    this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
+    console.log('ClassesService: Supabase inicializado');
   }
 
+  // Resto de métodos igual
   getAll(page = 1, limit = 10): Observable<Clase[]> {
     const fromIndex = (page - 1) * limit;
     return from(
