@@ -1,15 +1,14 @@
-<div class="container-fluid p-3">
-    <div class="row h-100 d-flex align-items-start justify-content-around">
-        <div class="col-12">
-            <h2 class="m-0 p-2 ps-0">Panel de Administración</h2>
-        </div>
-        <div class="col-12 p-3 rounded shadow-sm">
+<div class="container-fluid p-4 p-xxl-5">
+    <div class="row d-flex align-items-start justify-content-around">
+        <div class="col-12 col-xxl-5 h-75 p-3 pb-5 rounded shadow-lg">
             <app-users-list></app-users-list>
         </div>
-        <div class="fixed-bottom d-flex justify-content-end p-3">
-            <button class="btn btn-primary fs-5 shadow-md d-flex" routerLink="/admin/invite-user">
-                <i class="bi bi-person-plus pe-0 pe-xxl-2"></i><span class="d-none d-xxl-block">Añadir usuario</span>
-            </button>
+        <div class="col-5 p-3 rounded shadow-sm">
+        </div>
+    </div>
+    <div class="row d-flex align-items-center justify-content-end">
+        <div class="col-12 col-xxl-3 shadow-lg rounded p-3">
+            <app-invite-user></app-invite-user>
         </div>
     </div>
 </div>

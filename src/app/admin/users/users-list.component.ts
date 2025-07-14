@@ -31,11 +31,14 @@ export class UsersListComponent implements OnInit {
 
   get filteredUsers(): User[] {
     const text = this.filterText.trim().toLowerCase();
-    if (!text) return this.users;
-    return this.users.filter(user =>
-      (user.surname || '').toLowerCase().includes(text) ||
-      (user.name || '').toLowerCase().includes(text) ||
-      (user.email || '').toLowerCase().includes(text)
-    );
+    let filtered = this.users;
+    if (text) {
+      filtered = this.users.filter(user =>
+        (user.surname || '').toLowerCase().includes(text) ||
+        (user.name || '').toLowerCase().includes(text) ||
+        (user.email || '').toLowerCase().includes(text)
+      );
+    }
+    return filtered.slice(0, 12);
   }
 }

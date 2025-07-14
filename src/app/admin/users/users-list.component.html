@@ -1,24 +1,38 @@
-<h3>Usuarios</h3>
-<div *ngIf="loading">Cargando...</div>
-<div *ngIf="error">{{ error }}</div>
-<div>
-    <input type="text" [(ngModel)]="filterText" placeholder="Buscar usuario..." class="form-control mb-2">
-</div>
-<div class="table-responsive">
-    <table class="table table-hover table-bordered table-sm" *ngIf="!loading && !error">
-    <thead>
-        <tr>
-        <th>Apellidos</th>
-        <th>Nombre</th>
-        <th>Email</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr *ngFor="let user of filteredUsers">
-        <td *ngIf="user.role_id == 2">{{ user.surname }}</td>
-        <td *ngIf="user.role_id == 2">{{ user.name }}</td>
-        <td *ngIf="user.role_id == 2">{{ user.email }}</td>
-        </tr>
-    </tbody>
-    </table>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h3>Usuarios</h3>
+        </div>
+        <div class="col-12">
+            <div *ngIf="loading">Cargando...</div>
+            <div *ngIf="error">{{ error }}</div>
+        </div>
+        <div class="col-12 mb-2">
+            <input type="text" [(ngModel)]="filterText" placeholder="Buscar usuario..." class="form-control mb-2">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered table-sm" *ngIf="!loading && !error">
+                <thead>
+                    <tr>
+                    <th>Apellidos</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let user of filteredUsers">
+                    <td *ngIf="user.role_id == 2">{{ user.surname }}</td>
+                    <td *ngIf="user.role_id == 2">{{ user.name }}</td>
+                    <td *ngIf="user.role_id == 2">{{ user.email }}</td>
+                    <td *ngIf="user.role_id == 2">
+                        <button class="btn btn-sm btn-danger">
+                            <i class="bi bi-person-x"></i>
+                        </button>
+                    </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
