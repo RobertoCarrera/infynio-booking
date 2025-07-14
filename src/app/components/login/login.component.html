@@ -21,11 +21,19 @@
         class="form-control"
         required />
     </div>
+
+    <div *ngIf="error" class="alert alert-danger">
+      {{ error }}
+    </div>
+    <div *ngIf="loading" class="text-center my-2">
+      <div class="spinner-border spinner-border-sm"></div>
+      Iniciando sesión...
+    </div>
     
     <button 
       type="submit" 
       class="btn btn-primary w-100" 
-      [disabled]="loginForm.invalid">
+      [disabled]="loginForm.invalid || loading">
       Entrar
     </button>
     

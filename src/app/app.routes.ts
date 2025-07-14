@@ -31,8 +31,8 @@ export const routes: Routes = [
     loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent)
   },
   {
-    path: 'debug',
-    loadComponent: () => import('./components/debug/debug.component').then(m => m.DebugComponent)
+    path: 'admin',
+    loadChildren: () => import('./admin/admin-routing.module').then(m => m.AdminRoutingModule)
   },
   {
     path: '**',

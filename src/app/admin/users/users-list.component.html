@@ -1,0 +1,15 @@
+<h3>Lista de usuarios</h3>
+<div *ngIf="loading">Cargando...</div>
+<div *ngIf="error">{{ error }}</div>
+<table *ngIf="!loading && !error">
+  <thead>
+    <tr>
+      <th>Email</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let user of users">
+      <td *ngIf="user.role_id == 2">{{ user.email }}</td>
+    </tr>
+  </tbody>
+</table>

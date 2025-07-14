@@ -12,6 +12,11 @@ const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
 
 const app = express();
+// Permitir cualquier host (útil para ngrok y entornos de pruebas)
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
 const angularApp = new AngularNodeAppEngine();
 
 /**

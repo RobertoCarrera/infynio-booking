@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { SupabaseService } from '../services/supabase-admin.service';
 
 @Component({
   selector: 'app-menu',
@@ -27,6 +28,9 @@ import { CommonModule } from '@angular/common';
             <li class="nav-item">
               <a routerLink="/calendario" class="nav-link" routerLinkActive="active">Calendario</a>
             </li>
+            <li class="nav-item" *ngIf="isAdmin">
+              <a routerLink="/admin" class="nav-link" routerLinkActive="active">Admin</a>
+            </li>
           </ul>
         </div>
       </div>
@@ -37,5 +41,12 @@ import { CommonModule } from '@angular/common';
   `]
 })
 export class MenuComponent {
-  // Eliminamos la funcionalidad del tooltip temporalmente
+  isAdmin = false;
+
+  constructor(private supabase: SupabaseService) {
+    this.supabase.getCurrentUserRole().subscribe(role => {
+      this.isAdmin = role === 'admin';
+      console.log('MenuComponent: Detected role', role);
+    });
+  }
 }
