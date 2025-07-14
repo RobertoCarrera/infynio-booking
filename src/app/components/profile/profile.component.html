@@ -10,13 +10,3 @@
     </ng-container> -->
   </div>
 </div>
-
-<div *ngIf="users.length > 1" class="user-selector">
-  <label>Seleccionar cliente:
-    <select [(ngModel)]="selectedUser" [ngModelOptions]="{standalone: true}">
-      <option *ngFor="let user of users" [ngValue]="user">
-        {{ user.name }} {{ user.surname }}
-      </option>
-    </select>
-  </label>
-</div>
