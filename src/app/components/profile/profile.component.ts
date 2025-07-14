@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UsersService } from '../../services/users.service';
+import { AuthService } from '../../services/auth.service';
 import { User } from '../../models/user';
 
 @Component({
@@ -11,16 +12,19 @@ import { User } from '../../models/user';
   styleUrls: ['./profile.component.css']
 })
 export class ProfileComponent implements OnInit {
-  @Input() cliente!: User;
-  users: User[] = [];
   selectedUser?: User;
 
-  constructor(private usersService: UsersService) {}
+  constructor(private usersService: UsersService, private authService: AuthService) {}
 
   ngOnInit() {
-    this.usersService.getAll().subscribe(users => {
-      this.users = users;
-      this.selectedUser = users[0]; // Selecciona el primero por defecto
+    this.authService.currentUser$.subscribe(currentUser => {
+      if (currentUser?.id || currentUser?.auth_user_id) {
+        // Buscar por auth_user_id (UUID de Supabase Auth)
+        this.usersService.getByAuthUserId(currentUser.id || currentUser.auth_user_id)
+          .subscribe(user => {
+            this.selectedUser = user || undefined;
+          });
+      }
     });
   }
 }
