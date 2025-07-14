@@ -1,16 +1,5 @@
-.navbar {
-  margin-bottom: 20px;
-}
 
-.cartera-tooltip-container {
-  position: relative;
-}
 
-.cartera-tooltip-float {
-  position: absolute;
-  top: 110%;
-  right: 0;
-  left: auto;
-  z-index: 1050;
-  display: block;
-}
+
+
+

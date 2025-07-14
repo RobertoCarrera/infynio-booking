@@ -1,6 +1,15 @@
-<h2>Panel de Administración</h2>
-<nav>
-  <a routerLink="users">Usuarios</a> |
-  <a routerLink="invite">Invitar usuario</a>
-</nav>
-<router-outlet></router-outlet>
+<div class="container-fluid p-3">
+    <div class="row h-100 d-flex align-items-start justify-content-around">
+        <div class="col-12">
+            <h2 class="m-0 p-2 ps-0">Panel de Administración</h2>
+        </div>
+        <div class="col-12 p-3 rounded shadow-sm">
+            <app-users-list></app-users-list>
+        </div>
+        <div class="fixed-bottom d-flex justify-content-end p-3">
+            <button class="btn btn-primary fs-5 shadow-md d-flex" routerLink="/admin/invite-user">
+                <i class="bi bi-person-plus pe-0 pe-xxl-2"></i><span class="d-none d-xxl-block">Añadir usuario</span>
+            </button>
+        </div>
+    </div>
+</div>

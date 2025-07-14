@@ -1,15 +1,24 @@
-<h3>Lista de usuarios</h3>
+<h3>Usuarios</h3>
 <div *ngIf="loading">Cargando...</div>
 <div *ngIf="error">{{ error }}</div>
-<table *ngIf="!loading && !error">
-  <thead>
-    <tr>
-      <th>Email</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let user of users">
-      <td *ngIf="user.role_id == 2">{{ user.email }}</td>
-    </tr>
-  </tbody>
-</table>
+<div>
+    <input type="text" [(ngModel)]="filterText" placeholder="Buscar usuario..." class="form-control mb-2">
+</div>
+<div class="table-responsive">
+    <table class="table table-hover table-bordered table-sm" *ngIf="!loading && !error">
+    <thead>
+        <tr>
+        <th>Apellidos</th>
+        <th>Nombre</th>
+        <th>Email</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr *ngFor="let user of filteredUsers">
+        <td *ngIf="user.role_id == 2">{{ user.surname }}</td>
+        <td *ngIf="user.role_id == 2">{{ user.name }}</td>
+        <td *ngIf="user.role_id == 2">{{ user.email }}</td>
+        </tr>
+    </tbody>
+    </table>
+</div>

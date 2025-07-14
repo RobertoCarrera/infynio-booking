@@ -5,7 +5,7 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav">
+      <ul class="navbar-nav text-end">
         <ng-container *ngIf="isLoggedIn">
           <li class="nav-item">
             <a routerLink="/calendario" class="nav-link" routerLinkActive="active">Calendario</a>
@@ -16,10 +16,16 @@
           <li class="nav-item" *ngIf="isAdmin">
             <a routerLink="/admin" class="nav-link" routerLinkActive="active">Admin</a>
           </li>
+          <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
+            <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active">Mi Perfil</a>
+          </li>
+          <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
+            <a routerLink="/perfil" class="nav-link text-danger" (click)="logout()" routerLinkActive="active">Cerrar Sesión</a>
+          </li>
         </ng-container>
       </ul>
     </div>
-    <div *ngIf="isLoggedIn" class="d-flex">
+    <div *ngIf="isLoggedIn" class="d-none d-xxl-flex">
       <div class="p-2">
         <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active">Mi Perfil</a>
       </div>

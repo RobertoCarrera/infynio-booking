@@ -13,6 +13,7 @@ export class UsersListComponent implements OnInit {
   users: User[] = [];
   loading = true;
   error: string | null = null;
+  filterText: string = '';
 
   constructor(private supabase: SupabaseService) {}
 
@@ -26,5 +27,15 @@ export class UsersListComponent implements OnInit {
         this.error = 'Error al cargar usuarios';
         this.loading = false;
       });
+  }
+
+  get filteredUsers(): User[] {
+    const text = this.filterText.trim().toLowerCase();
+    if (!text) return this.users;
+    return this.users.filter(user =>
+      (user.surname || '').toLowerCase().includes(text) ||
+      (user.name || '').toLowerCase().includes(text) ||
+      (user.email || '').toLowerCase().includes(text)
+    );
   }
 }
