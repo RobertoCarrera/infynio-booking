@@ -46,7 +46,6 @@ export class MenuComponent {
   constructor(private supabase: SupabaseService) {
     this.supabase.getCurrentUserRole().subscribe(role => {
       this.isAdmin = role === 'admin';
-      console.log('MenuComponent: Detected role', role);
     });
   }
 }

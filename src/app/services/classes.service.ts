@@ -21,12 +21,9 @@ export class ClassesService {
   private supabase: SupabaseClient;
 
   constructor() {
-    // Inicializa el cliente de Supabase directamente
     this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
-    console.log('ClassesService: Supabase inicializado');
   }
 
-  // Resto de métodos igual
   getAll(page = 1, limit = 10): Observable<Clase[]> {
     const fromIndex = (page - 1) * limit;
     return from(
@@ -58,7 +55,6 @@ export class ClassesService {
   }
 
   search(filters: any): Observable<Clase[]> {
-    // Puedes adaptar los filtros según tus necesidades
     let query = this.supabase.from('class_sessions').select('*');
     if (filters) {
       Object.keys(filters).forEach(key => {

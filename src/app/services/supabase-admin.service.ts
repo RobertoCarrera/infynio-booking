@@ -22,10 +22,8 @@ export class SupabaseService {
     return this.getCurrentUser().pipe(
       switchMap(user => {
         if (!user) {
-          console.log('getCurrentUserRole: No user logged in');
           return of(null);
         }
-        console.log('getCurrentUserRole: user.id', user.id);
         return from(
           this.supabase
             .from('users')
@@ -34,7 +32,6 @@ export class SupabaseService {
             .single()
         ).pipe(
           map(result => {
-            console.log('getCurrentUserRole: result', result);
             return result.data?.role_id === 1 ? 'admin' : 'user';
           })
         );
@@ -43,12 +40,10 @@ export class SupabaseService {
   }
 
   inviteUserByEmail(email: string): Promise<any> {
-    // Solo la administradora debe poder llamar a esto
     return this.supabase.auth.admin.inviteUserByEmail(email);
   }
 
   async getAllUsers(): Promise<any> {
-    // Solo la administradora debe poder llamar a esto
     return await this.supabase.from('users').select('*');
   }
 }

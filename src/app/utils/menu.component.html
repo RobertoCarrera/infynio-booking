@@ -6,12 +6,10 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav">
-        <!-- Elementos visibles para todos -->
         <li class="nav-item">
           <a routerLink="/login" class="nav-link" routerLinkActive="active">Login</a>
         </li>
         
-        <!-- Elementos visibles solo para usuarios autenticados -->
         <ng-container *ngIf="isLoggedIn">
           <li class="nav-item">
             <a routerLink="/calendario" class="nav-link" routerLinkActive="active">Calendario</a>
@@ -26,7 +24,6 @@
       </ul>
     </div>
     
-    <!-- Opciones para usuarios autenticados -->
     <div *ngIf="isLoggedIn" class="d-flex">
       <div class="cartera-tooltip-container me-3" (mouseenter)="showTooltip = true" (mouseleave)="showTooltip = false" style="position:relative;">
         <button class="btn btn-outline-light">Cartera</button>

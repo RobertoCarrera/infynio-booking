@@ -9,7 +9,6 @@ export interface Payment {
   amount: number;
   date: string;
   method?: string;
-  // Agrega más campos según la tabla payments de Supabase
 }
 
 @Injectable({ providedIn: 'root' })

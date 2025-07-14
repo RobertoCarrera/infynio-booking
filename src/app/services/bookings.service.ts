@@ -6,7 +6,6 @@ import { environment } from '../../environments/environment';
 
 export interface Booking {
   id: string;
-  // Agrega más campos según la tabla bookings de Supabase
 }
 
 @Injectable({ providedIn: 'root' })

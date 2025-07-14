@@ -52,7 +52,7 @@ export class UsersService {
         .single()
     ).pipe(
       map(({ data, error }) => {
-        if (error && error.code !== 'PGRST116') throw error; // PGRST116: No rows found
+        if (error && error.code !== 'PGRST116') throw error;
         return data as User;
       })
     );
