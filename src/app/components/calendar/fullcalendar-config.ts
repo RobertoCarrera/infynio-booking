@@ -5,6 +5,11 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 
+const today = new Date();
+const startOfWeek = new Date(today);
+startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Lunes de la semana actual
+startOfWeek.setHours(0,0,0,0);
+
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
   initialView: 'timeGridWeek',
@@ -25,11 +30,36 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   ],
   selectable: true,
   selectMirror: true,
+  selectAllow: (selectInfo) => {
+    const start = selectInfo.start;
+    const end = selectInfo.end;
+    const now = new Date();
+    // No permitir seleccionar entre 13:00 y 17:00
+    const startHour = start.getHours();
+    const endHour = end.getHours();
+    if ((startHour < 13 && endHour > 13) || (startHour >= 13 && startHour < 17)) {
+      return false;
+    }
+    // No permitir seleccionar en días pasados
+    if (start.setHours(0,0,0,0) < now.setHours(0,0,0,0)) {
+      return false;
+    }
+    return true;
+  },
   select: (info) => {
-    alert(`Reservar clase para ${info.startStr}`);
+    // Solo mostrar el alert si NO estamos en la vista mensual
+    if (info.view.type !== 'dayGridMonth') {
+      alert(`Reservar clase para ${info.startStr}`);
+    }
   },
   eventClick: (info) => {
     alert(`Evento: ${info.event.title}`);
+  },
+  dateClick: function(info) {
+    const calendarApi = info.view.calendar;
+    if (info.view.type === 'dayGridMonth') {
+      calendarApi.changeView('timeGridWeek', info.date);
+    }
   },
   events: [], // Aquí puedes cargar tus reservas
   height: '100%',
@@ -40,4 +70,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
     hour12: false
   },
   slotLabelInterval: { hours: 1 },
+  validRange: {
+    start: startOfWeek,
+  },
 };
