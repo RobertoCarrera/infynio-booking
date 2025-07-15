@@ -2,3 +2,56 @@
 @import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
 @import "../node_modules/angular-calendar/css/angular-calendar.css";
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css");
+/* DEBUG removido: columna de horas vuelve a su estilo normal */
+/* Estilos del calendario - empezando desde cero */
+
+.calendar-container, .calendar-content {
+  height: 90dvh;
+  max-height: 900dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Ajusta la altura de las filas de hora para que se repartan el espacio */
+.fc-timegrid-slots, .fc-timegrid-slot {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+/* .fc-timegrid-slot custom flex y display eliminados para restaurar la estructura original de FullCalendar */
+
+/* Hace que la fila de la hora de descanso (13:00) ocupe la mitad de alto */
+
+
+
+/* Oculta completamente las filas y los labels de las horas de cierre (14:00, 15:00, 16:00) con máxima especificidad */
+.fc .fc-timegrid-slot[data-time="14:00:00"],
+.fc .fc-timegrid-slot[data-time="15:00:00"],
+.fc .fc-timegrid-slot[data-time="16:00:00"],
+.fc .fc-timegrid-slot-label[data-time="14:00:00"],
+.fc .fc-timegrid-slot-label[data-time="15:00:00"],
+.fc .fc-timegrid-slot-label[data-time="16:00:00"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+
+.fc .fc-timegrid-slot-label[data-time="13:00:00"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+
+/* Opcional: ajusta el tamaño de fuente para móviles */
+@media (max-width: 600px) {
+  .fc {
+    font-size: 12px;
+  }
+}

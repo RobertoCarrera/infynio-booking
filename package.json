@@ -32,6 +32,7 @@
     "@supabase/supabase-js": "^2.50.4",
     "angular-calendar": "^0.31.1",
     "bootstrap": "^5.3.7",
+    "caniuse-lite": "^1.0.30001727",
     "date-fns": "^4.1.0",
     "express": "^4.18.2",
     "rxjs": "~7.8.0",
