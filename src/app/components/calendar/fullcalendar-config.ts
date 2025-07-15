@@ -10,17 +10,24 @@ const startOfWeek = new Date(today);
 startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Lunes de la semana actual
 startOfWeek.setHours(0,0,0,0);
 
+const isMobile = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
-  initialView: 'timeGridWeek',
   locale: esLocale,
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'timeGridWeek,dayGridMonth'
-  },
-  slotMinTime: '09:00:00',
-  slotMaxTime: '20:00:00',
+  headerToolbar: isMobile
+    ? {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'timeGridDay,timeGridThreeDay,dayGridMonth'
+      }
+    : {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'timeGridWeek,dayGridMonth'
+      },
+  slotMinTime: isMobile ? '09:00:00' : '09:00:00',
+  slotMaxTime: isMobile ? '13:00:00' : '20:00:00',
   hiddenDays: [0, 6], // Oculta domingos y sábados
   allDaySlot: false,
   slotDuration: '01:00:00',
@@ -30,6 +37,13 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   ],
   selectable: true,
   selectMirror: true,
+  selectOverlap: false,
+  selectConstraint: {
+    start: '09:00',
+    end: '20:00',
+  },
+  selectLongPressDelay: 0, // Permite seleccionar con tap corto en móvil
+  selectMinDistance: 0, // Permite seleccionar con el mínimo movimiento
   selectAllow: (selectInfo) => {
     const start = selectInfo.start;
     const end = selectInfo.end;
@@ -46,19 +60,18 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
     }
     return true;
   },
-  select: (info) => {
-    // Solo mostrar el alert si NO estamos en la vista mensual
-    if (info.view.type !== 'dayGridMonth') {
-      alert(`Reservar clase para ${info.startStr}`);
-    }
-  },
-  eventClick: (info) => {
-    alert(`Evento: ${info.event.title}`);
-  },
+  // No sobrescribas el handler de select, deja el comportamiento por defecto para que se muestre el highlight
+
   dateClick: function(info) {
     const calendarApi = info.view.calendar;
-    if (info.view.type === 'dayGridMonth') {
-      calendarApi.changeView('timeGridWeek', info.date);
+    if (isMobile) {
+      if (info.view.type === 'dayGridMonth' || info.view.type === 'timeGridThreeDay') {
+        calendarApi.changeView('timeGridDay', info.date);
+      }
+    } else {
+      if (info.view.type === 'dayGridMonth') {
+        calendarApi.changeView('timeGridWeek', info.date);
+      }
     }
   },
   events: [], // Aquí puedes cargar tus reservas
@@ -72,5 +85,13 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   slotLabelInterval: { hours: 1 },
   validRange: {
     start: startOfWeek,
+  },
+  initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
+  views: {
+    timeGridThreeDay: {
+      type: 'timeGrid',
+      duration: { days: 3 },
+      buttonText: '3 días',
+    },
   },
 };

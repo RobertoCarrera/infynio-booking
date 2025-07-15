@@ -57,4 +57,36 @@
   .fc {
     font-size: 12px;
   }
+  .fc .fc-header-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem;
+  }
+  .fc .fc-header-toolbar .fc-toolbar-chunk {
+    margin-bottom: 0.25rem;
+  }
+  .fc .fc-header-toolbar .fc-toolbar-chunk:first-child {
+    margin-bottom: 0.25rem;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+  }
+  .fc .fc-today-button{
+    min-width: 30%;
+  }
+  .fc .fc-header-toolbar .fc-toolbar-title {
+    font-size: 1.1rem !important;
+    text-align: center;
+    margin-bottom: 0.25rem;
+  }
+  .fc .fc-button-group {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+  }
+  .fc .fc-button-group > .fc-button {
+    min-width: 70px;
+    font-size: 0.95rem;
+    padding: 0.3em 0.6em;
+  }
 }
