@@ -1,39 +1,35 @@
-/* Limpieza total: solo estilos base */
+/* Estilos del calendario - empezando desde cero */
 
-/* Puedes dejar este archivo vacío o solo con estilos generales */
-
-/* Parón de 13:00 a 17:00 en la vista semanal (horas y celdas) */
-::ng-deep mwl-calendar-week-view .cal-time-label-column .cal-hour:nth-child(n+6):nth-child(-n+8),
-::ng-deep mwl-calendar-week-view .cal-day-columns .cal-hour:nth-child(n+8):nth-child(-n+10) {
-  background: #e0e0e0 !important;
-  pointer-events: none;
-  opacity: 0.7;
-  cursor: not-allowed;
-  display: none;
+.calendar-container, .calendar-content {
+  height: 90dvh;
+  max-height: 900dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-::ng-deep mwl-calendar-week-view .cal-time-label-column .cal-hour:nth-child(n+5):nth-child(-n+5)
-{
-    color: transparent;
-}
-::ng-deep mwl-calendar-week-view .cal-time-label-column .cal-hour:nth-child(n+5):nth-child(-n+5),
-::ng-deep mwl-calendar-week-view .cal-day-columns .cal-hour:nth-child(n+7):nth-child(-n+10) {
-  background: #e0e0e0 !important;
-  pointer-events: none;
-  opacity: 0.7;
-  cursor: not-allowed;
+/* Ajusta la altura de las filas de hora para que se repartan el espacio */
+.fc-timegrid-slots, .fc-timegrid-slot {
+  min-height: 0 !important;
+  height: auto !important;
 }
 
-/* Sábados y domingos en gris en la vista mensual */
-::ng-deep mwl-calendar-month-view .cal-cell:nth-child(6n),
-::ng-deep mwl-calendar-month-view .cal-cell:nth-child(7n) {
-  background: #e0e0e0 !important;
-  opacity: 0.7;
-  pointer-events: none;
-  cursor: not-allowed;
+.fc-timegrid-slot {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  align-items: stretch !important;
 }
 
-/*
-Para volver atrás, simplemente elimina este bloque de CSS.
-*/
+/* Hace que la fila de la hora de descanso (13:00) ocupe la mitad de alto */
+.fc-timegrid-slot[data-time="13:00:00"] {
+  flex: 0.5 1 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
 
+/* Opcional: ajusta el tamaño de fuente para móviles */
+@media (max-width: 600px) {
+  .fc {
+    font-size: 12px;
+  }
+}

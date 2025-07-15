@@ -1,21 +1,5 @@
-<div class="container mt-4">
-  <div class="btn-group mb-3">
-    <button class="btn btn-primary" (click)="setView(CalendarView.Week)">Semana</button>
-    <button class="btn btn-secondary" (click)="setView(CalendarView.Month)">Mes</button>
+<div class="calendar-container p-3">
+  <div class="calendar-content" style="height: 100%;">
+    <full-calendar #fullcalendar [options]="calendarOptions" style="height: 100%; width: 100%"></full-calendar>
   </div>
-  <mwl-calendar-week-view
-    *ngIf="view === CalendarView.Week"
-    [viewDate]="viewDate"
-    [excludeDays]="excludeDays"
-    [hourSegments]="hourSegments"
-    [dayStartHour]="dayStartHour"
-    [dayEndHour]="dayEndHour"
-    [daysInWeek]="daysInWeek"
-    [weekStartsOn]="weekStartsOn">
-  </mwl-calendar-week-view>
-  <mwl-calendar-month-view
-    *ngIf="view === CalendarView.Month"
-    [viewDate]="viewDate"
-    [weekStartsOn]="DAYS_OF_WEEK.MONDAY">
-  </mwl-calendar-month-view>
 </div>
