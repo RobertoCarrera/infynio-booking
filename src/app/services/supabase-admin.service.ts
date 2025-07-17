@@ -123,7 +123,6 @@ export class SupabaseAdminService {
             email: email,
             role_id: 2, // Usuario normal
             name: email.split('@')[0], // Usar la parte antes del @ como nombre temporal
-            username: email.split('@')[0]
           }
         ])
         .select()
