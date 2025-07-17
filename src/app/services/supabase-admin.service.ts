@@ -38,71 +38,26 @@ export class SupabaseAdminService {
   }
 
   async inviteUserByEmail(email: string): Promise<any> {
-    console.log('🔄 Attempting admin invite for:', email);
+    console.log('🔄 Inviting user:', email);
     
     try {
-      // Opción 1: Intentar usar la función admin (puede fallar con 403)
-      const result = await this.supabaseService.supabase.auth.admin.inviteUserByEmail(email);
+      // Invitar usuario usando el método admin de Supabase
+      const { data, error } = await this.supabaseService.supabase.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${window.location.origin}/login`
+      });
       
-      // Verificar si realmente fue exitoso
-      if (result.error) {
-        throw result.error;
+      if (error) {
+        throw error;
       }
       
-      console.log('✅ Admin invite truly successful:', result);
+      console.log('✅ User invited successfully:', data);
       return {
-        ...result,
-        message: 'Invitación enviada exitosamente usando método administrativo.'
+        data,
+        message: `Invitación enviada exitosamente a ${email}. El usuario recibirá un email para activar su cuenta.`
       };
     } catch (error: any) {
-      console.warn('⚠️ Admin invite failed, using fallback method. Error:', error);
-      
-      // Usar método alternativo para cualquier error del método admin
-      console.log('🔄 Using alternative signup method due to admin limitations');
-      
-      try {
-        // Opción 2: Crear usuario usando signUp
-        const { data, error: signUpError } = await this.supabaseService.supabase.auth.signUp({
-          email: email,
-          password: this.generateTemporaryPassword(),
-          options: {
-            emailRedirectTo: `${window.location.origin}/reset-password`,
-            data: {
-              invited_by_admin: true,
-              requires_password_reset: true
-            }
-          }
-        });
-        
-        if (signUpError) {
-          console.error('❌ Signup error:', signUpError);
-          throw new Error(`Error al invitar usuario: ${signUpError.message}`);
-        }
-        
-        console.log('✅ Fallback signup successful:', data);
-        
-        // Verificar si el usuario fue creado correctamente
-        if (data.user) {
-          return { 
-            data, 
-            message: 'Usuario invitado correctamente. Recibirá un email para configurar su contraseña.' 
-          };
-        } else {
-          throw new Error('No se pudo crear el usuario');
-        }
-        
-      } catch (signUpError: any) {
-        console.error('❌ Signup fallback failed:', signUpError);
-        console.log('🔄 Attempting direct database creation as last resort');
-        
-        // Último recurso: crear usuario directamente en la base de datos
-        try {
-          return await this.createUserDirectly(email);
-        } catch (directError: any) {
-          console.error('❌ All methods failed:', directError);
-          throw new Error(`No se pudo invitar al usuario. Métodos intentados: Admin API (403), SignUp (${signUpError.message}), Directo (${directError.message})`);
-        }
-      }
+      console.error('❌ Error inviting user:', error);
+      throw new Error(`Error al enviar invitación: ${error.message}`);
     }
   }
 

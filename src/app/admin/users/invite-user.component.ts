@@ -12,6 +12,7 @@ export class InviteUserComponent {
   email = '';
   message = '';
   error = '';
+  showFallbackOption = false; // Controla si mostrar el botón de respaldo
 
   constructor(private supabase: SupabaseAdminService) {}
 
