@@ -20,16 +20,26 @@ export class SupabaseAdminService {
     return this.getCurrentUser().pipe(
       switchMap(user => {
         if (!user) {
+          console.log('🔍 No authenticated user found');
           return of(null);
         }
+        
+        console.log('🔍 Checking role for user:', user.id);
+        
         return from(
           this.supabaseService.supabase
             .from('users')
-            .select('role_id, email, auth_user_id')
+            .select('role_id, email, auth_user_id, id')
             .eq('auth_user_id', user.id)
             .single()
         ).pipe(
           map(result => {
+            if (result.error) {
+              console.error('❌ Error fetching user role:', result.error);
+              return null;
+            }
+            
+            console.log('✅ User role data:', result.data);
             return result.data?.role_id === 1 ? 'admin' : 'user';
           })
         );
