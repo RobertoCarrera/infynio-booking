@@ -48,25 +48,35 @@ export class SupabaseAdminService {
   }
 
   async inviteUserByEmail(email: string): Promise<any> {
-    console.log('🔄 Inviting user:', email);
+    console.log('🔄 Inviting user via Edge Function:', email);
     
     try {
-      // Invitar usuario usando el método admin de Supabase
-      const { data, error } = await this.supabaseService.supabase.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${window.location.origin}/login`
-      });
+      // Obtener token del usuario actual
+      const { data: { session } } = await this.supabaseService.supabase.auth.getSession();
       
+      if (!session) {
+        throw new Error('No hay sesión activa');
+      }
+
+      // Llamar a la Edge Function
+      const { data, error } = await this.supabaseService.supabase.functions.invoke('invite-user', {
+        body: { email },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
       if (error) {
         throw error;
       }
-      
-      console.log('✅ User invited successfully:', data);
+
+      console.log('✅ User invited via Edge Function:', data);
       return {
-        data,
-        message: `Invitación enviada exitosamente a ${email}. El usuario recibirá un email para activar su cuenta.`
+        data: data.data,
+        message: data.message || `Invitación enviada exitosamente a ${email}.`
       };
     } catch (error: any) {
-      console.error('❌ Error inviting user:', error);
+      console.error('❌ Error inviting user via Edge Function:', error);
       throw new Error(`Error al enviar invitación: ${error.message}`);
     }
   }
