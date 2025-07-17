@@ -1,7 +1,12 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <h3>Usuarios</h3>
+            <div class="d-flex justify-content-between align-items-center">
+                <h3>Gestión de Usuarios</h3>
+                <span class="badge bg-primary fs-6">
+                    {{ filteredUsers.length }} usuarios
+                </span>
+            </div>
         </div>
         <div class="col-12">
             <div *ngIf="loading">Cargando...</div>
@@ -22,14 +27,26 @@
                 </thead>
                 <tbody>
                     <tr *ngFor="let user of filteredUsers">
-                    <td *ngIf="user.role_id == 2">{{ user.surname }}</td>
-                    <td *ngIf="user.role_id == 2">{{ user.name }}</td>
-                    <td *ngIf="user.role_id == 2">{{ user.email }}</td>
-                    <td *ngIf="user.role_id == 2">
-                        <button class="btn btn-sm btn-danger">
-                            <i class="bi bi-person-x"></i>
-                        </button>
-                    </td>
+                        <ng-container *ngIf="user.role_id == 2">
+                            <td>{{ user.surname || '-' }}</td>
+                            <td>{{ user.name || '-' }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <button 
+                                    class="btn btn-sm btn-outline-danger"
+                                    (click)="deleteUser(user)"
+                                    title="Eliminar usuario">
+                                    <i class="bi bi-person-x"></i> Eliminar
+                                </button>
+                            </td>
+                        </ng-container>
+                    </tr>
+                    
+                    <!-- Mensaje si no hay usuarios -->
+                    <tr *ngIf="filteredUsers.length === 0">
+                        <td colspan="4" class="text-center text-muted">
+                            <em>No se encontraron usuarios</em>
+                        </td>
                     </tr>
                 </tbody>
             </table>

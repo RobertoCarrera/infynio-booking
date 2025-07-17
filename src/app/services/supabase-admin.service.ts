@@ -111,4 +111,50 @@ export class SupabaseAdminService {
   async getAllUsers(): Promise<any> {
     return await this.supabaseService.supabase.from('users').select('*');
   }
+
+  async deleteUser(userId: number): Promise<any> {
+    try {
+      console.log('🔄 Deleting user with ID:', userId);
+      
+      // Primero obtenemos el usuario para tener su auth_user_id
+      const { data: userData, error: fetchError } = await this.supabaseService.supabase
+        .from('users')
+        .select('auth_user_id, email')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // Borrar de la tabla users primero
+      const { error: deleteUserError } = await this.supabaseService.supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (deleteUserError) {
+        throw deleteUserError;
+      }
+
+      // Intentar borrar también del sistema de autenticación (puede fallar si no tenemos permisos)
+      try {
+        if (userData.auth_user_id) {
+          await this.supabaseService.supabase.auth.admin.deleteUser(userData.auth_user_id);
+          console.log('✅ User deleted from auth system as well');
+        }
+      } catch (authError: any) {
+        console.warn('⚠️ Could not delete from auth system (user deleted from app only):', authError);
+      }
+
+      console.log('✅ User deleted successfully');
+      return {
+        success: true,
+        message: `Usuario ${userData.email} eliminado correctamente.`
+      };
+    } catch (error: any) {
+      console.error('❌ Error deleting user:', error);
+      throw new Error(`Error al eliminar usuario: ${error.message}`);
+    }
+  }
 }

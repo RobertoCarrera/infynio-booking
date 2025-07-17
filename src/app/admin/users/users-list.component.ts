@@ -41,4 +41,30 @@ export class UsersListComponent implements OnInit {
     }
     return filtered.slice(0, 12);
   }
+
+  deleteUser(user: User) {
+    // Confirmación antes de borrar
+    const confirmMessage = `¿Estás seguro de que quieres eliminar al usuario "${user.email}"?\n\nEsta acción no se puede deshacer.`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    console.log('🔄 Deleting user:', user.email);
+    
+    this.supabase.deleteUser(user.id!)
+      .then((result) => {
+        console.log('✅ User deleted:', result);
+        
+        // Remover el usuario de la lista local
+        this.users = this.users.filter(u => u.id !== user.id);
+        
+        // Mostrar mensaje de éxito (podrías usar un toast o alert)
+        alert(result.message);
+      })
+      .catch((error) => {
+        console.error('❌ Error deleting user:', error);
+        alert(`Error al eliminar usuario: ${error.message}`);
+      });
+  }
 }
