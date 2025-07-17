@@ -157,11 +157,27 @@ export class SupabaseAdminService {
         throw deleteUserError;
       }
 
-      // Intentar borrar también del sistema de autenticación (puede fallar si no tenemos permisos)
+      // Intentar borrar también del sistema de autenticación usando Edge Function
       try {
         if (userData.auth_user_id) {
-          await this.supabaseService.supabase.auth.admin.deleteUser(userData.auth_user_id);
-          console.log('✅ User deleted from auth system as well');
+          console.log('🔄 Attempting to delete from auth system via Edge Function...');
+          
+          const { data: session } = await this.supabaseService.supabase.auth.getSession();
+          
+          if (session.session) {
+            const { data, error } = await this.supabaseService.supabase.functions.invoke('delete-user', {
+              body: { auth_user_id: userData.auth_user_id },
+              headers: {
+                Authorization: `Bearer ${session.session.access_token}`,
+              },
+            });
+
+            if (error) {
+              console.warn('⚠️ Could not delete from auth system via Edge Function:', error);
+            } else {
+              console.log('✅ User deleted from auth system via Edge Function');
+            }
+          }
         }
       } catch (authError: any) {
         console.warn('⚠️ Could not delete from auth system (user deleted from app only):', authError);
@@ -170,7 +186,7 @@ export class SupabaseAdminService {
       console.log('✅ User deleted successfully');
       return {
         success: true,
-        message: `Usuario ${userData.email} eliminado correctamente.`
+        message: `Usuario ${userData.email} eliminado correctamente del sistema.`
       };
     } catch (error: any) {
       console.error('❌ Error deleting user:', error);
