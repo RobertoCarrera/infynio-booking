@@ -38,6 +38,30 @@ export class InviteUserComponent {
       });
   }
 
+  // Método alternativo para crear usuario directamente
+  createUserDirectly() {
+    this.message = '';
+    this.error = '';
+    
+    if (!this.email || !this.isValidEmail(this.email)) {
+      this.error = 'Por favor, introduce un email válido.';
+      return;
+    }
+    
+    console.log('🔄 Creating user directly:', this.email);
+    
+    this.supabase.createUserDirectly(this.email)
+      .then((result) => {
+        console.log('✅ Direct creation result:', result);
+        this.message = result.message || 'Usuario creado directamente en el sistema.';
+        this.email = '';
+      })
+      .catch((error) => {
+        console.error('❌ Error creating user directly:', error);
+        this.error = error.message || 'Error al crear el usuario directamente.';
+      });
+  }
+
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
