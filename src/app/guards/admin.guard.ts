@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, Router } from '@angular/router';
-import { SupabaseService } from '../services/supabase-admin.service';
+import { SupabaseAdminService } from '../services/supabase-admin.service';
 import { Observable, of } from 'rxjs';
 import { switchMap, map } from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
 export class AdminGuard implements CanActivate {
-  constructor(private supabase: SupabaseService, private router: Router) {}
+  constructor(private supabase: SupabaseAdminService, private router: Router) {}
 
   canActivate(): Observable<boolean> {
     return this.supabase.getCurrentUser().pipe(

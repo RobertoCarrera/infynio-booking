@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { SupabaseService } from '../services/supabase-admin.service';
+import { SupabaseAdminService } from '../services/supabase-admin.service';
 import { AuthService } from '../services/auth.service';
 
 @Component({
@@ -15,7 +15,7 @@ export class MenuComponent {
   isAdmin = false;
   isLoggedIn = false;
 
-  constructor(private supabase: SupabaseService, private auth: AuthService) {
+  constructor(private supabase: SupabaseAdminService, private auth: AuthService) {
     this.supabase.getCurrentUserRole().subscribe(role => {
       this.isAdmin = role === 'admin';
     });

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { SupabaseService } from '../../services/supabase-admin.service';
+import { SupabaseAdminService } from '../../services/supabase-admin.service';
 import { User } from '../../models/user';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -15,7 +15,7 @@ export class UsersListComponent implements OnInit {
   error: string | null = null;
   filterText: string = '';
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseAdminService) {}
 
   ngOnInit() {
     this.supabase.getAllUsers()

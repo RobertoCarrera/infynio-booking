@@ -1,6 +1,7 @@
-<div class="profile-container" *ngIf="selectedUser">
+<div class="profile-container">
   <h2>Perfil del Cliente</h2>
-  <div class="profile-info">
+  
+  <div class="profile-info" *ngIf="selectedUser; else noUserTemplate">
     <p><strong>Nombre:</strong> {{ selectedUser.name }}</p>
     <p><strong>Apellidos:</strong> {{ selectedUser.surname }}</p>
     <p><strong>Email:</strong> {{ selectedUser.email }}</p>
@@ -9,4 +10,11 @@
       <p><strong>Bonos restantes:</strong> {{ selectedUser.bonosRestantes }}</p>
     </ng-container> -->
   </div>
+  
+  <ng-template #noUserTemplate>
+    <div class="no-user-message" style="background: #ffe6e6; padding: 15px; border-radius: 5px;">
+      <p><strong>⚠️ No se encontró información del usuario.</strong></p>
+      <p>Por favor, verifica la consola del navegador para más detalles.</p>
+    </div>
+  </ng-template>
 </div>

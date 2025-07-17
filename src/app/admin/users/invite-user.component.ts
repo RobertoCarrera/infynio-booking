@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { SupabaseService } from '../../services/supabase-admin.service';
+import { SupabaseAdminService } from '../../services/supabase-admin.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
@@ -13,18 +13,33 @@ export class InviteUserComponent {
   message = '';
   error = '';
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseAdminService) {}
 
   invite() {
     this.message = '';
     this.error = '';
+    
+    if (!this.email || !this.isValidEmail(this.email)) {
+      this.error = 'Por favor, introduce un email válido.';
+      return;
+    }
+    
+    console.log('🔄 Inviting user:', this.email);
+    
     this.supabase.inviteUserByEmail(this.email)
-      .then(() => {
-        this.message = 'Invitación enviada correctamente.';
+      .then((result) => {
+        console.log('✅ Invite result:', result);
+        this.message = result.message || 'Invitación enviada correctamente.';
         this.email = '';
       })
-      .catch(() => {
-        this.error = 'Error al enviar la invitación.';
+      .catch((error) => {
+        console.error('❌ Error inviting user:', error);
+        this.error = error.message || 'Error al enviar la invitación.';
       });
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 }

@@ -1,8 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, from } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { SupabaseClient, createClient } from '@supabase/supabase-js';
-import { environment } from '../../environments/environment';
+import { Observable } from 'rxjs';
+import { DatabaseService } from './database.service';
 
 export interface ClassType {
   id: string;
@@ -13,22 +11,13 @@ export interface ClassType {
 
 @Injectable({ providedIn: 'root' })
 export class ClassTypesService {
-  private supabase: SupabaseClient;
 
-  constructor() {
-    this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
+  constructor(private databaseService: DatabaseService) {
   }
 
   getAll(): Observable<ClassType[]> {
-    return from(
-      this.supabase
-        .from('class_types')
-        .select('*')
-    ).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return (data || []) as ClassType[];
-      })
+    return this.databaseService.query<ClassType>(
+      (supabase) => supabase.from('class_types').select('*')
     );
   }
 }

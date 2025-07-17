@@ -2,6 +2,14 @@
     <div class="row">
         <div class="col-12 d-flex flex-column align-items-start justify-content-around">
             <h3>Invitar usuario</h3>
+            <div class="alert alert-info" role="alert">
+                <small>
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Modo desarrollo:</strong> Las invitaciones usan un método alternativo seguro.
+                    El usuario recibirá un email para crear su cuenta y configurar su contraseña.
+                </small>
+            </div>
+            
             <form (ngSubmit)="invite()" #inviteForm="ngForm" class="w-100 d-flex align-items-center justify-content-around">
             <label class="w-100 d-flex align-items-center justify-content-between pe-3">Email:
                 <input type="email" name="email" [(ngModel)]="email" class="w-75 rounded" required>
@@ -9,7 +17,20 @@
                 <button type="submit" [disabled]="!inviteForm.form.valid" class="w-25 rounded shadow-sm">Invitar</button>
             </form>
         </div>
-        <div *ngIf="message" style="color: green">{{ message }}</div>
-        <div *ngIf="error" style="color: red">{{ error }}</div>
+        
+        <!-- Mensajes de éxito y error mejorados -->
+        <div class="col-12 mt-3" *ngIf="message || error">
+            <div *ngIf="message" class="alert alert-success" role="alert">
+                <strong>✅ Éxito:</strong> {{ message }}
+                <br><small class="text-muted">
+                    <i class="fas fa-check-circle"></i> 
+                    El usuario debería recibir un email de confirmación en unos minutos.
+                </small>
+            </div>
+            <div *ngIf="error" class="alert alert-danger" role="alert">
+                <strong>❌ Error:</strong> {{ error }}
+                <br><small class="text-muted">Si el problema persiste, verifica que el email no esté ya registrado.</small>
+            </div>
+        </div>
     </div>
 </div>

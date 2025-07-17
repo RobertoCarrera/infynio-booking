@@ -19,10 +19,18 @@ export class ProfileComponent implements OnInit {
   ngOnInit() {
     this.authService.currentUser$.subscribe(currentUser => {
       if (currentUser?.id || currentUser?.auth_user_id) {
+        const authUserId = currentUser.id || currentUser.auth_user_id;
+        
         // Buscar por auth_user_id (UUID de Supabase Auth)
-        this.usersService.getByAuthUserId(currentUser.id || currentUser.auth_user_id)
-          .subscribe(user => {
-            this.selectedUser = user || undefined;
+        this.usersService.getByAuthUserId(authUserId)
+          .subscribe({
+            next: (user) => {
+              this.selectedUser = user || undefined;
+            },
+            error: (error) => {
+              console.error('Error getting user profile:', error);
+              this.selectedUser = undefined;
+            }
           });
       }
     });
