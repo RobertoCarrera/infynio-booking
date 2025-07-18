@@ -93,7 +93,7 @@ serve(async (req: Request) => {
 
     // Invitar usuario
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${req.headers.get('origin')}/login`
+      redirectTo: `${req.headers.get('origin')}/reset-password`
     })
 
     if (error) {

@@ -13,7 +13,12 @@ import { AuthService } from '../../services/auth.service';
       <div class="row justify-content-center">
         <div class="col-md-6">
           <div class="card">
-            <div class="card-header">Restablecer contraseña</div>
+            <div class="card-header">
+              <h4 class="mb-0">{{ isNewUserInvite ? 'Crear tu contraseña' : 'Restablecer contraseña' }}</h4>
+              <small class="text-muted" *ngIf="isNewUserInvite">
+                Bienvenido! Crea tu contraseña para acceder al sistema.
+              </small>
+            </div>
             <div class="card-body">
               <div *ngIf="processingAuth" class="text-center mb-4">
                 <div class="spinner-border" role="status">
@@ -29,7 +34,21 @@ import { AuthService } from '../../services/auth.service';
               <form *ngIf="showForm" [formGroup]="resetForm" (ngSubmit)="onSubmit()">
                 <div class="form-group mb-3">
                   <label for="password">Nueva contraseña</label>
-                  <input type="password" id="password" class="form-control" formControlName="password">
+                  <div class="input-group">
+                    <input 
+                      [type]="showPassword ? 'text' : 'password'" 
+                      id="password" 
+                      class="form-control" 
+                      formControlName="password"
+                      placeholder="Mínimo 6 caracteres">
+                    <button 
+                      type="button" 
+                      class="btn btn-outline-secondary" 
+                      (click)="showPassword = !showPassword"
+                      title="{{ showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña' }}">
+                      <i class="bi" [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+                    </button>
+                  </div>
                   <div *ngIf="resetForm.get('password')?.invalid && resetForm.get('password')?.touched" class="text-danger">
                     La contraseña debe tener al menos 6 caracteres
                   </div>
@@ -37,14 +56,31 @@ import { AuthService } from '../../services/auth.service';
                 
                 <div class="form-group mb-3">
                   <label for="confirmPassword">Confirmar contraseña</label>
-                  <input type="password" id="confirmPassword" class="form-control" formControlName="confirmPassword">
+                  <div class="input-group">
+                    <input 
+                      [type]="showConfirmPassword ? 'text' : 'password'" 
+                      id="confirmPassword" 
+                      class="form-control" 
+                      formControlName="confirmPassword"
+                      placeholder="Repite la contraseña">
+                    <button 
+                      type="button" 
+                      class="btn btn-outline-secondary" 
+                      (click)="showConfirmPassword = !showConfirmPassword"
+                      title="{{ showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña' }}">
+                      <i class="bi" [ngClass]="showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+                    </button>
+                  </div>
                   <div *ngIf="passwordMismatch" class="text-danger">
                     Las contraseñas no coinciden
                   </div>
+                  <div *ngIf="resetForm.get('confirmPassword')?.invalid && resetForm.get('confirmPassword')?.touched" class="text-danger">
+                    Debes confirmar tu contraseña
+                  </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary w-100" [disabled]="resetForm.invalid || submitting">
-                  {{ submitting ? 'Actualizando...' : 'Guardar nueva contraseña' }}
+                <button type="submit" class="btn btn-primary w-100" [disabled]="resetForm.invalid || submitting || passwordMismatch">
+                  {{ submitting ? 'Guardando...' : (isNewUserInvite ? 'Crear contraseña' : 'Actualizar contraseña') }}
                 </button>
               </form>
 
@@ -52,9 +88,11 @@ import { AuthService } from '../../services/auth.service';
                 <h6>Información de depuración</h6>
                 <p><strong>URL:</strong> {{ currentUrl }}</p>
                 <p><strong>Hash:</strong> {{ currentHash || 'No hay hash' }}</p>
+                <p><strong>Parámetros:</strong> {{ debugParams | json }}</p>
                 <p><strong>Access Token:</strong> {{ accessTokenFound ? 'Encontrado' : 'No encontrado' }}</p>
                 <p><strong>Token en Params:</strong> {{ tokenInParams ? 'Encontrado' : 'No encontrado' }}</p>
                 <p><strong>Tipo:</strong> {{ tokenType || 'Desconocido' }}</p>
+                <p><strong>Es nueva invitación:</strong> {{ isNewUserInvite ? 'Sí' : 'No' }}</p>
                 <button class="btn btn-sm btn-secondary" (click)="debugMode = false">Ocultar</button>
               </div>
             </div>
@@ -74,11 +112,15 @@ export class ResetPasswordComponent implements OnInit {
   passwordMismatch = false;
   isBrowser: boolean;
   debugMode = true;
+  showPassword = false;
+  showConfirmPassword = false;
+  isNewUserInvite = false;
   currentUrl = '';
   currentHash = '';
   accessTokenFound = false;
   tokenInParams = false;
   tokenType = '';
+  debugParams: any = {};
   
   constructor(
     private fb: FormBuilder,
@@ -126,7 +168,11 @@ export class ResetPasswordComponent implements OnInit {
               
               if (result.data?.session) {
                 this.showForm = true;
-                this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
+                if (this.isNewUserInvite) {
+                  this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                } else {
+                  this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
+                }
                 this.statusMessageType = 'alert-success';
               } else {
                 this.statusMessage = 'No se pudo autenticar con el token proporcionado.';
@@ -148,6 +194,7 @@ export class ResetPasswordComponent implements OnInit {
       // Capturar parámetros de la URL de query
       this.route.queryParams.subscribe(params => {
         console.log('Query params recibidos:', params);
+        this.debugParams = params; // Guardar para debug
         
         // Verificar si hay un error
         if (params['error']) {
@@ -157,11 +204,17 @@ export class ResetPasswordComponent implements OnInit {
           return;
         }
         
+        // Detectar si es una invitación nueva
+        if (params['type'] === 'invite' || params['invitation']) {
+          this.isNewUserInvite = true;
+          console.log('Detectada invitación de nuevo usuario');
+        }
+        
         // Verificar si tenemos un token en los parámetros
-        if (params['token'] || params['access_token']) {
+        if (params['token'] || params['access_token'] || params['code']) {
           console.log('Token detectado en parámetros de URL');
           this.tokenInParams = true;
-          this.tokenType = params['type'] || '';
+          this.tokenType = params['type'] || 'recovery';
           
           // Si hay access_token en los parámetros, intenta establecer la sesión
           if (params['access_token']) {
@@ -172,7 +225,11 @@ export class ResetPasswordComponent implements OnInit {
                 
                 if (result.data?.session) {
                   this.showForm = true;
-                  this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
+                  if (this.isNewUserInvite) {
+                    this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                  } else {
+                    this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
+                  }
                   this.statusMessageType = 'alert-success';
                 } else {
                   this.statusMessage = 'No se pudo autenticar con el token proporcionado.';
@@ -190,7 +247,68 @@ export class ResetPasswordComponent implements OnInit {
             return;
           }
           
-          // Si hay un token pero no access_token, verifica la sesión actual
+          // Si hay un código de Supabase, verificar la sesión después de que Supabase lo procese
+          if (params['code']) {
+            console.log('Código de recuperación/invitación detectado:', params['code']);
+            
+            // Esperar un momento para que Supabase procese el token automáticamente
+            setTimeout(() => {
+              this.authService.checkSessionStatus().subscribe({
+                next: (session) => {
+                  console.log('Estado de sesión después de código:', session ? 'Activa' : 'No hay sesión');
+                  this.processingAuth = false;
+                  
+                  if (session) {
+                    // Si hay una sesión activa, mostrar el formulario
+                    this.showForm = true;
+                    if (this.isNewUserInvite) {
+                      this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                    } else {
+                      this.statusMessage = 'Puedes cambiar tu contraseña ahora';
+                    }
+                    this.statusMessageType = 'alert-success';
+                  } else {
+                    // No hay sesión, intentar recuperar manualmente con el código
+                    this.authService.verifyRecoveryToken(params['code']).subscribe({
+                      next: (result: any) => {
+                        console.log('Verificación de código exitosa:', result);
+                        this.processingAuth = false;
+                        
+                        if (result.data?.session) {
+                          this.showForm = true;
+                          if (this.isNewUserInvite) {
+                            this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                          } else {
+                            this.statusMessage = 'Puedes cambiar tu contraseña ahora';
+                          }
+                          this.statusMessageType = 'alert-success';
+                        } else {
+                          this.statusMessage = 'No se pudo verificar el código. El enlace puede haber expirado.';
+                          this.statusMessageType = 'alert-warning';
+                        }
+                      },
+                      error: (err: any) => {
+                        console.error('Error al verificar código:', err);
+                        this.processingAuth = false;
+                        this.statusMessage = 'El enlace ha expirado o no es válido. Por favor solicita uno nuevo.';
+                        this.statusMessageType = 'alert-danger';
+                      }
+                    });
+                  }
+                },
+                error: (err) => {
+                  console.error('Error al verificar sesión:', err);
+                  this.processingAuth = false;
+                  this.statusMessage = 'Error al verificar tu sesión. Por favor solicita un nuevo enlace.';
+                  this.statusMessageType = 'alert-danger';
+                }
+              });
+            }, 1000); // Esperar 1 segundo
+            
+            return;
+          }
+          
+          // Si hay un token pero no access_token ni code, verifica la sesión actual
           this.authService.checkSessionStatus().subscribe({
             next: (session) => {
               console.log('Estado de sesión:', session ? 'Activa' : 'No hay sesión');
@@ -251,7 +369,11 @@ export class ResetPasswordComponent implements OnInit {
     this.authService.updatePassword(this.resetForm.value.password).subscribe({
       next: () => {
         this.submitting = false;
-        this.statusMessage = 'Contraseña actualizada con éxito! Redireccionando...';
+        if (this.isNewUserInvite) {
+          this.statusMessage = '¡Contraseña creada con éxito! Ya puedes iniciar sesión. Redireccionando...';
+        } else {
+          this.statusMessage = 'Contraseña actualizada con éxito! Redireccionando...';
+        }
         this.statusMessageType = 'alert-success';
         this.showForm = false;
         
