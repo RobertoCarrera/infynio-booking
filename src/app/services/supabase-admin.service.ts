@@ -67,7 +67,20 @@ export class SupabaseAdminService {
       });
 
       if (error) {
+        console.error('❌ Edge Function error details:', error);
+        
+        // Manejar error de rate limiting específicamente
+        if (error.status === 429 || error.message?.includes('email rate limit exceeded')) {
+          throw new Error('El usuario ya fue invitado recientemente. Por favor, espera unos minutos antes de intentar nuevamente o pide al usuario que revise su email (incluyendo spam/correo no deseado).');
+        }
+        
         throw error;
+      }
+
+      // Verificar si hay errores en la respuesta de la función
+      if (data && data.error) {
+        console.error('❌ Edge Function returned error:', data.error);
+        throw new Error(data.error);
       }
 
       console.log('✅ User invited via Edge Function:', data);
@@ -77,7 +90,19 @@ export class SupabaseAdminService {
       };
     } catch (error: any) {
       console.error('❌ Error inviting user via Edge Function:', error);
-      throw new Error(`Error al enviar invitación: ${error.message}`);
+      
+      // Intentar extraer más información del error
+      let errorMessage = error.message;
+      if (error.context && error.context.body) {
+        try {
+          const errorBody = JSON.parse(error.context.body);
+          errorMessage = errorBody.error || errorMessage;
+        } catch (parseError) {
+          console.log('Could not parse error body:', error.context.body);
+        }
+      }
+      
+      throw new Error(`Error al enviar invitación: ${errorMessage}`);
     }
   }
 
