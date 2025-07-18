@@ -52,27 +52,30 @@ import { DatabaseService } from '../../services/database.service';
                     </div>
                     
                     <div class="col-md-6 mb-3">
-                      <label for="lastName">Apellidos *</label>
+                      <label for="surname">Apellidos *</label>
                       <input 
                         type="text" 
-                        id="lastName" 
+                        id="surname" 
                         class="form-control" 
-                        formControlName="lastName"
+                        formControlName="surname"
                         placeholder="Tus apellidos">
-                      <div *ngIf="resetForm.get('lastName')?.invalid && resetForm.get('lastName')?.touched" class="text-danger">
+                      <div *ngIf="resetForm.get('surname')?.invalid && resetForm.get('surname')?.touched" class="text-danger">
                         Los apellidos son requeridos
                       </div>
                     </div>
                   </div>
                   
                   <div class="mb-3">
-                    <label for="phone">Teléfono</label>
+                    <label for="phone">Teléfono *</label>
                     <input 
                       type="tel" 
                       id="phone" 
                       class="form-control" 
                       formControlName="phone"
-                      placeholder="Opcional">
+                      placeholder="Tu número de teléfono">
+                    <div *ngIf="resetForm.get('phone')?.invalid && resetForm.get('phone')?.touched" class="text-danger">
+                      El teléfono es requerido
+                    </div>
                   </div>
                   
                   <hr class="mb-3">
@@ -129,6 +132,14 @@ import { DatabaseService } from '../../services/database.service';
                 <button type="submit" class="btn btn-primary w-100" [disabled]="resetForm.invalid || submitting || passwordMismatch">
                   {{ submitting ? 'Guardando...' : (isNewUserInvite ? 'Crear mi cuenta' : 'Actualizar contraseña') }}
                 </button>
+                
+                <!-- Debug temporal -->
+                <div *ngIf="isNewUserInvite" class="mt-3 p-2 bg-light rounded small">
+                  <strong>Debug:</strong><br>
+                  Form válido: {{ resetForm.valid }}<br>
+                  Contraseñas coinciden: {{ !passwordMismatch }}<br>
+                  Campos completados: {{ resetForm.value | json }}
+                </div>
               </form>
             </div>
           </div>
@@ -175,6 +186,15 @@ export class ResetPasswordComponent implements OnInit {
     
     // Solo ejecutar código relacionado con el navegador si estamos en el navegador
     if (this.isBrowser) {
+      
+      // Agregar validación de contraseñas
+      this.resetForm.valueChanges.subscribe(() => {
+        if (this.resetForm.get('confirmPassword')?.value) {
+          this.passwordMismatch = 
+            this.resetForm.get('password')?.value !== 
+            this.resetForm.get('confirmPassword')?.value;
+        }
+      });
       
       // Examinar el hash para tokens (Supabase a veces pone tokens aquí)
       const currentHash = window.location.hash;
@@ -369,15 +389,6 @@ export class ResetPasswordComponent implements OnInit {
           this.statusMessageType = 'alert-warning';
         }
       });
-      
-      // Validar contraseñas coincidentes
-      this.resetForm.valueChanges.subscribe(() => {
-        if (this.resetForm.get('confirmPassword')?.value) {
-          this.passwordMismatch = 
-            this.resetForm.get('password')?.value !== 
-            this.resetForm.get('confirmPassword')?.value;
-        }
-      });
     } else {
       // En el servidor, establecer valores por defecto
       this.processingAuth = false;
@@ -428,8 +439,8 @@ export class ResetPasswordComponent implements OnInit {
       // Actualizar el perfil del usuario en la tabla users
       const profileData = {
         name: this.resetForm.value.name,
-        surname: this.resetForm.value.lastName,
-        phone: this.resetForm.value.phone || null
+        surname: this.resetForm.value.surname,
+        phone: this.resetForm.value.phone
       };
 
       this.databaseService.querySingle(supabase => 
@@ -476,5 +487,16 @@ export class ResetPasswordComponent implements OnInit {
         this.router.navigate(['/login']);
       }, 3000);
     }
+  }
+
+  private getFormErrors() {
+    const errors: any = {};
+    Object.keys(this.resetForm.controls).forEach(key => {
+      const controlErrors = this.resetForm.get(key)?.errors;
+      if (controlErrors) {
+        errors[key] = controlErrors;
+      }
+    });
+    return errors;
   }
 }
