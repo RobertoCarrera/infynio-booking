@@ -165,7 +165,7 @@ export class ResetPasswordComponent implements OnInit {
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
       name: ['', Validators.required],
-      lastName: ['', Validators.required], 
+      surname: ['', Validators.required], 
       phone: ['']
     });
   }
@@ -428,7 +428,7 @@ export class ResetPasswordComponent implements OnInit {
       // Actualizar el perfil del usuario en la tabla users
       const profileData = {
         name: this.resetForm.value.name,
-        last_name: this.resetForm.value.lastName,
+        surname: this.resetForm.value.lastName,
         phone: this.resetForm.value.phone || null
       };
 
