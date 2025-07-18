@@ -174,10 +174,10 @@ export class ResetPasswordComponent implements OnInit {
     
     this.resetForm = this.fb.group({
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required],
-      name: ['', Validators.required],
-      surname: ['', Validators.required], 
-      phone: ['']
+      confirmPassword: ['', [Validators.required]],
+      name: ['', [Validators.required]],
+      surname: ['', [Validators.required]], 
+      phone: ['', [Validators.required]]
     });
   }
 
@@ -427,49 +427,49 @@ export class ResetPasswordComponent implements OnInit {
   }
 
   private updateUserProfile() {
-    // Obtener el usuario actual para obtener su ID
-    this.authService.currentUser$.subscribe(user => {
-      if (!user) {
-        this.submitting = false;
-        this.statusMessage = 'Error: No se pudo obtener la información del usuario';
-        this.statusMessageType = 'alert-danger';
-        return;
-      }
-
-      // Actualizar el perfil del usuario en la tabla users
-      const profileData = {
-        name: this.resetForm.value.name,
-        surname: this.resetForm.value.surname,
-        phone: this.resetForm.value.phone
-      };
-
-      this.databaseService.querySingle(supabase => 
-        supabase
-          .from('users')
-          .update(profileData)
-          .eq('auth_user_id', user.id)
-          .select()
-          .single()
-      ).subscribe({
-        next: (result) => {
-          console.log('Perfil actualizado:', result);
-          this.handleSuccess();
-        },
-        error: (err) => {
-          console.error('Error al actualizar perfil:', err);
-          // Aunque falle la actualización del perfil, la contraseña ya se actualizó
+    // Esperar un momento para asegurar que la sesión esté completamente establecida
+    setTimeout(() => {
+      // Obtener el usuario actual para obtener su ID
+      this.authService.currentUser$.subscribe(user => {
+        if (!user) {
           this.submitting = false;
-          this.statusMessage = 'Contraseña creada, pero hubo un problema al guardar tu perfil. Puedes actualizarlo desde tu perfil después de iniciar sesión.';
-          this.statusMessageType = 'alert-warning';
-          
-          if (this.isBrowser) {
-            setTimeout(() => {
-              this.router.navigate(['/login']);
-            }, 5000);
-          }
+          this.statusMessage = 'Error: No se pudo obtener la información del usuario';
+          this.statusMessageType = 'alert-danger';
+          return;
         }
+
+        console.log('Actualizando perfil para usuario:', user.id);
+
+        // Actualizar el perfil del usuario en la tabla users
+        const profileData = {
+          name: this.resetForm.value.name,
+          surname: this.resetForm.value.surname,
+          phone: this.resetForm.value.phone
+        };
+
+        console.log('Datos a actualizar:', profileData);
+
+        // Primero verificar si el usuario existe en la tabla
+        this.databaseService.querySingle(supabase => 
+          supabase
+            .from('users')
+            .select('*')
+            .eq('auth_user_id', user.id)
+            .single()
+        ).subscribe({
+          next: (existingUser) => {
+            console.log('Usuario existente encontrado:', existingUser);
+            // Si existe, actualizar
+            this.updateExistingUser(user.id, profileData);
+          },
+          error: (err) => {
+            console.log('Usuario no existe, creando nuevo:', err);
+            // Si no existe, crear
+            this.createNewUser(user, profileData);
+          }
+        });
       });
-    });
+    }, 1000);
   }
 
   private handleSuccess() {
@@ -498,5 +498,67 @@ export class ResetPasswordComponent implements OnInit {
       }
     });
     return errors;
+  }
+
+  private updateExistingUser(userId: string, profileData: any) {
+    this.databaseService.querySingle(supabase => 
+      supabase
+        .from('users')
+        .update(profileData)
+        .eq('auth_user_id', userId)
+        .select()
+        .single()
+    ).subscribe({
+      next: (result) => {
+        console.log('Perfil actualizado:', result);
+        this.handleSuccess();
+      },
+      error: (err) => {
+        console.error('Error al actualizar perfil existente:', err);
+        this.handleProfileError(err);
+      }
+    });
+  }
+
+  private createNewUser(user: any, profileData: any) {
+    const newUserData = {
+      auth_user_id: user.id,
+      email: user.email,
+      role_id: 2, // Usuario normal
+      ...profileData
+    };
+
+    this.databaseService.querySingle(supabase => 
+      supabase
+        .from('users')
+        .insert(newUserData)
+        .select()
+        .single()
+    ).subscribe({
+      next: (result) => {
+        console.log('Usuario creado:', result);
+        this.handleSuccess();
+      },
+      error: (err) => {
+        console.error('Error al crear usuario:', err);
+        this.handleProfileError(err);
+      }
+    });
+  }
+
+  private handleProfileError(err: any) {
+    console.error('Error completo:', err);
+    console.error('Error message:', err.message);
+    console.error('Error details:', err.details);
+    
+    this.submitting = false;
+    this.statusMessage = `Contraseña creada con éxito, pero hubo un problema al guardar tu perfil (${err.message || 'Error desconocido'}). Puedes actualizarlo desde tu perfil después de iniciar sesión.`;
+    this.statusMessageType = 'alert-warning';
+    
+    if (this.isBrowser) {
+      setTimeout(() => {
+        this.router.navigate(['/login']);
+      }, 5000);
+    }
   }
 }
