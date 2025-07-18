@@ -3,6 +3,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { DatabaseService } from '../../services/database.service';
 
 @Component({
   selector: 'app-reset-password',
@@ -32,8 +33,54 @@ import { AuthService } from '../../services/auth.service';
               </div>
               
               <form *ngIf="showForm" [formGroup]="resetForm" (ngSubmit)="onSubmit()">
+                <!-- Campos de información personal para nuevos usuarios -->
+                <div *ngIf="isNewUserInvite" class="mb-4">
+                  <h6 class="mb-3 text-muted">Información personal</h6>
+                  
+                  <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <label for="name">Nombre *</label>
+                      <input 
+                        type="text" 
+                        id="name" 
+                        class="form-control" 
+                        formControlName="name"
+                        placeholder="Tu nombre">
+                      <div *ngIf="resetForm.get('name')?.invalid && resetForm.get('name')?.touched" class="text-danger">
+                        El nombre es requerido
+                      </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                      <label for="lastName">Apellidos *</label>
+                      <input 
+                        type="text" 
+                        id="lastName" 
+                        class="form-control" 
+                        formControlName="lastName"
+                        placeholder="Tus apellidos">
+                      <div *ngIf="resetForm.get('lastName')?.invalid && resetForm.get('lastName')?.touched" class="text-danger">
+                        Los apellidos son requeridos
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label for="phone">Teléfono</label>
+                    <input 
+                      type="tel" 
+                      id="phone" 
+                      class="form-control" 
+                      formControlName="phone"
+                      placeholder="Opcional">
+                  </div>
+                  
+                  <hr class="mb-3">
+                  <h6 class="mb-3 text-muted">Configuración de acceso</h6>
+                </div>
+                
                 <div class="form-group mb-3">
-                  <label for="password">Nueva contraseña</label>
+                  <label for="password">{{ isNewUserInvite ? 'Tu contraseña' : 'Nueva contraseña' }}</label>
                   <div class="input-group">
                     <input 
                       [type]="showPassword ? 'text' : 'password'" 
@@ -80,21 +127,9 @@ import { AuthService } from '../../services/auth.service';
                 </div>
                 
                 <button type="submit" class="btn btn-primary w-100" [disabled]="resetForm.invalid || submitting || passwordMismatch">
-                  {{ submitting ? 'Guardando...' : (isNewUserInvite ? 'Crear contraseña' : 'Actualizar contraseña') }}
+                  {{ submitting ? 'Guardando...' : (isNewUserInvite ? 'Crear mi cuenta' : 'Actualizar contraseña') }}
                 </button>
               </form>
-
-              <div *ngIf="debugMode && isBrowser" class="mt-4 p-3 bg-light rounded">
-                <h6>Información de depuración</h6>
-                <p><strong>URL:</strong> {{ currentUrl }}</p>
-                <p><strong>Hash:</strong> {{ currentHash || 'No hay hash' }}</p>
-                <p><strong>Parámetros:</strong> {{ debugParams | json }}</p>
-                <p><strong>Access Token:</strong> {{ accessTokenFound ? 'Encontrado' : 'No encontrado' }}</p>
-                <p><strong>Token en Params:</strong> {{ tokenInParams ? 'Encontrado' : 'No encontrado' }}</p>
-                <p><strong>Tipo:</strong> {{ tokenType || 'Desconocido' }}</p>
-                <p><strong>Es nueva invitación:</strong> {{ isNewUserInvite ? 'Sí' : 'No' }}</p>
-                <button class="btn btn-sm btn-secondary" (click)="debugMode = false">Ocultar</button>
-              </div>
             </div>
           </div>
         </div>
@@ -111,22 +146,16 @@ export class ResetPasswordComponent implements OnInit {
   statusMessageType = 'alert-info';
   passwordMismatch = false;
   isBrowser: boolean;
-  debugMode = true;
   showPassword = false;
   showConfirmPassword = false;
   isNewUserInvite = false;
-  currentUrl = '';
-  currentHash = '';
-  accessTokenFound = false;
-  tokenInParams = false;
-  tokenType = '';
-  debugParams: any = {};
   
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
     private authService: AuthService,
+    private databaseService: DatabaseService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     console.log('ResetPasswordComponent inicializado');
@@ -134,7 +163,10 @@ export class ResetPasswordComponent implements OnInit {
     
     this.resetForm = this.fb.group({
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required]
+      confirmPassword: ['', Validators.required],
+      name: ['', Validators.required],
+      lastName: ['', Validators.required], 
+      phone: ['']
     });
   }
 
@@ -143,22 +175,23 @@ export class ResetPasswordComponent implements OnInit {
     
     // Solo ejecutar código relacionado con el navegador si estamos en el navegador
     if (this.isBrowser) {
-      this.currentUrl = window.location.href;
-      this.currentHash = window.location.hash;
-      console.log('URL actual:', this.currentUrl);
-      console.log('Hash:', this.currentHash);
       
       // Examinar el hash para tokens (Supabase a veces pone tokens aquí)
-      if (this.currentHash) {
-        const hashParams = new URLSearchParams(this.currentHash.substring(1));
+      const currentHash = window.location.hash;
+      if (currentHash) {
+        const hashParams = new URLSearchParams(currentHash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         
         if (accessToken) {
           console.log('Token encontrado en hash!');
-          this.accessTokenFound = true;
-          this.tokenType = type || '';
+          
+          // Detectar si es una invitación nueva desde el hash
+          if (type === 'invite') {
+            this.isNewUserInvite = true;
+            console.log('Detectada invitación de nuevo usuario desde hash');
+          }
           
           // Intentar establecer la sesión con el token del hash
           this.authService.setSession(accessToken, refreshToken || '').subscribe({
@@ -169,7 +202,7 @@ export class ResetPasswordComponent implements OnInit {
               if (result.data?.session) {
                 this.showForm = true;
                 if (this.isNewUserInvite) {
-                  this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                  this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
                 } else {
                   this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
                 }
@@ -194,7 +227,6 @@ export class ResetPasswordComponent implements OnInit {
       // Capturar parámetros de la URL de query
       this.route.queryParams.subscribe(params => {
         console.log('Query params recibidos:', params);
-        this.debugParams = params; // Guardar para debug
         
         // Verificar si hay un error
         if (params['error']) {
@@ -213,8 +245,6 @@ export class ResetPasswordComponent implements OnInit {
         // Verificar si tenemos un token en los parámetros
         if (params['token'] || params['access_token'] || params['code']) {
           console.log('Token detectado en parámetros de URL');
-          this.tokenInParams = true;
-          this.tokenType = params['type'] || 'recovery';
           
           // Si hay access_token en los parámetros, intenta establecer la sesión
           if (params['access_token']) {
@@ -226,7 +256,7 @@ export class ResetPasswordComponent implements OnInit {
                 if (result.data?.session) {
                   this.showForm = true;
                   if (this.isNewUserInvite) {
-                    this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                    this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
                   } else {
                     this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
                   }
@@ -262,7 +292,7 @@ export class ResetPasswordComponent implements OnInit {
                     // Si hay una sesión activa, mostrar el formulario
                     this.showForm = true;
                     if (this.isNewUserInvite) {
-                      this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                      this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
                     } else {
                       this.statusMessage = 'Puedes cambiar tu contraseña ahora';
                     }
@@ -277,7 +307,7 @@ export class ResetPasswordComponent implements OnInit {
                         if (result.data?.session) {
                           this.showForm = true;
                           if (this.isNewUserInvite) {
-                            this.statusMessage = 'Bienvenido! Crea tu contraseña para acceder al sistema.';
+                            this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
                           } else {
                             this.statusMessage = 'Puedes cambiar tu contraseña ahora';
                           }
@@ -366,21 +396,14 @@ export class ResetPasswordComponent implements OnInit {
     
     this.submitting = true;
     
+    // Primero actualizar la contraseña
     this.authService.updatePassword(this.resetForm.value.password).subscribe({
       next: () => {
-        this.submitting = false;
+        // Si es un nuevo usuario, actualizar también su perfil
         if (this.isNewUserInvite) {
-          this.statusMessage = '¡Contraseña creada con éxito! Ya puedes iniciar sesión. Redireccionando...';
+          this.updateUserProfile();
         } else {
-          this.statusMessage = 'Contraseña actualizada con éxito! Redireccionando...';
-        }
-        this.statusMessageType = 'alert-success';
-        this.showForm = false;
-        
-        if (this.isBrowser) {
-          setTimeout(() => {
-            this.router.navigate(['/login']);
-          }, 3000);
+          this.handleSuccess();
         }
       },
       error: (err) => {
@@ -390,5 +413,68 @@ export class ResetPasswordComponent implements OnInit {
         this.statusMessageType = 'alert-danger';
       }
     });
+  }
+
+  private updateUserProfile() {
+    // Obtener el usuario actual para obtener su ID
+    this.authService.currentUser$.subscribe(user => {
+      if (!user) {
+        this.submitting = false;
+        this.statusMessage = 'Error: No se pudo obtener la información del usuario';
+        this.statusMessageType = 'alert-danger';
+        return;
+      }
+
+      // Actualizar el perfil del usuario en la tabla users
+      const profileData = {
+        name: this.resetForm.value.name,
+        last_name: this.resetForm.value.lastName,
+        phone: this.resetForm.value.phone || null
+      };
+
+      this.databaseService.querySingle(supabase => 
+        supabase
+          .from('users')
+          .update(profileData)
+          .eq('auth_user_id', user.id)
+          .select()
+          .single()
+      ).subscribe({
+        next: (result) => {
+          console.log('Perfil actualizado:', result);
+          this.handleSuccess();
+        },
+        error: (err) => {
+          console.error('Error al actualizar perfil:', err);
+          // Aunque falle la actualización del perfil, la contraseña ya se actualizó
+          this.submitting = false;
+          this.statusMessage = 'Contraseña creada, pero hubo un problema al guardar tu perfil. Puedes actualizarlo desde tu perfil después de iniciar sesión.';
+          this.statusMessageType = 'alert-warning';
+          
+          if (this.isBrowser) {
+            setTimeout(() => {
+              this.router.navigate(['/login']);
+            }, 5000);
+          }
+        }
+      });
+    });
+  }
+
+  private handleSuccess() {
+    this.submitting = false;
+    if (this.isNewUserInvite) {
+      this.statusMessage = '¡Cuenta creada con éxito! Ya puedes iniciar sesión con tu email y contraseña. Redireccionando...';
+    } else {
+      this.statusMessage = 'Contraseña actualizada con éxito! Redireccionando...';
+    }
+    this.statusMessageType = 'alert-success';
+    this.showForm = false;
+    
+    if (this.isBrowser) {
+      setTimeout(() => {
+        this.router.navigate(['/login']);
+      }, 3000);
+    }
   }
 }
