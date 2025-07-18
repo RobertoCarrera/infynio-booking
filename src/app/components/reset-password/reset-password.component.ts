@@ -132,14 +132,6 @@ import { DatabaseService } from '../../services/database.service';
                 <button type="submit" class="btn btn-primary w-100" [disabled]="resetForm.invalid || submitting || passwordMismatch">
                   {{ submitting ? 'Guardando...' : (isNewUserInvite ? 'Crear mi cuenta' : 'Actualizar contraseña') }}
                 </button>
-                
-                <!-- Debug temporal -->
-                <div *ngIf="isNewUserInvite" class="mt-3 p-2 bg-light rounded small">
-                  <strong>Debug:</strong><br>
-                  Form válido: {{ resetForm.valid }}<br>
-                  Contraseñas coinciden: {{ !passwordMismatch }}<br>
-                  Campos completados: {{ resetForm.value | json }}
-                </div>
               </form>
             </div>
           </div>
@@ -444,7 +436,7 @@ export class ResetPasswordComponent implements OnInit {
         const profileData = {
           name: this.resetForm.value.name,
           surname: this.resetForm.value.surname,
-          phone: this.resetForm.value.phone
+          telephone: this.resetForm.value.phone
         };
 
         console.log('Datos a actualizar:', profileData);
@@ -525,7 +517,9 @@ export class ResetPasswordComponent implements OnInit {
       auth_user_id: user.id,
       email: user.email,
       role_id: 2, // Usuario normal
-      ...profileData
+      name: profileData.name,
+      surname: profileData.surname,
+      telephone: profileData.telephone
     };
 
     this.databaseService.querySingle(supabase => 
