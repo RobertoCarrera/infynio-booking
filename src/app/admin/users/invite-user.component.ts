@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { SupabaseAdminService } from '../../services/supabase-admin.service';
+import { SupabaseService } from '../../services/supabase.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
@@ -14,7 +14,7 @@ export class InviteUserComponent {
   error = '';
   showFallbackOption = false; // Controla si mostrar el botón de respaldo
 
-  constructor(private supabase: SupabaseAdminService) {}
+  constructor(private supabase: SupabaseService) {}
 
   invite() {
     this.message = '';
