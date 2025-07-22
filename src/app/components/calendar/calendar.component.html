@@ -13,19 +13,39 @@
           <div class="modal-body">
             <p><strong>{{ selectedEvent?.title }}</strong></p>
             <p>{{ selectedEvent?.extendedProps?.description }}</p>
-            <p>Capacidad: {{ selectedEvent?.extendedProps?.capacity }}</p>
-            <!-- Aquí puedes añadir más detalles o formulario si lo necesitas -->
+            <p><strong>Capacidad:</strong> {{ selectedEvent?.extendedProps?.capacity }} plazas</p>
+            
+            <!-- Estado de la reserva -->
+            <div class="mt-3">
+              <div *ngIf="selectedEvent?.extendedProps?.bookingId" class="alert alert-success">
+                <i class="fas fa-check-circle"></i> Tienes esta clase reservada
+              </div>
+              <div *ngIf="!selectedEvent?.extendedProps?.bookingId" class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Clase disponible para reservar
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" (click)="closeReserveModal()">Cerrar</button>
-            <button type="button" class="btn btn-primary" (click)="reserveSpot()">Reservar plaza</button>
+            
+            <!-- Mostrar botón de reservar solo si NO tiene reserva -->
+            <button type="button" class="btn btn-primary" 
+              *ngIf="!selectedEvent?.extendedProps?.bookingId"
+              (click)="reserveSpot()">
+              Reservar plaza
+            </button>
+            
+            <!-- Mostrar botón de cancelar solo si SÍ tiene reserva -->
             <button type="button" class="btn btn-danger" 
+              *ngIf="selectedEvent?.extendedProps?.bookingId"
               [disabled]="canCancel === false"
               (click)="onCancelBooking(selectedEvent?.extendedProps?.bookingId)">
               Cancelar reserva
             </button>
           </div>
-          <div *ngIf="cancelMessage" class="mt-2">
+          
+          <!-- Mensaje de cancelación (solo si hay reserva y no se puede cancelar) -->
+          <div *ngIf="selectedEvent?.extendedProps?.bookingId && cancelMessage" class="mt-2 px-3 pb-3">
             <span style="color: red; font-weight: bold;">{{ cancelMessage }}</span>
           </div>
         </div>

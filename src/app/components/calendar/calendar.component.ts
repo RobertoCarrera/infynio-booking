@@ -61,7 +61,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
   async refreshCalendarEvents() {
     this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
     const classTypeColors: string[] = [
-      '#F5E9DA', '#F8BBD0', '#D1C4E9', '#B2DFDB', '#FFE0B2', '#FFCCBC', '#C8E6C9', '#FFF9C4'
+      '#E8C4A0', // beige más intenso
+      '#F48FB1', // rosa más vibrante  
+      '#B39DDB', // lavanda más intensa
+      '#80CBC4', // verde agua más saturado
+      '#FFB74D', // naranja más vivo
+      '#FF8A65', // coral más intenso
+      '#A5D6A7', // verde más definido
+      '#FFF176'  // amarillo más brillante
     ];
     const mappedEvents = this.classSessions.map((session: any) => {
       let userBooking = null;
@@ -87,11 +94,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       events: mappedEvents,
-      eventClick: (info: any) => {
+      eventClick: async (info: any) => {
         this.selectedEvent = info.event;
         this.showReserveModal = true;
         this.canCancel = null;
         this.cancelMessage = '';
+        
+        // Si hay una reserva, verificar automáticamente si se puede cancelar
+        const bookingId = info.event.extendedProps?.bookingId;
+        if (bookingId) {
+          await this.checkCanCancelBooking(bookingId);
+        }
       }
     };
   }
