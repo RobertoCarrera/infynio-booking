@@ -23,12 +23,28 @@ export interface CalendarClassSession {
   styleUrls: ['./calendar.component.css'],
 })
 export class CalendarComponent implements OnInit {
-  calendarOptions = FULLCALENDAR_OPTIONS;
+  calendarOptions: any = { ...FULLCALENDAR_OPTIONS, events: [] };
   classSessions: CalendarClassSession[] = [];
 
   constructor(private supabaseService: SupabaseService) {}
 
   async ngOnInit() {
     this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
+    this.calendarOptions.events = this.classSessions.map(session => ({
+      title: session.name,
+      start: session.schedule_date + 'T' + session.schedule_time,
+      end: this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes),
+      extendedProps: {
+        description: session.description,
+        capacity: session.capacity,
+        classTypeId: session.class_type_id
+      }
+    }));
+  }
+
+  getEndDateTime(date: string, time: string, duration: number): string {
+    const start = new Date(date + 'T' + time);
+    start.setMinutes(start.getMinutes() + duration);
+    return start.toISOString().slice(0,16);
   }
 }
