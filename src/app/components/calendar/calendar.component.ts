@@ -194,7 +194,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   getEndDateTime(date: string, time: string, duration: number): string {
     const start = new Date(date + 'T' + time);
+    // Debug: verificar fecha inicial
+    console.log(`🐛 DEBUG - Inicio: ${start.toISOString()}, Duración: ${duration} min`);
+    
     start.setMinutes(start.getMinutes() + duration);
+    
+    // Debug: verificar fecha final
+    console.log(`🐛 DEBUG - Final: ${start.toISOString()}`);
+    
     return start.toISOString().slice(0, 16);
   }
 
