@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { FULLCALENDAR_OPTIONS } from './fullcalendar-config';
 import { SupabaseService } from '../../services/supabase.service';
+import { BookingsService } from '../../services/bookings.service';
 
 export interface CalendarClassSession {
   id: number;
@@ -22,44 +23,167 @@ export interface CalendarClassSession {
   templateUrl: './calendar.component.html',
   styleUrls: ['./calendar.component.css'],
 })
-export class CalendarComponent implements OnInit {
-  showCustomModal = false;
-  selectedRangeText = '';
+export class CalendarComponent implements OnInit, OnDestroy {
+  currentUserId: number | null = null;
+  canCancel: boolean | null = null;
+  cancelMessage: string = '';
+  private bookingsSubscription: any;
+  showReserveModal = false;
+  selectedEvent: any = null;
   calendarOptions: any = { ...FULLCALENDAR_OPTIONS, events: [] };
   classSessions: CalendarClassSession[] = [];
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private bookingsService: BookingsService
+  ) {}
 
   async ngOnInit() {
-    // Obtener las clases estipuladas desde la función Edge
-    this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
-    const mappedEvents = this.classSessions.map(session => ({
-      title: `${session.name} (${session.capacity} plazas)`,
-      start: session.schedule_date + 'T' + session.schedule_time,
-      end: this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes),
-      extendedProps: {
-        description: session.description,
-        capacity: session.capacity,
-        classTypeId: session.class_type_id
+    this.supabaseService.getCurrentUser().subscribe(async user => {
+      if (user) {
+        const { data: userData } = await this.supabaseService.supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .single();
+        this.currentUserId = userData?.id ?? null;
       }
-    }));
+    });
+    await this.refreshCalendarEvents();
+    this.bookingsSubscription = this.supabaseService.supabase
+      .channel('bookings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
+        await this.refreshCalendarEvents();
+      })
+      .subscribe();
+  }
+
+  async refreshCalendarEvents() {
+    this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
+    const classTypeColors: string[] = [
+      '#F5E9DA', '#F8BBD0', '#D1C4E9', '#B2DFDB', '#FFE0B2', '#FFCCBC', '#C8E6C9', '#FFF9C4'
+    ];
+    const mappedEvents = this.classSessions.map((session: any) => {
+      let userBooking = null;
+      if (Array.isArray(session.bookings) && this.currentUserId) {
+        userBooking = session.bookings.find((b: any) => b.user_id === this.currentUserId) || null;
+      }
+      return {
+        title: `${session.name} (${session.capacity} plazas)`,
+        start: session.schedule_date + 'T' + session.schedule_time,
+        end: this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes),
+        backgroundColor: classTypeColors[session.class_type_id % classTypeColors.length],
+        borderColor: classTypeColors[session.class_type_id % classTypeColors.length],
+        extendedProps: {
+          description: session.description,
+          capacity: session.capacity,
+          classTypeId: session.class_type_id,
+          sessionId: session.id,
+          bookingId: userBooking ? userBooking.id : null,
+          bookingCancellationTime: userBooking ? userBooking.cancellation_time : null
+        }
+      };
+    });
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       events: mappedEvents,
-      select: (info: any) => {
-        this.selectedRangeText = `${info.startStr} - ${info.endStr}`;
-        this.showCustomModal = true;
+      eventClick: (info: any) => {
+        this.selectedEvent = info.event;
+        this.showReserveModal = true;
+        this.canCancel = null;
+        this.cancelMessage = '';
       }
     };
   }
-  closeCustomModal() {
-    this.showCustomModal = false;
-    this.selectedRangeText = '';
+
+  async onCancelBooking(bookingId: number) {
+    if (!bookingId) {
+      alert('No se encontró la reserva para cancelar.');
+      return;
+    }
+    try {
+      const canCancel = await this.bookingsService.canCancelBooking(bookingId);
+      if (!canCancel) {
+        this.cancelMessage = 'Ya no se puede anular la reserva porque quedan menos de 12 horas para la clase.';
+        return;
+      }
+      const { error } = await this.bookingsService.cancelBooking(bookingId);
+      if (error) {
+        alert('Error al cancelar la reserva: ' + error.message);
+      } else {
+        alert('Reserva cancelada correctamente.');
+        this.closeReserveModal();
+        await this.refreshCalendarEvents();
+      }
+    } catch (error: any) {
+      alert('Error al cancelar la reserva: ' + error.message);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.bookingsSubscription) {
+      this.bookingsSubscription.unsubscribe();
+    }
+  }
+
+  closeReserveModal() {
+    this.canCancel = null;
+    this.cancelMessage = '';
+    this.showReserveModal = false;
+    this.selectedEvent = null;
+  }
+
+  reserveSpot() {
+    this.supabaseService.getCurrentUser().subscribe(async user => {
+      if (!user) {
+        alert('Debes iniciar sesión para reservar.');
+        return;
+      }
+      const { data: userData, error } = await this.supabaseService.supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+      if (error || !userData) {
+        alert('No se pudo encontrar el usuario en la base de datos.');
+        return;
+      }
+      try {
+        const classDateTime = new Date(this.selectedEvent?.start);
+        classDateTime.setHours(classDateTime.getHours() - 12);
+        const cancellationTime = classDateTime.toISOString();
+        await this.bookingsService.reserveSpot(
+          this.selectedEvent?.extendedProps?.sessionId,
+          userData.id,
+          cancellationTime
+        );
+        alert('Reserva realizada para la clase: ' + this.selectedEvent?.title);
+        this.closeReserveModal();
+        await this.refreshCalendarEvents();
+      } catch (error: any) {
+        alert('Error al reservar plaza: ' + error.message);
+      }
+    });
   }
 
   getEndDateTime(date: string, time: string, duration: number): string {
     const start = new Date(date + 'T' + time);
     start.setMinutes(start.getMinutes() + duration);
-    return start.toISOString().slice(0,16);
+    return start.toISOString().slice(0, 16);
+  }
+
+  async checkCanCancelBooking(bookingId: number) {
+    try {
+      const canCancel = await this.bookingsService.canCancelBooking(bookingId);
+      this.canCancel = canCancel;
+      if (!canCancel) {
+        this.cancelMessage = 'Ya no se puede anular la reserva porque quedan menos de 12 horas para la clase.';
+      } else {
+        this.cancelMessage = '';
+      }
+    } catch (error) {
+      this.canCancel = null;
+      this.cancelMessage = 'Error al comprobar si se puede cancelar.';
+    }
   }
 }

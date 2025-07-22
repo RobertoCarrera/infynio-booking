@@ -2,22 +2,31 @@
 <div class="calendar-container p-3">
   <div class="calendar-content" style="height: 100%;">
     <full-calendar #fullcalendar [options]="calendarOptions" style="height: 100%; width: 100%"></full-calendar>
-    <!-- Modal para clase personalizada -->
-    <div *ngIf="showCustomModal" class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.3);">
+    <!-- Modal para reservar plaza en clase -->
+    <div *ngIf="showReserveModal" class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.3);">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Reserva de Clase Personalizada</h5>
-            <button type="button" class="btn-close" (click)="closeCustomModal()"></button>
+            <h5 class="modal-title">Reservar plaza en clase</h5>
+            <button type="button" class="btn-close" (click)="closeReserveModal()"></button>
           </div>
           <div class="modal-body">
-            <p>Has seleccionado el rango: <strong>{{ selectedRangeText }}</strong></p>
-            <p>Clase Personalizada</p>
-            <!-- Aquí puedes añadir el formulario de reserva -->
+            <p><strong>{{ selectedEvent?.title }}</strong></p>
+            <p>{{ selectedEvent?.extendedProps?.description }}</p>
+            <p>Capacidad: {{ selectedEvent?.extendedProps?.capacity }}</p>
+            <!-- Aquí puedes añadir más detalles o formulario si lo necesitas -->
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeCustomModal()">Cerrar</button>
-            <button type="button" class="btn btn-primary">Reservar</button>
+            <button type="button" class="btn btn-secondary" (click)="closeReserveModal()">Cerrar</button>
+            <button type="button" class="btn btn-primary" (click)="reserveSpot()">Reservar plaza</button>
+            <button type="button" class="btn btn-danger" 
+              [disabled]="canCancel === false"
+              (click)="onCancelBooking(selectedEvent?.extendedProps?.bookingId)">
+              Cancelar reserva
+            </button>
+          </div>
+          <div *ngIf="cancelMessage" class="mt-2">
+            <span style="color: red; font-weight: bold;">{{ cancelMessage }}</span>
           </div>
         </div>
       </div>
