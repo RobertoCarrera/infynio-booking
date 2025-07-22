@@ -32,7 +32,8 @@ export class CalendarComponent implements OnInit {
 
   async ngOnInit() {
     this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
-    this.calendarOptions.events = this.classSessions.map(session => ({
+    console.log('classSessions recibidas:', this.classSessions);
+    const eventos = this.classSessions.map(session => ({
       title: `${session.name} (${session.capacity} plazas)`,
       start: session.schedule_date + 'T' + session.schedule_time,
       end: this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes),
@@ -42,11 +43,14 @@ export class CalendarComponent implements OnInit {
         classTypeId: session.class_type_id
       }
     }));
-
-    // Configurar el evento de selección para clases personalizadas
-    this.calendarOptions.select = (info: any) => {
-      this.selectedRangeText = `${info.startStr} - ${info.endStr}`;
-      this.showCustomModal = true;
+    console.log('Eventos generados para el calendario:', eventos);
+    this.calendarOptions = {
+      ...FULLCALENDAR_OPTIONS,
+      events: eventos,
+      select: (info: any) => {
+        this.selectedRangeText = `${info.startStr} - ${info.endStr}`;
+        this.showCustomModal = true;
+      }
     };
   }
   closeCustomModal() {
