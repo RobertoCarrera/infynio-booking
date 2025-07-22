@@ -26,20 +26,20 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
         center: 'title',
         right: 'timeGridWeek,dayGridMonth'
       },
-  slotMinTime: isMobile ? '09:00:00' : '09:00:00',
-  slotMaxTime: isMobile ? '13:00:00' : '20:00:00',
+  slotMinTime: isMobile ? '08:00:00' : '08:00:00',
+  slotMaxTime: isMobile ? '20:00:00' : '20:00:00',
   hiddenDays: [0, 6], // Oculta domingos y sábados
   allDaySlot: false,
   slotDuration: '01:00:00',
   businessHours: [
-    { daysOfWeek: [1,2,3,4,5], startTime: '09:00', endTime: '13:00' },
-    { daysOfWeek: [1,2,3,4,5], startTime: '17:00', endTime: '20:00' }
+    { daysOfWeek: [1,2,3,4,5], startTime: '08:00', endTime: '13:00' },
+    { daysOfWeek: [1,2,3,4,5], startTime: '16:00', endTime: '20:00' }
   ],
   selectable: true,
   selectMirror: true,
   selectOverlap: false,
   selectConstraint: {
-    start: '09:00',
+    start: '08:00',
     end: '20:00',
   },
   selectLongPressDelay: 0, // Permite seleccionar con tap corto en móvil
@@ -48,10 +48,10 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
     const start = selectInfo.start;
     const end = selectInfo.end;
     const now = new Date();
-    // No permitir seleccionar entre 13:00 y 17:00
+    // No permitir seleccionar entre 13:00 y 16:00
     const startHour = start.getHours();
     const endHour = end.getHours();
-    if ((startHour < 13 && endHour > 13) || (startHour >= 13 && startHour < 17)) {
+    if ((startHour < 13 && endHour > 13) || (startHour >= 13 && startHour < 16)) {
       return false;
     }
     // No permitir seleccionar en días pasados

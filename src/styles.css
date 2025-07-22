@@ -16,25 +16,24 @@
   overflow: hidden;
 }
 
-/* Ajusta la altura de las filas de hora para que se repartan el espacio */
+/* Ajusta la altura de las filas de hora para que se repartan el espacio de forma uniforme */
 .fc-timegrid-slots, .fc-timegrid-slot {
-  min-height: 0 !important;
+  min-height: auto !important;
   height: auto !important;
 }
 
-/* .fc-timegrid-slot custom flex y display eliminados para restaurar la estructura original de FullCalendar */
+/* Estilo para la franja de descanso - SOLO la primera fila visible */
+.fc .fc-timegrid-slot[data-time="13:00:00"] {
+  background-color: #f8f9fa !important;
+  border-top: 2px solid #dee2e6 !important;
+  border-bottom: 2px solid #dee2e6 !important;
+  /* Hacer que ocupe el espacio de las 3 horas */
+  min-height: calc(3 * var(--fc-timegrid-slot-height, 48px)) !important;
+}
 
-/* Hace que la fila de la hora de descanso (13:00) ocupe la mitad de alto */
-
-
-
-/* Oculta completamente las filas y los labels de las horas de cierre (14:00, 15:00, 16:00) con máxima especificidad */
+/* Ocultar COMPLETAMENTE las filas 14:00 y 15:00 */
 .fc .fc-timegrid-slot[data-time="14:00:00"],
-.fc .fc-timegrid-slot[data-time="15:00:00"],
-.fc .fc-timegrid-slot[data-time="16:00:00"],
-.fc .fc-timegrid-slot-label[data-time="14:00:00"],
-.fc .fc-timegrid-slot-label[data-time="15:00:00"],
-.fc .fc-timegrid-slot-label[data-time="16:00:00"] {
+.fc .fc-timegrid-slot[data-time="15:00:00"] {
   display: none !important;
   height: 0 !important;
   min-height: 0 !important;
@@ -43,13 +42,11 @@
   visibility: hidden !important;
 }
 
-.fc .fc-timegrid-slot-label[data-time="13:00:00"] {
+/* Ocultar TODAS las etiquetas de la franja de descanso */
+.fc .fc-timegrid-slot-label[data-time="13:00:00"],
+.fc .fc-timegrid-slot-label[data-time="14:00:00"],
+.fc .fc-timegrid-slot-label[data-time="15:00:00"] {
   display: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
 }
 
 /* Opcional: ajusta el tamaño de fuente para móviles */

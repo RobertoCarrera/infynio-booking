@@ -1,72 +1,16 @@
-/* DEBUG: Colorea la primera columna de horas para comprobar si los estilos se aplican */
-.fc .fc-timegrid-axis {
-  background: #ffb3b3 !important;
-  color: #222 !important;
-  border-right: 2px solid #c00 !important;
-  font-weight: bold !important;
-}
-/* Estilos del calendario - empezando desde cero */
-
-.calendar-container, .calendar-content {
-  height: 90dvh;
-  max-height: 900dvh;
-  min-height: 0;
+/* Estilo sencillo y limpio para el calendario */
+.calendar-container {
+  height: 100vh;
+  padding: 1rem;
   box-sizing: border-box;
+}
+
+.calendar-content {
+  height: calc(100vh - 2rem);
   overflow: hidden;
 }
 
-/* Ajusta la altura de las filas de hora para que se repartan el espacio */
-.fc-timegrid-slots, .fc-timegrid-slot {
-  min-height: 0 !important;
-  height: auto !important;
-}
-
-.fc-timegrid-slot {
-  flex: 1 1 0 !important;
-  display: flex !important;
-  align-items: stretch !important;
-}
-
-/* Hace que la fila de la hora de descanso (13:00) ocupe la mitad de alto */
-
-
-
-/* Oculta completamente las filas y los labels de las horas de cierre (14:00, 15:00, 16:00) con máxima especificidad */
-.fc .fc-timegrid-slot[data-time="14:00:00"],
-.fc .fc-timegrid-slot[data-time="15:00:00"],
-.fc .fc-timegrid-slot[data-time="16:00:00"],
-.fc .fc-timegrid-slot-label[data-time="14:00:00"],
-.fc .fc-timegrid-slot-label[data-time="15:00:00"],
-.fc .fc-timegrid-slot-label[data-time="16:00:00"] {
-  display: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-}
-
-/* Deja solo una franja visual para la pausa (13:00) y oculta la hora, máxima especificidad */
-.fc .fc-timegrid-slot[data-time="13:00:00"] {
-  background: repeating-linear-gradient(135deg, #f5c542 0 10px, #fff3cd 10px 20px) !important;
-  position: relative !important;
-  flex: 0.5 1 0 !important;
-  min-height: 0 !important;
-  height: auto !important;
-  z-index: 2 !important;
-}
-.fc .fc-timegrid-slot-label[data-time="13:00:00"] {
-  display: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-}
-
-/* Opcional: ajusta el tamaño de fuente para móviles */
-@media (max-width: 600px) {
-  .fc {
-    font-size: 12px;
-  }
+/* FullCalendar ocupa todo el espacio */
+.fc {
+  height: 100% !important;
 }
