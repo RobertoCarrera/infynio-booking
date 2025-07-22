@@ -10,5 +10,13 @@ import { InviteUserComponent } from "./users/invite-user.component";
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {
-    
+  showOriginalLayout: boolean = true;
+
+  shouldShowOriginalLayout(): boolean {
+    return this.showOriginalLayout;
+  }
+
+  toggleLayout(): void {
+    this.showOriginalLayout = !this.showOriginalLayout;
+  }
 }

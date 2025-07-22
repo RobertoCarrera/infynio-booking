@@ -1,14 +1,43 @@
-<div class="container-fluid p-4 p-xxl-5">
-    <div class="row d-flex align-items-start justify-content-around">
-        <div class="col-12 col-xxl-5 h-75 p-3 pb-5 rounded shadow-lg">
-            <app-users-list></app-users-list>
-        </div>
-        <div class="col-5 p-3 rounded shadow-sm">
-        </div>
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>Panel de Administración</h1>
+        <nav class="admin-nav">
+            <a routerLink="/admin/users" routerLinkActive="active" class="nav-button">
+                <i class="fas fa-users"></i>
+                Usuarios
+            </a>
+            <a routerLink="/admin/packages" routerLinkActive="active" class="nav-button">
+                <i class="fas fa-wallet"></i>
+                Gestión de Clases
+            </a>
+            <a routerLink="/admin/invite" routerLinkActive="active" class="nav-button">
+                <i class="fas fa-user-plus"></i>
+                Invitar Usuario
+            </a>
+        </nav>
     </div>
-    <div class="row d-flex align-items-center justify-content-end">
-        <div class="col-12 col-xxl-3 shadow-lg rounded p-3">
-            <app-invite-user></app-invite-user>
+    
+    <div class="admin-content">
+        <!-- Contenido de la vista original cuando no hay ruta específica -->
+        <div class="original-admin-layout" *ngIf="shouldShowOriginalLayout()">
+            <div class="container-fluid p-4 p-xxl-5">
+                <div class="row d-flex align-items-start justify-content-around">
+                    <div class="col-12 col-xxl-5 h-75 p-3 pb-5 rounded shadow-lg">
+                        <app-users-list></app-users-list>
+                    </div>
+                    <div class="col-5 p-3 rounded shadow-sm">
+                        <!-- Contenido adicional si es necesario -->
+                    </div>
+                </div>
+                <div class="row d-flex align-items-center justify-content-end">
+                    <div class="col-12 col-xxl-3 shadow-lg rounded p-3">
+                        <app-invite-user></app-invite-user>
+                    </div>
+                </div>
+            </div>
         </div>
+        
+        <!-- Router outlet para las nuevas funcionalidades -->
+        <router-outlet></router-outlet>
     </div>
 </div>

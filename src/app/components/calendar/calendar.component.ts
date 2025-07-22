@@ -147,13 +147,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
       alert('No se encontró la reserva para cancelar.');
       return;
     }
+    if (!this.currentUserId) {
+      alert('No se encontró el usuario.');
+      return;
+    }
     try {
       const canCancel = await this.bookingsService.canCancelBooking(bookingId);
       if (!canCancel) {
         this.cancelMessage = 'Ya no se puede anular la reserva porque quedan menos de 12 horas para la clase.';
         return;
       }
-      const { error } = await this.bookingsService.cancelBooking(bookingId);
+      const { error } = await this.bookingsService.cancelBooking(bookingId, this.currentUserId);
       if (error) {
         alert('Error al cancelar la reserva: ' + error.message);
       } else {

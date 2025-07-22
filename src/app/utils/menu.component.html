@@ -25,7 +25,23 @@
         </ng-container>
       </ul>
     </div>
-    <div *ngIf="isLoggedIn" class="d-none d-xxl-flex">
+    <div *ngIf="isLoggedIn" class="d-none d-xxl-flex align-items-center">
+      <!-- Botón de cartera -->
+      <div class="cartera-wrapper me-3">
+        <button 
+          class="btn btn-outline-light cartera-btn" 
+          (click)="toggleCartera()"
+          [class.active]="showCartera">
+          <i class="fas fa-wallet me-1"></i>
+          <span class="d-none d-xl-inline">Mi Cartera</span>
+        </button>
+        
+        <!-- Dropdown de cartera -->
+        <div class="cartera-dropdown" *ngIf="showCartera" (click)="$event.stopPropagation()">
+          <app-cartera-info></app-cartera-info>
+        </div>
+      </div>
+      
       <div class="p-2">
         <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active">Mi Perfil</a>
       </div>
@@ -33,3 +49,6 @@
     </div>
   </div>
 </nav>
+
+<!-- Overlay para cerrar cartera al hacer clic fuera -->
+<div *ngIf="showCartera" class="cartera-overlay" (click)="closeCartera()"></div>
