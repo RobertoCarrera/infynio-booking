@@ -60,6 +60,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   async refreshCalendarEvents() {
     this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
+    
+    // Debug: Verificar la duración de las clases
+    console.log('🔍 Duración de clases desde BD:', this.classSessions.map(s => ({
+      name: s.name,
+      duration_minutes: s.duration_minutes
+    })));
+    
     const classTypeColors: string[] = [
       '#E8C4A0', // beige más intenso
       '#F48FB1', // rosa más vibrante  
@@ -75,10 +82,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
       if (Array.isArray(session.bookings) && this.currentUserId) {
         userBooking = session.bookings.find((b: any) => b.user_id === this.currentUserId) || null;
       }
+      
+      const endTime = this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes);
+      
+      // Debug: Verificar el cálculo de tiempo
+      console.log(`⏰ Clase ${session.name}: ${session.schedule_time} → ${endTime.split('T')[1]} (${session.duration_minutes} min)`);
+      
       return {
         title: `${session.name} (${session.capacity} plazas)`,
         start: session.schedule_date + 'T' + session.schedule_time,
-        end: this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes),
+        end: endTime,
         backgroundColor: classTypeColors[session.class_type_id % classTypeColors.length],
         borderColor: classTypeColors[session.class_type_id % classTypeColors.length],
         extendedProps: {

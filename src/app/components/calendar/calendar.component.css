@@ -37,7 +37,10 @@
 }
 
 /* Hover effect para los eventos */
-.fc-event:hover {
+.fc-event:hover,
+.fc-event-main:hover,
+.fc-daygrid-event:hover,
+.fc-timegrid-event:hover {
   opacity: 1 !important;
   transform: scale(1.03) !important;
   transition: all 0.2s ease !important;
