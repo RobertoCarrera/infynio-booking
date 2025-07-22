@@ -201,4 +201,13 @@ export class SupabaseService {
       throw new Error(`Error al eliminar usuario: ${error.message}`);
     }
   }
+
+  /**
+   * Obtiene las sesiones de clase con información de class_types para el calendario
+   */
+  async getClassSessionsWithTypes(): Promise<any[]> {
+    const response = await this.supabase.functions.invoke('get-class-sessions');
+    if (response.error) throw response.error;
+    return response.data ?? [];
+  }
 }

@@ -1,3 +1,11 @@
+<div *ngIf="classSessions.length === 0">No hay sesiones programadas.</div>
+<ul *ngIf="classSessions.length > 0">
+  <li *ngFor="let session of classSessions">
+    <strong>{{ session.schedule_date }} {{ session.schedule_time }}</strong> - {{ session.name }} ({{ session.capacity }} plazas, {{ session.duration_minutes }} min)
+    <br>
+    <small>{{ session.description }}</small>
+  </li>
+</ul>
 <div class="calendar-container p-3">
   <div class="calendar-content" style="height: 100%;">
     <full-calendar #fullcalendar [options]="calendarOptions" style="height: 100%; width: 100%"></full-calendar>
