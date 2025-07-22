@@ -33,7 +33,6 @@ export class CalendarComponent implements OnInit {
   async ngOnInit() {
     // Obtener las clases estipuladas desde la función Edge
     this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
-    console.log('[DEBUG] classSessions recibidas:', this.classSessions);
     const mappedEvents = this.classSessions.map(session => ({
       title: `${session.name} (${session.capacity} plazas)`,
       start: session.schedule_date + 'T' + session.schedule_time,
@@ -44,7 +43,6 @@ export class CalendarComponent implements OnInit {
         classTypeId: session.class_type_id
       }
     }));
-    console.log('[DEBUG] Eventos mapeados para el calendario:', mappedEvents);
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       events: mappedEvents,
@@ -53,7 +51,6 @@ export class CalendarComponent implements OnInit {
         this.showCustomModal = true;
       }
     };
-    console.log('[DEBUG] calendarOptions configuradas:', this.calendarOptions);
   }
   closeCustomModal() {
     this.showCustomModal = false;
