@@ -61,12 +61,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
   async refreshCalendarEvents() {
     this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
     
-    // Debug: Verificar la duración de las clases
-    console.log('🔍 Duración de clases desde BD:', this.classSessions.map(s => ({
-      name: s.name,
-      duration_minutes: s.duration_minutes
-    })));
-    
     const classTypeColors: string[] = [
       '#E8C4A0', // beige más intenso
       '#F48FB1', // rosa más vibrante  
@@ -84,9 +78,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
       }
       
       const endTime = this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes);
-      
-      // Debug: Verificar el cálculo de tiempo
-      console.log(`⏰ Clase ${session.name}: ${session.schedule_time} → ${endTime.split('T')[1]} (${session.duration_minutes} min)`);
       
       return {
         title: `${session.name} (${session.capacity} plazas)`,
@@ -193,16 +184,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   getEndDateTime(date: string, time: string, duration: number): string {
-    const start = new Date(date + 'T' + time);
-    // Debug: verificar fecha inicial
-    console.log(`🐛 DEBUG - Inicio: ${start.toISOString()}, Duración: ${duration} min`);
+    // Crear fecha sin zona horaria para evitar conversiones UTC
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute, second] = time.split(':').map(Number);
     
+    const start = new Date(year, month - 1, day, hour, minute, second || 0);
     start.setMinutes(start.getMinutes() + duration);
     
-    // Debug: verificar fecha final
-    console.log(`🐛 DEBUG - Final: ${start.toISOString()}`);
+    // Formatear manualmente para evitar conversiones de zona horaria
+    const endYear = start.getFullYear();
+    const endMonth = String(start.getMonth() + 1).padStart(2, '0');
+    const endDay = String(start.getDate()).padStart(2, '0');
+    const endHour = String(start.getHours()).padStart(2, '0');
+    const endMinute = String(start.getMinutes()).padStart(2, '0');
     
-    return start.toISOString().slice(0, 16);
+    return `${endYear}-${endMonth}-${endDay}T${endHour}:${endMinute}`;
   }
 
   async checkCanCancelBooking(bookingId: number) {

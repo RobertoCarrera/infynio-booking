@@ -12,6 +12,24 @@ startOfWeek.setHours(0,0,0,0);
 
 const isMobile = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
 
+// Función para formatear fechas personalizadas
+const formatDayHeader = (date: Date): string => {
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+  
+  if (isToday) {
+    return 'Hoy';
+  }
+  
+  // Formato: "Lun 01/09"
+  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const dayName = dayNames[date.getDay()];
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  
+  return `${dayName} ${day}/${month}`;
+};
+
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
   locale: esLocale,
@@ -26,6 +44,23 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
         center: 'title',
         right: 'timeGridWeek,dayGridMonth'
       },
+  // Formatos personalizados de fecha
+  dayHeaderFormat: {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit'
+  },
+  dayHeaderContent: (arg) => {
+    return formatDayHeader(arg.date);
+  },
+  titleFormat: {
+    year: 'numeric',
+    month: 'long'
+  },
+  // Formato personalizado para fechas en vista mensual
+  dayCellContent: (arg) => {
+    return String(arg.dayNumberText).replace(/\D/g, ''); // Solo el número del día
+  },
   slotMinTime: isMobile ? '08:00:00' : '08:00:00',
   slotMaxTime: isMobile ? '20:00:00' : '20:00:00',
   hiddenDays: [0, 6], // Oculta domingos y sábados

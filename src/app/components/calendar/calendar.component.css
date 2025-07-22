@@ -70,6 +70,25 @@
   color: #495057 !important;
 }
 
+/* Destacar el día de hoy */
+.fc-day-today {
+  background-color: #fff3cd !important;
+}
+
+.fc-col-header-cell.fc-day-today {
+  background-color: #ffeaa7 !important;
+  color: #2d3436 !important;
+  font-weight: 800 !important;
+}
+
+/* Estilo especial para el texto "Hoy" */
+.fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: #e17055 !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
 /* Líneas de la grilla más suaves */
 .fc-scrollgrid {
   border-color: #dee2e6 !important;
@@ -77,4 +96,24 @@
 
 .fc-scrollgrid td, .fc-scrollgrid th {
   border-color: #dee2e6 !important;
+}
+
+/* Mejorar números de días en vista mensual */
+.fc-daygrid-day-number {
+  font-weight: 600 !important;
+  color: #495057 !important;
+  padding: 4px !important;
+}
+
+/* Destacar el número del día de hoy en vista mensual */
+.fc-day-today .fc-daygrid-day-number {
+  background-color: #e17055 !important;
+  color: white !important;
+  border-radius: 50% !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
 }
