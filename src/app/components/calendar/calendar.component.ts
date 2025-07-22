@@ -98,6 +98,35 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       events: mappedEvents,
+      eventContent: (arg: any) => {
+        // Extraer datos del evento
+        const eventData = arg.event;
+        const title = eventData.title || '';
+        const startTime = eventData.start;
+        const endTime = eventData.end;
+        
+        // Extraer solo el nombre de la clase (sin la capacidad)
+        const className = title.split(' (')[0];
+        const capacity = title.match(/\((\d+) plazas\)/)?.[1] || '';
+        
+        // Formatear horario
+        const timeStr = startTime && endTime 
+          ? `${startTime.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})} - ${endTime.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})}`
+          : '';
+        
+        // Crear el HTML personalizado
+        return {
+          html: `
+            <div class="fc-event-main">
+              <div class="fc-event-title-container">
+                <span class="fc-event-class-name">${className}</span>
+                <span class="fc-event-time">${timeStr}</span>
+              </div>
+              <div class="fc-event-capacity">${capacity} plazas</div>
+            </div>
+          `
+        };
+      },
       eventClick: async (info: any) => {
         this.selectedEvent = info.event;
         this.showReserveModal = true;
