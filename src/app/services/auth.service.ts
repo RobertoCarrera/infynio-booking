@@ -131,18 +131,41 @@ setSession(accessToken: string, refreshToken: string = ''): Observable<any> {
 }
 
 verifyRecoveryToken(token: string): Observable<any> {
-  return from(this.supabaseService.supabase.auth.verifyOtp({ 
-    token_hash: token,
-    type: 'recovery'
-  }))
+  // Para versiones modernas de Supabase, el token debe ser procesado como un código de autorización
+  // En lugar de usar verifyOtp que es para códigos de un solo uso
+  return from(this.supabaseService.supabase.auth.exchangeCodeForSession(token))
     .pipe(
       tap(response => {
+        console.log('Exchange code response:', response);
         if (response.data?.session) {
           this.currentUserSubject.next(response.data.session.user);
         }
+        if (response.error) {
+          throw response.error;
+        }
       }),
       catchError(error => {
-        return throwError(() => error);
+        console.error('Exchange code error:', error);
+        // Si exchangeCodeForSession falla, intentar el método legacy
+        return from(this.supabaseService.supabase.auth.verifyOtp({ 
+          token_hash: token,
+          type: 'recovery'
+        }))
+        .pipe(
+          tap(legacyResponse => {
+            console.log('Legacy verify OTP response:', legacyResponse);
+            if (legacyResponse.data?.session) {
+              this.currentUserSubject.next(legacyResponse.data.session.user);
+            }
+            if (legacyResponse.error) {
+              throw legacyResponse.error;
+            }
+          }),
+          catchError(legacyError => {
+            console.error('Legacy verify OTP error:', legacyError);
+            return throwError(() => legacyError);
+          })
+        );
       })
     );
 }

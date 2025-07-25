@@ -313,6 +313,7 @@ export class ResetPasswordComponent implements OnInit {
                     this.statusMessageType = 'alert-success';
                   } else {
                     // No hay sesión, intentar recuperar manualmente con el código
+                    console.log('Intentando verificación manual del token:', params['code']);
                     this.authService.verifyRecoveryToken(params['code']).subscribe({
                       next: (result: any) => {
                         console.log('Verificación de código exitosa:', result);
@@ -347,7 +348,7 @@ export class ResetPasswordComponent implements OnInit {
                   this.statusMessageType = 'alert-danger';
                 }
               });
-            }, 1000); // Esperar 1 segundo
+            }, 3000); // Aumentado a 3 segundos para dar más tiempo
             
             return;
           }
