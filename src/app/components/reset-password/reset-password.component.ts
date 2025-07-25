@@ -167,9 +167,9 @@ export class ResetPasswordComponent implements OnInit {
     this.resetForm = this.fb.group({
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required]],
-      name: ['', [Validators.required]],
-      surname: ['', [Validators.required]], 
-      phone: ['', [Validators.required]]
+      name: [''],
+      surname: [''], 
+      phone: ['']
     });
   }
 
@@ -202,6 +202,7 @@ export class ResetPasswordComponent implements OnInit {
           // Detectar si es una invitación nueva desde el hash
           if (type === 'invite') {
             this.isNewUserInvite = true;
+            this.setupFormValidators();
             console.log('Detectada invitación de nuevo usuario desde hash');
           }
           
@@ -251,6 +252,7 @@ export class ResetPasswordComponent implements OnInit {
         // Detectar si es una invitación nueva
         if (params['type'] === 'invite' || params['invitation']) {
           this.isNewUserInvite = true;
+          this.setupFormValidators();
           console.log('Detectada invitación de nuevo usuario');
         }
         
@@ -387,6 +389,9 @@ export class ResetPasswordComponent implements OnInit {
       this.statusMessage = 'Cargando...';
       this.statusMessageType = 'alert-info';
     }
+    
+    // Configurar validadores según el tipo de operación
+    this.setupFormValidators();
   }
 
   onSubmit() {
@@ -554,5 +559,24 @@ export class ResetPasswordComponent implements OnInit {
         this.router.navigate(['/login']);
       }, 5000);
     }
+  }
+
+  private setupFormValidators() {
+    if (this.isNewUserInvite) {
+      // Para nuevos usuarios, los campos de perfil son obligatorios
+      this.resetForm.get('name')?.setValidators([Validators.required]);
+      this.resetForm.get('surname')?.setValidators([Validators.required]);
+      this.resetForm.get('phone')?.setValidators([Validators.required]);
+    } else {
+      // Para recuperación de contraseña, los campos de perfil no son necesarios
+      this.resetForm.get('name')?.clearValidators();
+      this.resetForm.get('surname')?.clearValidators();
+      this.resetForm.get('phone')?.clearValidators();
+    }
+    
+    // Actualizar validación
+    this.resetForm.get('name')?.updateValueAndValidity();
+    this.resetForm.get('surname')?.updateValueAndValidity();
+    this.resetForm.get('phone')?.updateValueAndValidity();
   }
 }

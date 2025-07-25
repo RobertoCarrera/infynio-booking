@@ -54,7 +54,16 @@
       const token = searchParams.get('token');
       
       // Construir la URL de redirección
-      let redirectUrl = 'http://localhost:4200/reset-password';
+      let redirectUrl;
+      
+      // Detectar el entorno
+      if (window.location.hostname === 'localhost') {
+        redirectUrl = 'http://localhost:4200/reset-password';
+      } else {
+        // Para producción, usar la URL actual
+        redirectUrl = `${window.location.protocol}//${window.location.host}/reset-password`;
+      }
+      
       let queryString = '?';
       
       if (accessToken) queryString += `access_token=${encodeURIComponent(accessToken)}&`;

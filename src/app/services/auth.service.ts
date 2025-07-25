@@ -71,11 +71,15 @@ export class AuthService {
 resetPassword(email: string, redirectUrl?: string): Observable<any> {
   const actualRedirectUrl = redirectUrl || `${window.location.origin}/assets/auth-redirect.html`;
   
-  return from(this.supabaseService.supabase.auth.resetPasswordForEmail(email, { redirectTo: actualRedirectUrl }))
+  return from(this.supabaseService.supabase.auth.resetPasswordForEmail(email, { 
+    redirectTo: actualRedirectUrl 
+  }))
     .pipe(
       tap(response => {
+        console.log('Reset password response:', response);
       }),
       catchError(error => {
+        console.error('Reset password error:', error);
         return throwError(() => error);
       })
     );
@@ -85,8 +89,13 @@ resetPassword(email: string, redirectUrl?: string): Observable<any> {
     return from(this.supabaseService.supabase.auth.updateUser({ password: newPassword }))
       .pipe(
         tap(response => {
+          console.log('Update password response:', response);
+          if (response.error) {
+            throw response.error;
+          }
         }),
         catchError(error => {
+          console.error('Update password error:', error);
           return throwError(() => error);
         })
       );
