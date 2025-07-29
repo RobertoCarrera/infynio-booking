@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, from, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, from, throwError, of } from 'rxjs';
+import { catchError, map, tap, switchMap } from 'rxjs/operators';
 import { SupabaseService } from './supabase.service';
 import { AuthSession } from '@supabase/supabase-js';
 
@@ -27,27 +27,51 @@ export class AuthService {
       
       if (data.session) {
         this.currentUserSubject.next(data.session.user);
+        console.log('Session restored for user:', data.session.user.id);
       } else {
         this.currentUserSubject.next(null);
+        console.log('No active session found');
       }
     } catch (error) {
+      console.error('Error checking session:', error);
       this.currentUserSubject.next(null);
     }
   }
 
-  // Método de login simplificado
+  // Método para refrescar el rol del usuario (útil después del login)
+  refreshUserRole(): Observable<string | null> {
+    return this.supabaseService.getCurrentUserRole();
+  }
+
+  // Método de login con redirección contextual
   login(email: string, password: string): Observable<any> {
     return from(this.supabaseService.supabase.auth.signInWithPassword({ email, password }))
       .pipe(
-        tap(response => {
+        switchMap(response => {
           if (response.error) {
             throw response.error;
           }
           
           if (response.data?.user) {
             this.currentUserSubject.next(response.data.user);
-            this.router.navigate(['/calendario']);
+            
+            // Obtener el rol del usuario y redirigir según corresponda
+            return this.supabaseService.getCurrentUserRole().pipe(
+              tap(role => {
+                console.log('Login successful, user role:', role);
+                if (role === 'admin') {
+                  console.log('Redirecting admin to /admin');
+                  this.router.navigate(['/admin']);
+                } else {
+                  console.log('Redirecting user to /calendario');
+                  this.router.navigate(['/calendario']);
+                }
+              }),
+              map(() => response) // Devolver la respuesta original
+            );
           }
+          
+          return of(response);
         }),
         catchError(error => {
           return throwError(() => error);
