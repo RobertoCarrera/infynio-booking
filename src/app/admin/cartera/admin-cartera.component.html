@@ -133,7 +133,7 @@
                             <i class="fas fa-edit"></i>
                           </button>
                           <button class="btn btn-outline-danger" 
-                                  (click)="eliminarBono(entrada)"
+                                  (click)="eliminarPackage(entrada)"
                                   title="Desactivar">
                             <i class="fas fa-times"></i>
                           </button>
@@ -175,7 +175,7 @@
         </h5>
         <button type="button" class="btn-close" (click)="cerrarModalAgregar()"></button>
       </div>
-      <form [formGroup]="agregarForm" (ngSubmit)="agregarBono()">
+      <form [formGroup]="agregarForm" (ngSubmit)="agregarPackage()">
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Usuario:</label>
@@ -185,38 +185,39 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Tipo de Bono:</label>
-            <select class="form-select" formControlName="bono_type" (change)="onTipoBonoChange()">
-              <option value="">Seleccionar tipo...</option>
-              <option value="MAT-FUNCIONAL">MAT-FUNCIONAL</option>
-              <option value="REFORMER">REFORMER</option>
+            <label class="form-label">Package:</label>
+            <select class="form-select" formControlName="package_id">
+              <option value="">Seleccionar package...</option>
+              <optgroup label="MAT-FUNCIONAL">
+                <option *ngFor="let package of getPackagesByType('MAT_FUNCIONAL')" 
+                        [value]="package.id">
+                  {{ package.name }} - {{ package.class_count }} clases - €{{ package.price }}
+                  <span *ngIf="package.is_personal"> (Personal)</span>
+                </option>
+              </optgroup>
+              <optgroup label="REFORMER">
+                <option *ngFor="let package of getPackagesByType('REFORMER')" 
+                        [value]="package.id">
+                  {{ package.name }} - {{ package.class_count }} clases - €{{ package.price }}
+                  <span *ngIf="package.is_personal"> (Personal)</span>
+                </option>
+              </optgroup>
             </select>
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Subtipo:</label>
-            <select class="form-select" formControlName="bono_subtype">
-              <option value="">Seleccionar subtipo...</option>
-              <option value="CLASE-NORMAL">Clase Normal</option>
-              <option value="CLASE-PERSONALIZADA">Clase Personalizada</option>
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Número de Clases:</label>
-            <select class="form-select" formControlName="clases_totales">
-              <option value="1">1 Clase</option>
-              <option value="4">4 Clases</option>
-              <option value="8">8 Clases</option>
-              <option value="12">12 Clases</option>
-            </select>
+            <label class="form-label">Fecha de Activación (opcional):</label>
+            <input type="date" class="form-control" formControlName="activation_date">
+            <div class="form-text">
+              Si no se especifica, se activará inmediatamente.
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="cerrarModalAgregar()">Cancelar</button>
           <button type="submit" class="btn btn-primary" [disabled]="agregarForm.invalid || loading">
             <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
-            Agregar Bono
+            Agregar Package
           </button>
         </div>
       </form>
@@ -235,7 +236,7 @@
         </h5>
         <button type="button" class="btn-close" (click)="cerrarModalModificar()"></button>
       </div>
-      <form [formGroup]="modificarForm" (ngSubmit)="modificarBono()">
+      <form [formGroup]="modificarForm" (ngSubmit)="modificarPackage()">
         <div class="modal-body">
           <div *ngIf="entradaParaModificar" class="mb-3">
             <div class="alert alert-info">

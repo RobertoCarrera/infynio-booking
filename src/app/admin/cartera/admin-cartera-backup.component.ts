@@ -44,21 +44,18 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   ) {
     this.agregarForm = this.fb.group({
       usuario_id: ['', Validators.required],
-      package_id: ['', Validators.required],
-      activation_date: ['']
+      bono_type: ['', Validators.required],
+      bono_subtype: ['', Validators.required],
+      clases_totales: [1, [Validators.required, Validators.min(1)]]
     });
 
     this.modificarForm = this.fb.group({
-      current_classes_remaining: [0, [Validators.required, Validators.min(0)]],
-      rollover_classes_remaining: [0, [Validators.min(0)]],
-      classes_used_this_month: [0, [Validators.min(0)]],
-      status: ['active', Validators.required]
+      clases_disponibles: [0, [Validators.required, Validators.min(0)]]
     });
   }
 
   ngOnInit() {
     this.cargarUsuarios();
-    this.cargarPackages();
   }
 
   ngOnDestroy() {
@@ -78,20 +75,6 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
         console.error('Error al cargar usuarios:', err);
         this.error = 'Error al cargar la lista de usuarios';
         this.loading = false;
-      }
-    });
-
-    this.subscriptions.push(sub);
-  }
-
-  cargarPackages() {
-    const sub = this.carteraService.getPackages().subscribe({
-      next: (packages: Package[]) => {
-        this.packagesDisponibles = packages;
-      },
-      error: (err: any) => {
-        console.error('Error al cargar packages:', err);
-        this.error = 'Error al cargar los packages disponibles';
       }
     });
 
@@ -139,32 +122,52 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.agregarForm.reset();
   }
 
-  agregarPackage() {
+  onTipoBonoChange() {
+    const tipoSeleccionado = this.agregarForm.get('bono_type')?.value;
+    const bono = this.tiposBonos.find((b: any) => b.type === tipoSeleccionado);
+    
+    if (bono) {
+      this.agregarForm.patchValue({
+        bono_subtype: bono.subtype,
+        clases_totales: bono.clases
+      });
+    }
+  }
+
+  agregarBono() {
     if (this.agregarForm.invalid) {
       this.error = 'Por favor completa todos los campos requeridos';
       return;
     }
 
     const formData = this.agregarForm.value;
+    const tipoBonoIndex = this.tiposBonos.findIndex((bono: any) => 
+      bono.type === formData.bono_type && 
+      bono.subtype === formData.bono_subtype &&
+      bono.clases === formData.clases_totales
+    );
+
+    if (tipoBonoIndex === -1) {
+      this.error = 'Tipo de bono no válido';
+      return;
+    }
+
     this.loading = true;
 
-    const createData: CreateUserPackage = {
-      user_id: formData.usuario_id,
-      package_id: formData.package_id,
-      activation_date: formData.activation_date || undefined
-    };
-
-    const sub = this.carteraService.agregarPackageAUsuario(createData).subscribe({
+    const sub = this.carteraService.agregarClases(
+      formData.usuario_id,
+      tipoBonoIndex
+    ).subscribe({
       next: () => {
-        this.successMessage = 'Package agregado exitosamente';
+        this.successMessage = 'Bono agregado exitosamente';
         this.cargarCarteraUsuario(formData.usuario_id);
         this.cerrarModalAgregar();
         this.loading = false;
         setTimeout(() => this.successMessage = '', 3000);
       },
       error: (err: any) => {
-        console.error('Error al agregar package:', err);
-        this.error = 'Error al agregar el package';
+        console.error('Error al agregar bono:', err);
+        this.error = 'Error al agregar el bono';
         this.loading = false;
       }
     });
@@ -177,10 +180,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.entradaParaModificar = entrada;
     this.showModificarModal = true;
     this.modificarForm.patchValue({
-      current_classes_remaining: entrada.clases_disponibles,
-      rollover_classes_remaining: entrada.rollover_classes_remaining,
-      classes_used_this_month: entrada.classes_used_this_month,
-      status: entrada.status
+      clases_disponibles: entrada.clases_disponibles
     });
   }
 
@@ -190,7 +190,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.modificarForm.reset();
   }
 
-  modificarPackage() {
+  modificarBono() {
     if (this.modificarForm.invalid || !this.entradaParaModificar) {
       this.error = 'Datos inválidos para modificar';
       return;
@@ -199,24 +199,20 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     const formData = this.modificarForm.value;
     this.loading = true;
 
-    const updateData: UpdateUserPackage = {
-      current_classes_remaining: formData.current_classes_remaining,
-      rollover_classes_remaining: formData.rollover_classes_remaining,
-      classes_used_this_month: formData.classes_used_this_month,
-      status: formData.status
-    };
-
-    const sub = this.carteraService.modificarUserPackage(this.entradaParaModificar.id, updateData).subscribe({
+    const sub = this.carteraService.modificarClases(
+      this.entradaParaModificar.id!,
+      formData.clases_disponibles
+    ).subscribe({
       next: () => {
-        this.successMessage = 'Package modificado exitosamente';
+        this.successMessage = 'Bono modificado exitosamente';
         this.cargarCarteraUsuario(this.entradaParaModificar!.user_id);
         this.cerrarModalModificar();
         this.loading = false;
         setTimeout(() => this.successMessage = '', 3000);
       },
       error: (err: any) => {
-        console.error('Error al modificar package:', err);
-        this.error = 'Error al modificar el package';
+        console.error('Error al modificar bono:', err);
+        this.error = 'Error al modificar el bono';
         this.loading = false;
       }
     });
@@ -224,23 +220,23 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
-  eliminarPackage(entrada: CarteraClase) {
-    if (!confirm('¿Estás seguro de que quieres desactivar este package?')) {
+  eliminarBono(entrada: CarteraClase) {
+    if (!confirm('¿Estás seguro de que quieres desactivar este bono?')) {
       return;
     }
 
     this.loading = true;
 
-    const sub = this.carteraService.desactivarUserPackage(entrada.id).subscribe({
+    const sub = this.carteraService.desactivarCartera(entrada.id!).subscribe({
       next: () => {
-        this.successMessage = 'Package desactivado exitosamente';
+        this.successMessage = 'Bono desactivado exitosamente';
         this.cargarCarteraUsuario(entrada.user_id);
         this.loading = false;
         setTimeout(() => this.successMessage = '', 3000);
       },
       error: (err: any) => {
-        console.error('Error al desactivar package:', err);
-        this.error = 'Error al desactivar el package';
+        console.error('Error al desactivar bono:', err);
+        this.error = 'Error al desactivar el bono';
         this.loading = false;
       }
     });
@@ -266,31 +262,6 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     if (porcentaje > 50) return 'success';
     if (porcentaje > 20) return 'warning';
     return 'danger';
-  }
-
-  getPackageName(packageId: number): string {
-    const package_ = this.packagesDisponibles.find(p => p.id === packageId);
-    return package_?.name || 'Package desconocido';
-  }
-
-  getPackagesByType(classType: 'MAT_FUNCIONAL' | 'REFORMER'): Package[] {
-    return this.packagesDisponibles.filter(p => p.class_type === classType);
-  }
-
-  getRolloverStatus(entrada: CarteraClase): string {
-    if (!entrada.next_rollover_reset_date) return 'Sin fecha de rollover';
-    
-    const today = new Date();
-    const rolloverDate = new Date(entrada.next_rollover_reset_date);
-    const daysLeft = Math.ceil((rolloverDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysLeft > 0) {
-      return `${daysLeft} días hasta rollover`;
-    } else if (daysLeft === 0) {
-      return 'Rollover hoy';
-    } else {
-      return 'Rollover vencido';
-    }
   }
 
   clearMessages() {

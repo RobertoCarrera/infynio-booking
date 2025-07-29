@@ -1,7 +1,16 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, switchMap } from 'rxjs';
+import { Observable, from, map, switchMap, forkJoin } from 'rxjs';
 import { SupabaseService } from './supabase.service';
-import { CarteraClase, BonoType, TIPOS_BONOS } from '../models/cartera-clases';
+import { 
+  CarteraClase, 
+  UserPackage, 
+  UserPackageDetailed, 
+  Package, 
+  CreateUserPackage, 
+  UpdateUserPackage,
+  CarteraResumen,
+  mapUserPackageToCarteraClase 
+} from '../models/cartera-clases';
 
 @Injectable({
   providedIn: 'root'
@@ -11,21 +20,79 @@ export class CarteraClasesService {
   constructor(private supabaseService: SupabaseService) {}
 
   /**
-   * Obtiene la cartera de clases de un usuario
+   * Obtiene todos los packages disponibles
    */
-  getCarteraByUserId(userId: number): Observable<CarteraClase[]> {
+  getPackages(): Observable<Package[]> {
     return from(
       this.supabaseService.supabase
-        .from('cartera_clases')
+        .from('packages')
         .select('*')
-        .eq('user_id', userId)
-        .eq('activo', true)
-        .order('fecha_compra', { ascending: false })
+        .order('class_type', { ascending: true })
+        .order('class_count', { ascending: true })
     ).pipe(
       map(response => {
         if (response.error) throw response.error;
         return response.data || [];
       })
+    );
+  }
+
+  /**
+   * Obtiene los user_packages de un usuario con información del package
+   */
+  getUserPackagesDetailed(userId: number): Observable<UserPackageDetailed[]> {
+    return from(
+      this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          *,
+          package:packages (
+            id,
+            name,
+            class_type,
+            class_count,
+            price,
+            is_single_class,
+            is_personal
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('purchase_date', { ascending: false })
+    ).pipe(
+      map(response => {
+        if (response.error) throw response.error;
+        
+        return (response.data || []).map(item => {
+          const packageData = item.package as Package;
+          
+          // Calcular días hasta rollover
+          const daysUntilRollover = item.next_rollover_reset_date 
+            ? Math.ceil((new Date(item.next_rollover_reset_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+
+          return {
+            ...item,
+            package_name: packageData.name,
+            package_class_type: packageData.class_type,
+            package_class_count: packageData.class_count,
+            package_price: packageData.price,
+            package_is_single_class: packageData.is_single_class,
+            package_is_personal: packageData.is_personal,
+            days_until_rollover: daysUntilRollover,
+            rollover_status: daysUntilRollover && daysUntilRollover > 0 ? 'active' : daysUntilRollover === null ? 'pending' : 'expired'
+          } as UserPackageDetailed;
+        });
+      })
+    );
+  }
+
+  /**
+   * Obtiene la cartera de clases de un usuario (compatible con código existente)
+   */
+  getCarteraByUserId(userId: number): Observable<CarteraClase[]> {
+    return this.getUserPackagesDetailed(userId).pipe(
+      map(userPackages => userPackages.map(mapUserPackageToCarteraClase))
     );
   }
 
@@ -54,31 +121,46 @@ export class CarteraClasesService {
   }
 
   /**
-   * Agrega clases a la cartera de un usuario (usado por administradores)
+   * Agrega un nuevo user_package (usado por administradores)
    */
-  agregarClases(userId: number, tipoBonoIndex: number): Observable<CarteraClase> {
-    const tipoBono = TIPOS_BONOS[tipoBonoIndex];
-    if (!tipoBono) {
-      throw new Error('Tipo de bono no válido');
-    }
-
-    const nuevaCartera: Omit<CarteraClase, 'id'> = {
-      user_id: userId,
-      bono_type: tipoBono.type,
-      bono_subtype: tipoBono.subtype,
-      clases_disponibles: tipoBono.clases,
-      clases_totales: tipoBono.clases,
-      fecha_compra: new Date().toISOString(),
-      activo: true
+  agregarPackageAUsuario(createData: CreateUserPackage): Observable<UserPackage> {
+    const now = new Date().toISOString();
+    
+    // Calcular la fecha de rollover (primera semana del mes siguiente)
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1, 7); // Día 7 del mes siguiente
+    
+    const newUserPackage = {
+      ...createData,
+      purchase_date: now,
+      activation_date: createData.activation_date || now,
+      current_classes_remaining: 0, // Se establecerá según el package
+      classes_used_this_month: 0,
+      rollover_classes_remaining: 0,
+      next_rollover_reset_date: nextMonth.toISOString().split('T')[0],
+      status: 'active'
     };
 
     return from(
       this.supabaseService.supabase
-        .from('cartera_clases')
-        .insert(nuevaCartera)
-        .select()
+        .from('packages')
+        .select('class_count')
+        .eq('id', createData.package_id)
         .single()
     ).pipe(
+      switchMap(packageResponse => {
+        if (packageResponse.error) throw packageResponse.error;
+        
+        newUserPackage.current_classes_remaining = packageResponse.data.class_count;
+        
+        return from(
+          this.supabaseService.supabase
+            .from('user_packages')
+            .insert(newUserPackage)
+            .select()
+            .single()
+        );
+      }),
       map(response => {
         if (response.error) throw response.error;
         return response.data;
@@ -87,19 +169,14 @@ export class CarteraClasesService {
   }
 
   /**
-   * Modifica las clases disponibles de una entrada específica de la cartera
+   * Modifica un user_package existente
    */
-  modificarClases(carteraId: number, nuevasClasesDisponibles: number): Observable<CarteraClase> {
-    const updateData = {
-      clases_disponibles: Math.max(0, nuevasClasesDisponibles), // No permitir números negativos
-      updated_at: new Date().toISOString()
-    };
-
+  modificarUserPackage(userPackageId: number, updateData: UpdateUserPackage): Observable<UserPackage> {
     return from(
       this.supabaseService.supabase
-        .from('cartera_clases')
+        .from('user_packages')
         .update(updateData)
-        .eq('id', carteraId)
+        .eq('id', userPackageId)
         .select()
         .single()
     ).pipe(
@@ -111,17 +188,14 @@ export class CarteraClasesService {
   }
 
   /**
-   * Desactiva una entrada de la cartera
+   * Desactiva un user_package
    */
-  desactivarCartera(carteraId: number): Observable<boolean> {
+  desactivarUserPackage(userPackageId: number): Observable<boolean> {
     return from(
       this.supabaseService.supabase
-        .from('cartera_clases')
-        .update({ 
-          activo: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', carteraId)
+        .from('user_packages')
+        .update({ status: 'inactive' })
+        .eq('id', userPackageId)
     ).pipe(
       map(response => {
         if (response.error) throw response.error;
@@ -131,58 +205,76 @@ export class CarteraClasesService {
   }
 
   /**
-   * Consume una clase de la cartera (cuando el usuario hace una reserva)
+   * Consume una clase de un user_package específico
    */
-  consumirClase(userId: number, tipoClase: 'MAT-FUNCIONAL' | 'REFORMER', esPersonalizada: boolean = false): Observable<boolean> {
-    const subtype = esPersonalizada ? 'CLASE-PERSONALIZADA' : 'CLASE-NORMAL';
-    
+  consumirClase(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', isPersonal: boolean = false): Observable<boolean> {
+    // Buscar un user_package apropiado que tenga clases disponibles
     return from(
       this.supabaseService.supabase
-        .from('cartera_clases')
-        .select('*')
+        .from('user_packages')
+        .select(`
+          *,
+          packages (
+            class_type,
+            is_personal
+          )
+        `)
         .eq('user_id', userId)
-        .eq('bono_type', tipoClase)
-        .eq('bono_subtype', subtype)
-        .eq('activo', true)
-        .gt('clases_disponibles', 0)
-        .order('fecha_compra', { ascending: true }) // Usar las más antiguas primero
-        .limit(1)
-        .single()
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0)
+        .order('purchase_date', { ascending: true }) // Usar los más antiguos primero
     ).pipe(
       switchMap(response => {
-        if (response.error || !response.data) {
+        if (response.error) throw response.error;
+        
+        // Filtrar por tipo de clase y si es personal
+        const appropriatePackages = (response.data || []).filter(item => {
+          const packageData = item.packages as any;
+          return packageData.class_type === classType && packageData.is_personal === isPersonal;
+        });
+
+        if (appropriatePackages.length === 0) {
           throw new Error('No tienes clases disponibles de este tipo');
         }
 
-        const cartera = response.data;
-        const nuevasClasesDisponibles = cartera.clases_disponibles - 1;
+        const userPackage = appropriatePackages[0];
+        const newClassesRemaining = userPackage.current_classes_remaining - 1;
+        const newClassesUsedThisMonth = userPackage.classes_used_this_month + 1;
 
-        return this.modificarClases(cartera.id!, nuevasClasesDisponibles).pipe(
-          map(() => true)
-        );
-      })
+        return this.modificarUserPackage(userPackage.id, {
+          current_classes_remaining: newClassesRemaining,
+          classes_used_this_month: newClassesUsedThisMonth
+        });
+      }),
+      map(() => true)
     );
   }
 
   /**
    * Verifica si el usuario tiene clases disponibles de un tipo específico
    */
-  tieneClasesDisponibles(userId: number, tipoClase: 'MAT-FUNCIONAL' | 'REFORMER', esPersonalizada: boolean = false): Observable<boolean> {
-    const subtype = esPersonalizada ? 'CLASE-PERSONALIZADA' : 'CLASE-NORMAL';
-    
+  tieneClasesDisponibles(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', isPersonal: boolean = false): Observable<boolean> {
     return from(
       this.supabaseService.supabase
-        .from('cartera_clases')
-        .select('clases_disponibles')
+        .from('user_packages')
+        .select(`
+          current_classes_remaining,
+          packages (
+            class_type,
+            is_personal
+          )
+        `)
         .eq('user_id', userId)
-        .eq('bono_type', tipoClase)
-        .eq('bono_subtype', subtype)
-        .eq('activo', true)
-        .gt('clases_disponibles', 0)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0)
     ).pipe(
       map(response => {
         if (response.error) throw response.error;
-        return (response.data || []).length > 0;
+        
+        return (response.data || []).some(item => {
+          const packageData = item.packages as any;
+          return packageData.class_type === classType && packageData.is_personal === isPersonal;
+        });
       })
     );
   }
@@ -190,28 +282,28 @@ export class CarteraClasesService {
   /**
    * Obtiene el resumen de clases disponibles por tipo
    */
-  getResumenClases(userId: number): Observable<{matFuncional: number, reformer: number, matPersonalizada: number, reformerPersonalizada: number}> {
-    return this.getCarteraByUserId(userId).pipe(
-      map(cartera => {
-        const resumen = {
+  getResumenClases(userId: number): Observable<CarteraResumen> {
+    return this.getUserPackagesDetailed(userId).pipe(
+      map(userPackages => {
+        const resumen: CarteraResumen = {
           matFuncional: 0,
           reformer: 0,
           matPersonalizada: 0,
           reformerPersonalizada: 0
         };
 
-        cartera.forEach(entrada => {
-          if (entrada.bono_type === 'MAT-FUNCIONAL') {
-            if (entrada.bono_subtype === 'CLASE-PERSONALIZADA') {
-              resumen.matPersonalizada += entrada.clases_disponibles;
+        userPackages.forEach(userPackage => {
+          if (userPackage.package_class_type === 'MAT_FUNCIONAL') {
+            if (userPackage.package_is_personal) {
+              resumen.matPersonalizada += userPackage.current_classes_remaining;
             } else {
-              resumen.matFuncional += entrada.clases_disponibles;
+              resumen.matFuncional += userPackage.current_classes_remaining;
             }
-          } else if (entrada.bono_type === 'REFORMER') {
-            if (entrada.bono_subtype === 'CLASE-PERSONALIZADA') {
-              resumen.reformerPersonalizada += entrada.clases_disponibles;
+          } else if (userPackage.package_class_type === 'REFORMER') {
+            if (userPackage.package_is_personal) {
+              resumen.reformerPersonalizada += userPackage.current_classes_remaining;
             } else {
-              resumen.reformer += entrada.clases_disponibles;
+              resumen.reformer += userPackage.current_classes_remaining;
             }
           }
         });
@@ -222,9 +314,42 @@ export class CarteraClasesService {
   }
 
   /**
-   * Obtiene todos los tipos de bonos disponibles
+   * Procesa el rollover de clases para todos los user_packages que han vencido
    */
-  getTiposBonos(): BonoType[] {
-    return TIPOS_BONOS;
+  processRollover(): Observable<boolean> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    return from(
+      this.supabaseService.supabase
+        .from('user_packages')
+        .select('*')
+        .eq('status', 'active')
+        .lte('next_rollover_reset_date', today)
+    ).pipe(
+      switchMap(response => {
+        if (response.error) throw response.error;
+        
+        const packagesToUpdate = response.data || [];
+        
+        if (packagesToUpdate.length === 0) {
+          return from([true]);
+        }
+
+        // Procesar cada package
+        const updates = packagesToUpdate.map(userPackage => {
+          const nextMonth = new Date();
+          nextMonth.setMonth(nextMonth.getMonth() + 1, 7);
+          
+          return this.modificarUserPackage(userPackage.id, {
+            rollover_classes_remaining: userPackage.current_classes_remaining,
+            classes_used_this_month: 0,
+            next_rollover_reset_date: nextMonth.toISOString().split('T')[0]
+          });
+        });
+
+        return forkJoin(updates);
+      }),
+      map(() => true)
+    );
   }
 }

@@ -273,10 +273,6 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     return package_?.name || 'Package desconocido';
   }
 
-  getPackagesByType(classType: 'MAT_FUNCIONAL' | 'REFORMER'): Package[] {
-    return this.packagesDisponibles.filter(p => p.class_type === classType);
-  }
-
   getRolloverStatus(entrada: CarteraClase): string {
     if (!entrada.next_rollover_reset_date) return 'Sin fecha de rollover';
     
