@@ -26,6 +26,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'cartera',
+    loadComponent: () => import('./components/cartera-page/cartera-page.component').then(m => m.CarteraPageComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'clases',
     loadComponent: () => import('./components/class-types/class-types.component').then(m => m.ClassTypesComponent),
     canActivate: [AuthGuard]

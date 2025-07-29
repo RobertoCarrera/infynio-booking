@@ -1,14 +1,39 @@
-<div class="container-fluid p-4 p-xxl-5">
-    <div class="row d-flex align-items-start justify-content-around">
-        <div class="col-12 col-xxl-5 h-75 p-3 pb-5 rounded shadow-lg">
-            <app-users-list></app-users-list>
-        </div>
-        <div class="col-5 p-3 rounded shadow-sm">
-        </div>
+<div class="admin-container">
+  <div class="container-fluid">
+    <!-- Navigation tabs -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <nav class="nav nav-pills nav-justified">
+          <a class="nav-link" 
+             [class.active]="activeTab === 'users'"
+             routerLink="/admin/users"
+             (click)="activeTab = 'users'">
+            <i class="fas fa-users me-2"></i>
+            Gestión de Usuarios
+          </a>
+          <a class="nav-link" 
+             [class.active]="activeTab === 'invite'"
+             routerLink="/admin/invite"
+             (click)="activeTab = 'invite'">
+            <i class="fas fa-user-plus me-2"></i>
+            Invitar Usuarios
+          </a>
+          <a class="nav-link" 
+             [class.active]="activeTab === 'cartera'"
+             routerLink="/admin/cartera"
+             (click)="activeTab = 'cartera'">
+            <i class="fas fa-ticket-alt me-2"></i>
+            Cartera de Clases
+          </a>
+        </nav>
+      </div>
     </div>
-    <div class="row d-flex align-items-center justify-content-end">
-        <div class="col-12 col-xxl-3 shadow-lg rounded p-3">
-            <app-invite-user></app-invite-user>
-        </div>
+
+    <!-- Content area -->
+    <div class="row">
+      <div class="col-12">
+        <router-outlet></router-outlet>
+      </div>
     </div>
+  </div>
 </div>
