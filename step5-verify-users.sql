@@ -1,0 +1,2 @@
+-- 5. VERIFICAR SI USUARIOS 23 Y 58 EXISTEN
+SELECT id, name, email FROM users WHERE id IN (23, 58) ORDER BY id;

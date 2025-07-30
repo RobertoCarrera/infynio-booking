@@ -1,4 +1,6 @@
-/* Estilo sencillo y limpio para el calendario */
+/* 🎨 CALENDARIO SÚPER CHULO - VERSIÓN OPTIMIZADA */
+
+/* === ESTRUCTURA BASE === */
 .calendar-container {
   height: 100vh;
   padding: 1rem;
@@ -10,12 +12,11 @@
   overflow: hidden;
 }
 
-/* FullCalendar ocupa todo el espacio */
 .fc {
   height: 100% !important;
 }
 
-/* Mejorar la visibilidad de los eventos */
+/* === EVENTOS DEL CALENDARIO === */
 .fc-event {
   border: 2px solid rgba(0, 0, 0, 0.3) !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
@@ -25,95 +26,492 @@
   border-radius: 6px !important;
   opacity: 0.95 !important;
   background-clip: padding-box !important;
-}
-
-/* Texto de los eventos más legible */
-.fc-event-title {
-  color: #2c3e50 !important;
-  text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.9) !important;
-  font-weight: 800 !important;
-  line-height: 1.3 !important;
-  letter-spacing: 0.3px !important;
-}
-
-/* Hover effect para los eventos */
-.fc-event:hover,
-.fc-event-main:hover,
-.fc-daygrid-event:hover,
-.fc-timegrid-event:hover {
-  opacity: 1 !important;
-  transform: scale(1.03) !important;
   transition: all 0.2s ease !important;
-  cursor: pointer !important;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3) !important;
-  border: 3px solid rgba(0, 0, 0, 0.5) !important;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2)) !important;
-  z-index: 10 !important;
 }
 
-/* Mejorar la cabecera del calendario */
-.fc-toolbar-title {
-  font-weight: 700 !important;
-  color: #2c3e50 !important;
+.fc-event:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Mejorar los botones del calendario */
-.fc-button {
-  border-radius: 6px !important;
-  font-weight: 600 !important;
+/* === FILTROS SÚPER CHULOS === */
+.class-filters {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
 }
 
-/* Días de la semana más visibles */
-.fc-col-header-cell {
-  background-color: #f8f9fa !important;
-  font-weight: 700 !important;
-  color: #495057 !important;
+.class-filters::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b, #ef4444, #8b5cf6);
+  border-radius: 16px 16px 0 0;
 }
 
-/* Destacar el día de hoy */
-.fc-day-today {
-  background-color: #fff3cd !important;
+.filter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
 }
 
-.fc-col-header-cell.fc-day-today {
-  background-color: #ffeaa7 !important;
-  color: #2d3436 !important;
-  font-weight: 800 !important;
+.filter-controls .btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: none;
+  color: white;
+  padding: 0.5rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.3);
 }
 
-/* Estilo especial para el texto "Hoy" */
-.fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
-  color: #e17055 !important;
-  font-size: 14px !important;
-  font-weight: 900 !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1) !important;
+.filter-controls .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
 }
 
-/* Líneas de la grilla más suaves */
-.fc-scrollgrid {
-  border-color: #dee2e6 !important;
+.filter-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0.5rem;
 }
 
-.fc-scrollgrid td, .fc-scrollgrid th {
-  border-color: #dee2e6 !important;
+/* === PÍLDORAS DE FILTRO SÚPER CHULAS === */
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: white;
+  border-radius: 30px;
+  border: 3px solid #e2e8f0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  font-weight: 600;
 }
 
-/* Mejorar números de días en vista mensual */
-.fc-daygrid-day-number {
-  font-weight: 600 !important;
-  color: #495057 !important;
-  padding: 4px !important;
+.filter-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transition: left 0.5s ease;
 }
 
-/* Destacar el número del día de hoy en vista mensual */
-.fc-day-today .fc-daygrid-day-number {
-  background-color: #e17055 !important;
-  color: white !important;
-  border-radius: 50% !important;
-  width: 24px !important;
-  height: 24px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: 700 !important;
+.filter-item:hover::before {
+  left: 100%;
+}
+
+.filter-item:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.filter-item.active {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+  transform: translateY(-2px);
+}
+
+.filter-item.active:hover {
+  transform: translateY(-5px) scale(1.08);
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+}
+
+.filter-item:not(.active) {
+  opacity: 0.7;
+  border-color: #d1d5db;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.filter-item:not(.active):hover {
+  opacity: 1;
+  border-color: #9ca3af;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+/* === DOTS DE COLOR CHULOS === */
+.color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s ease;
+  position: relative;
+}
+
+.filter-item.active .color-dot {
+  transform: scale(1.2);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+}
+
+.color-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.filter-item.active .color-dot::after {
+  opacity: 1;
+}
+
+.type-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #475569;
+  transition: color 0.3s ease;
+}
+
+.filter-item.active .type-name {
+  color: #065f46;
+}
+
+.filter-toggle {
+  margin-left: auto;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.filter-item.active .filter-toggle {
+  opacity: 1;
+  color: #059669;
+  transform: scale(1.2);
+}
+
+/* === MODAL SÚPER CHULO === */
+.modal-content {
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #e2e8f0;
+  padding: 1.5rem 2rem;
+  position: relative;
+}
+
+.modal-header::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b, #ef4444);
+}
+
+.modal-title {
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.modal-body {
+  padding: 2rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.modal-footer {
+  border-top: 2px solid #e2e8f0;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  gap: 1rem;
+}
+
+/* === BOTONES SÚPER CHULOS === */
+.btn {
+  border-radius: 12px;
+  font-weight: 700;
+  padding: 0.875rem 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  transform: translate(-50%, -50%);
+}
+
+.btn:hover::before {
+  width: 300%;
+  height: 300%;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e28009 0%, #c2410c 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+}
+
+.btn-outline-danger {
+  border: 3px solid #ef4444;
+  color: #ef4444;
+  background: transparent;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
+}
+
+/* === ALERTAS CHULAS === */
+.alert {
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.alert::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+
+.alert-success {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+}
+
+.alert-danger {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+.alert-info {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
+}
+
+/* === BADGES CHULOS === */
+.badge {
+  border-radius: 8px;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bg-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+}
+
+.bg-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+}
+
+/* === CARDS CHULOS === */
+.card {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.bg-light {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+}
+
+/* === SPINNER CHULO === */
+.spinner-border-sm {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .calendar-container {
+    padding: 0.5rem;
+  }
+  
+  .class-filters {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  
+  .filter-items {
+    gap: 0.5rem;
+  }
+  
+  .filter-item {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+  
+  .modal-header, .modal-body, .modal-footer {
+    padding: 1rem 1.25rem;
+  }
+  
+  .btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* === ANIMACIONES CHULAS === */
+@keyframes pulse-success {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.filter-item.active {
+  animation: pulse-success 2s infinite;
+}
+
+.modal-content {
+  animation: bounce-in 0.5s ease-out;
+}
+
+/* === EFECTOS DE BRILLO === */
+.class-filters, .modal-content {
+  position: relative;
+}
+
+.class-filters::after, .modal-content::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: rotate(45deg);
+  transition: all 0.5s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.class-filters:hover::after, .modal-content:hover::after {
+  opacity: 1;
+  animation: shine 1.5s ease-in-out;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
 }
