@@ -1,55 +1,221 @@
-<!-- Eliminada la lista previa de clases -->
 <div class="calendar-container p-3">
+  <!-- Filtros de tipos de clase -->
+  <div class="class-filters mb-3">
+    <div class="filter-controls mb-2">
+      <button class="btn btn-sm btn-outline-secondary me-2" (click)="showAllClasses()">
+        <i class="fas fa-check-double me-1"></i>
+        Mostrar Todos
+      </button>
+      <span class="text-muted small">
+        {{ getActiveFiltersCount() }} de {{ classTypes.length }} tipos activos
+      </span>
+    </div>
+    <div class="filter-items">
+      <div 
+        class="filter-item" 
+        *ngFor="let type of classTypes"
+        [class.active]="type.active"
+        (click)="toggleFilter(type.name)">
+        <span 
+          class="color-dot" 
+          [style.background-color]="getTypeColor(type.name).background"
+          [style.border-color]="getTypeColor(type.name).border">
+        </span>
+        <span class="type-name">{{ type.name }}</span>
+        <span class="filter-toggle">
+          <i class="fas fa-check" *ngIf="type.active"></i>
+          <i class="fas fa-times" *ngIf="!type.active"></i>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensajes de estado -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ error }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ successMessage }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="d-flex justify-content-center p-4">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando clases...</span>
+    </div>
+  </div>
+
+  <!-- Calendario -->
   <div class="calendar-content" style="height: 100%;">
-    <full-calendar #fullcalendar [options]="calendarOptions" style="height: 100%; width: 100%"></full-calendar>
-    <!-- Modal para reservar plaza en clase -->
-    <div *ngIf="showReserveModal" class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.3);">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Reservar plaza en clase</h5>
-            <button type="button" class="btn-close" (click)="closeReserveModal()"></button>
+    <full-calendar 
+      #fullcalendar 
+      [options]="calendarOptions" 
+      style="height: 100%; width: 100%">
+    </full-calendar>
+  </div>
+</div>
+
+<!-- Modal para reservar plaza en clase -->
+<div class="modal fade" 
+     [class.show]="showReserveModal" 
+     [style.display]="showReserveModal ? 'block' : 'none'" 
+     *ngIf="showReserveModal"
+     tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-calendar-plus me-2"></i>
+          Reservar Clase
+        </h5>
+        <button type="button" class="btn-close" (click)="closeModal()"></button>
+      </div>
+      
+      <div class="modal-body">
+        <div *ngIf="selectedSession" class="class-details">
+          <!-- Información de la clase -->
+          <div class="row mb-3">
+            <div class="col-md-8">
+              <h6 class="mb-2">
+                <i class="fas fa-dumbbell me-2"></i>
+                {{ selectedSession.class_type_name }}
+              </h6>
+              <p class="text-muted mb-1">{{ getClassTypeDescription() }}</p>
+              <small class="text-muted">
+                <i class="fas fa-clock me-1"></i>
+                Duración: {{ getClassDuration() }}
+              </small>
+            </div>
+            <div class="col-md-4 text-end">
+              <span class="badge fs-6" 
+                    [class]="isClassAvailable() ? 'bg-success' : 'bg-danger'">
+                {{ getAvailableSpots() }}/{{ selectedSession.capacity }} espacios
+              </span>
+            </div>
           </div>
-          <div class="modal-body">
-            <p><strong>{{ selectedEvent?.title }}</strong></p>
-            <p>{{ selectedEvent?.extendedProps?.description }}</p>
-            <p><strong>Capacidad:</strong> {{ selectedEvent?.extendedProps?.capacity }} plazas</p>
-            
-            <!-- Estado de la reserva -->
-            <div class="mt-3">
-              <div *ngIf="selectedEvent?.extendedProps?.bookingId" class="alert alert-success">
-                <i class="fas fa-check-circle"></i> Tienes esta clase reservada
-              </div>
-              <div *ngIf="!selectedEvent?.extendedProps?.bookingId" class="alert alert-info">
-                <i class="fas fa-info-circle"></i> Clase disponible para reservar
+
+          <!-- Fecha y hora -->
+          <div class="mb-3">
+            <div class="card border-light bg-light">
+              <div class="card-body py-2">
+                <small class="text-muted">Fecha y hora:</small>
+                <div class="fw-bold">
+                  <i class="fas fa-calendar me-2"></i>
+                  {{ getClassDateTime() }}
+                </div>
               </div>
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeReserveModal()">Cerrar</button>
+
+          <!-- Estado de disponibilidad y lista de espera -->
+          <div class="mb-3">
+            <!-- Clase disponible para reservar -->
+            <div *ngIf="canReserveClass()" class="alert alert-success mb-0">
+              <i class="fas fa-check-circle me-2"></i>
+              Clase disponible para reservar
+            </div>
             
-            <!-- Mostrar botón de reservar solo si NO tiene reserva -->
-            <button type="button" class="btn btn-primary" 
-              *ngIf="!selectedEvent?.extendedProps?.bookingId"
-              (click)="reserveSpot()">
-              Reservar plaza
-            </button>
+            <!-- Sin paquete disponible -->
+            <div *ngIf="isClassAvailable() && !hasAvailablePackageForClass(selectedSession?.class_type_name || '')" class="alert alert-warning mb-0">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              No tienes un paquete disponible para este tipo de clase
+            </div>
             
-            <!-- Mostrar botón de cancelar solo si SÍ tiene reserva -->
-            <button type="button" class="btn btn-danger" 
-              *ngIf="selectedEvent?.extendedProps?.bookingId"
-              [disabled]="canCancel === false"
-              (click)="onCancelBooking(selectedEvent?.extendedProps?.bookingId)">
-              Cancelar reserva
-            </button>
+            <!-- Clase completa - mostrar lista de espera -->
+            <div *ngIf="!isClassAvailable() && hasAvailablePackageForClass(selectedSession?.class_type_name || '')">
+              <!-- Usuario no está en lista de espera -->
+              <div *ngIf="!isInWaitingList" class="alert alert-warning mb-2">
+                <i class="fas fa-users me-2"></i>
+                Esta clase está completa
+                <div class="mt-2 small">
+                  <strong>{{ waitingListCount }}</strong> persona(s) en lista de espera
+                </div>
+              </div>
+              
+              <!-- Usuario está en lista de espera -->
+              <div *ngIf="isInWaitingList" class="alert alert-info mb-0">
+                <i class="fas fa-clock me-2"></i>
+                Estás en la lista de espera
+                <div class="mt-2 small">
+                  <strong>Posición:</strong> {{ waitingListPosition }} de {{ waitingListCount }}
+                </div>
+                <div class="small text-muted">
+                  Te notificaremos si se libera un lugar
+                </div>
+              </div>
+            </div>
+            
+            <!-- Clase completa sin paquete -->
+            <div *ngIf="!isClassAvailable() && !hasAvailablePackageForClass(selectedSession?.class_type_name || '')" class="alert alert-danger mb-0">
+              <i class="fas fa-times-circle me-2"></i>
+              Esta clase está completa y no tienes paquete disponible
+            </div>
           </div>
-          
-          <!-- Mensaje de cancelación (solo si hay reserva y no se puede cancelar) -->
-          <div *ngIf="selectedEvent?.extendedProps?.bookingId && cancelMessage" class="mt-2 px-3 pb-3">
-            <span style="color: red; font-weight: bold;">{{ cancelMessage }}</span>
+
+          <!-- Información adicional -->
+          <div class="row">
+            <div class="col-md-6">
+              <small class="text-muted">
+                <i class="fas fa-users me-1"></i>
+                Capacidad máxima: {{ selectedSession.capacity }} personas
+              </small>
+            </div>
+            <div class="col-md-6">
+              <small class="text-muted">
+                <i class="fas fa-tag me-1"></i>
+                Tipo: {{ selectedSession.class_type_name }}
+              </small>
+            </div>
           </div>
         </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">
+          Cancelar
+        </button>
+        
+        <!-- Botón para reservar (solo si hay espacios disponibles) -->
+        <button type="button" 
+                *ngIf="canReserveClass()"
+                class="btn btn-primary" 
+                [disabled]="loading"
+                (click)="reserveClass()">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+          <i *ngIf="!loading" class="fas fa-plus me-2"></i>
+          Reservar Clase
+        </button>
+        
+        <!-- Botón para unirse a lista de espera -->
+        <button type="button" 
+                *ngIf="canJoinWaitingList()"
+                class="btn btn-warning" 
+                [disabled]="loading"
+                (click)="joinWaitingList()">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+          <i *ngIf="!loading" class="fas fa-clock me-2"></i>
+          Unirse a Lista de Espera
+        </button>
+        
+        <!-- Botón para cancelar lista de espera -->
+        <button type="button" 
+                *ngIf="isInWaitingList"
+                class="btn btn-outline-danger" 
+                [disabled]="loading"
+                (click)="cancelWaitingList()">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+          <i *ngIf="!loading" class="fas fa-times me-2"></i>
+          Salir de Lista de Espera
+        </button>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Modal backdrop -->
+<div class="modal-backdrop fade show" *ngIf="showReserveModal"></div>
