@@ -32,7 +32,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   userCanBook = false;
   
   // Propiedades del usuario
-  currentUserId: number | null = null;
+  currentUserId: string | null = null; // UUID
+  userNumericId: number | null = null; // id numérico
   
   // Propiedades para lista de espera
   isInWaitingList = false;
@@ -57,7 +58,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.getCurrentUser();
-    this.loadEvents();
   }
 
   ngOnDestroy() {
@@ -71,13 +71,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
           // Obtener el ID del usuario desde la tabla users
           this.supabaseService.supabase
             .from('users')
-            .select('id')
+            .select('id, auth_user_id')
             .eq('auth_user_id', user.id)
             .single()
             .then(({ data, error }) => {
               if (!error && data) {
-                this.currentUserId = data.id;
-                console.log('Current user ID:', this.currentUserId);
+                this.currentUserId = data.auth_user_id;
+                this.userNumericId = data.id;
+                console.log('Current user UUID:', this.currentUserId, 'Numeric ID:', this.userNumericId);
+                this.loadEvents();
               }
             });
         }
@@ -90,15 +92,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   loadEvents() {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 90);
-
-    const sub = this.classSessionsService.getClassSessionsByDateRange(
-      startDate.toISOString().split('T')[0],
-      endDate.toISOString().split('T')[0]
-    ).subscribe({
+    if (!this.currentUserId) return;
+    const sub = this.classSessionsService.getFilteredSessions(this.currentUserId).subscribe({
       next: (sessions) => {
         this.events = this.transformSessionsToEvents(sessions);
         this.extractClassTypes(sessions);
@@ -217,7 +212,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // NUEVA FUNCIÓN - Verificar disponibilidad de clases del usuario
   private checkUserClassAvailability(session: any) {
-    if (!this.currentUserId) {
+    if (!this.userNumericId) {
       this.modalError = 'Error: Usuario no identificado';
       this.loadingModal = false;
       return;
@@ -227,14 +222,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const isPersonal = session.class_type_name?.toLowerCase().includes('personalizada') || false;
 
     console.log('🔍 Verificando disponibilidad:', {
-      userId: this.currentUserId,
+      userId: this.userNumericId,
       classTypeId,
       classTypeName: session.class_type_name,
       isPersonal
     });
 
     // Verificar si el usuario tiene clases disponibles de este tipo
-    const sub = this.carteraService.tieneClasesDisponibles(this.currentUserId, classTypeId, isPersonal)
+    const sub = this.carteraService.tieneClasesDisponibles(this.userNumericId, classTypeId, isPersonal)
       .subscribe({
         next: (hasClasses: boolean) => {
           console.log('✅ Resultado verificación:', hasClasses);
@@ -258,7 +253,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // FUNCIÓN CORREGIDA - Confirmar reserva
   confirmBooking() {
-    if (!this.selectedSession || !this.currentUserId) {
+    if (!this.selectedSession || !this.userNumericId) {
       return;
     }
 
@@ -267,7 +262,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Usar el ID numérico del tipo de clase
     const bookingRequest = {
-      user_id: this.currentUserId,
+      user_id: this.userNumericId,
       class_session_id: this.selectedSession.id,
       class_type: this.selectedSession.class_type_name || ''
     };
@@ -300,7 +295,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // Método para manejar lista de espera
   handleWaitingList(session: ClassSession) {
-    if (!this.currentUserId) {
+    if (!this.userNumericId) {
       console.error('Usuario no identificado');
       return;
     }
@@ -313,13 +308,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.userCanBook = false;
 
     // Verificar si el usuario ya está en la lista de espera
-    const sub1 = this.waitingListService.isUserInWaitingList(this.currentUserId, session.id)
+    const sub1 = this.waitingListService.isUserInWaitingList(this.userNumericId, session.id)
       .subscribe({
         next: (isInList) => {
           this.isInWaitingList = isInList;
           if (isInList) {
             // Obtener posición en la lista
-            const sub2 = this.waitingListService.getUserWaitingListPosition(this.currentUserId!, session.id)
+            const sub2 = this.waitingListService.getUserWaitingListPosition(this.userNumericId!, session.id)
               .subscribe({
                 next: (position) => {
                   this.waitingListPosition = position;
@@ -358,7 +353,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // Método para unirse a la lista de espera
   joinWaitingList() {
-    if (!this.selectedSession || !this.currentUserId) {
+    if (!this.selectedSession || !this.userNumericId) {
       return;
     }
 
@@ -366,7 +361,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.modalError = '';
 
     const request = {
-      user_id: this.currentUserId,
+      user_id: this.userNumericId,
       class_session_id: this.selectedSession.id,
       status: 'waiting'
     };
@@ -379,7 +374,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
           this.loadingModal = false;
           
           // Actualizar posición
-          const sub2 = this.waitingListService.getUserWaitingListPosition(this.currentUserId!, this.selectedSession!.id)
+          const sub2 = this.waitingListService.getUserWaitingListPosition(this.userNumericId!, this.selectedSession!.id)
             .subscribe({
               next: (position) => {
                 this.waitingListPosition = position;
@@ -402,14 +397,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // Método para cancelar lista de espera
   async cancelWaitingList() {
-    if (!this.selectedSession || !this.currentUserId) {
+    if (!this.selectedSession || !this.userNumericId) {
       return;
     }
 
     this.loadingModal = true;
     this.modalError = '';
 
-    const sub = this.waitingListService.cancelWaitingList(this.currentUserId, this.selectedSession.id)
+    const sub = this.waitingListService.cancelWaitingList(this.userNumericId, this.selectedSession.id)
       .subscribe({
         next: () => {
           this.modalSuccess = 'Has salido de la lista de espera';

@@ -1,9 +1,10 @@
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { ClassSessionsService, ClassSession } from '../../services/class-schedules.service';
+import { ClassSessionsService, ClassSession } from '../../services/class-sessions.service';
 
 interface ClassType {
   id: number;
@@ -20,12 +21,10 @@ interface ClassType {
   styleUrls: ['./admin-class-schedules.component.css']
 })
 export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
-  // Deshabilitar ir a días anteriores a hoy
   isPrevDayDisabled(): boolean {
     const today = this.formatDate(new Date());
     return this.selectedDate <= today;
   }
-  // Cambiar día en la vista diaria
   changeDay(offset: number) {
     const current = new Date(this.selectedDate);
     current.setDate(current.getDate() + offset);
@@ -34,36 +33,24 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
   }
   classTypes: ClassType[] = [];
   sessions: ClassSession[] = [];
-  
-  // Forms
   sessionForm: FormGroup;
   generateForm: FormGroup;
-
-  // Capacidad máxima por tipo de clase
   readonly classTypeCapacities: { [key: number]: number } = {
-    9: 10, // Funcional
-    2: 8,  // Mat
-    4: 1,  // Personalizada
-    3: 2   // Reformer
+    9: 10,
+    2: 8,
+    4: 1,
+    3: 2
   };
-  
-  // UI States
   loading = false;
   error = '';
   successMessage = '';
-  
-  // Modal states
   showAddModal = false;
   showEditModal = false;
   showGenerateModal = false;
   editingSession: ClassSession | null = null;
-  
-  // View options
   viewMode: 'calendar' | 'list' = 'calendar';
   selectedDate: string = '';
   selectedWeek: Date = new Date();
-  
-  // Days of week mapping (solo lunes a viernes)
   daysOfWeek = [
     { value: 1, name: 'Lunes' },
     { value: 2, name: 'Martes' },
@@ -71,20 +58,16 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     { value: 4, name: 'Jueves' },
     { value: 5, name: 'Viernes' }
   ];
-  
   private subscriptions: Subscription[] = [];
-
   constructor(
     private fb: FormBuilder,
     private sessionsService: ClassSessionsService
   ) {
-
     this.sessionForm = this.fb.group({
       class_type_id: ['', Validators.required],
       schedule_date: ['', Validators.required],
       schedule_time: ['', Validators.required]
     });
-
     this.generateForm = this.fb.group({
       class_type_id: ['', Validators.required],
       day_of_week: ['', Validators.required],
@@ -92,28 +75,20 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       start_date: ['', Validators.required],
       end_date: ['', Validators.required]
     });
-
-    // Inicializar fecha seleccionada a hoy
     this.selectedDate = this.formatDate(new Date());
   }
-
   ngOnInit() {
     this.loadClassTypes();
-    // Al iniciar, cargar solo las sesiones del día seleccionado (hoy) para la vista diaria
     if (this.viewMode === 'calendar') {
       this.loadSessionsByDate(this.selectedDate);
     } else {
       this.loadSessions();
     }
   }
-
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
-
-  // Cargar tipos de clase
   loadClassTypes() {
-    // Datos mock basados en tu JSON
     this.classTypes = [
       {"id":1,"name":"Barre","description":"Clase grupal de Barre.","duration_minutes":50},
       {"id":2,"name":"Mat","description":"Clase grupal de Pilates Mat.","duration_minutes":50},
@@ -122,13 +97,10 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       {"id":9,"name":"Funcional","description":"Clase grupal de Pilates Funcional.","duration_minutes":50}
     ];
   }
-
-  // Cargar sesiones desde el servicio
   loadSessions() {
     this.loading = true;
     this.error = '';
-    
-    const sub = this.sessionsService.getSessions().subscribe({
+    const sub = this.sessionsService.getClassSessions().subscribe({
       next: (sessions: ClassSession[]) => {
         this.sessions = sessions;
         this.loading = false;
@@ -139,18 +111,15 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-
     this.subscriptions.push(sub);
   }
-
-  // Cargar sesiones por fecha
   loadSessionsByDate(date: string) {
     this.loading = true;
     this.error = '';
-    
-    const sub = this.sessionsService.getSessionsByDate(date).subscribe({
+    // Si tienes un método getSessionsByDate, úsalo. Si no, filtra localmente:
+    const sub = this.sessionsService.getClassSessions().subscribe({
       next: (sessions: ClassSession[]) => {
-        this.sessions = sessions;
+        this.sessions = sessions.filter(s => s.schedule_date === date);
         this.loading = false;
       },
       error: (err: any) => {
@@ -159,11 +128,8 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-
     this.subscriptions.push(sub);
   }
-
-  // Métodos para modal de agregar
   openAddModal() {
     this.editingSession = null;
     this.sessionForm.reset();
@@ -172,13 +138,10 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     });
     this.showAddModal = true;
   }
-
   closeAddModal() {
     this.showAddModal = false;
     this.sessionForm.reset();
   }
-
-  // Métodos para modal de editar
   openEditModal(session: ClassSession) {
     this.editingSession = session;
     this.sessionForm.patchValue({
@@ -188,46 +151,34 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     });
     this.showEditModal = true;
   }
-
   closeEditModal() {
     this.showEditModal = false;
     this.editingSession = null;
     this.sessionForm.reset();
   }
-
-  // Métodos para modal de generar sesiones recurrentes
   openGenerateModal() {
     this.generateForm.reset();
     this.generateForm.patchValue({
       start_date: this.selectedDate,
-      end_date: this.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) // +30 días
+      end_date: this.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
     });
     this.showGenerateModal = true;
   }
-
   closeGenerateModal() {
     this.showGenerateModal = false;
     this.generateForm.reset();
   }
-
-  // Guardar sesión (crear o actualizar)
   saveSession() {
     if (this.sessionForm.invalid) {
       this.error = 'Por favor completa todos los campos requeridos';
       return;
     }
-
     const formData = this.sessionForm.value;
-    // Asignar capacidad según el tipo de clase
     formData.capacity = this.classTypeCapacities[formData.class_type_id] ?? 10;
-    // Formatear la hora para incluir segundos
     formData.schedule_time = formData.schedule_time + ':00';
-
     this.loading = true;
     this.error = '';
-
     if (this.editingSession) {
-      // Actualizar
       const sub = this.sessionsService.updateSession(this.editingSession.id!, formData).subscribe({
         next: () => {
           this.successMessage = 'Sesión actualizada exitosamente';
@@ -244,7 +195,6 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       });
       this.subscriptions.push(sub);
     } else {
-      // Crear
       const sub = this.sessionsService.createSession(formData).subscribe({
         next: () => {
           this.successMessage = 'Sesión creada exitosamente';
@@ -262,23 +212,16 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       this.subscriptions.push(sub);
     }
   }
-
-  // Generar sesiones recurrentes
   generateRecurringSessions() {
     if (this.generateForm.invalid) {
       this.error = 'Por favor completa todos los campos requeridos';
       return;
     }
-
     const formData = this.generateForm.value;
-    // Asignar capacidad según el tipo de clase
     const capacity = this.classTypeCapacities[formData.class_type_id] ?? 10;
-    // Formatear la hora para incluir segundos
     const timeWithSeconds = formData.schedule_time + ':00';
-
     this.loading = true;
     this.error = '';
-
     const sub = this.sessionsService.generateRecurringSessions(
       formData.class_type_id,
       formData.day_of_week,
@@ -300,18 +243,13 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-
     this.subscriptions.push(sub);
   }
-
-  // Eliminar sesión
   deleteSession(session: ClassSession) {
     if (!confirm(`¿Estás seguro de que quieres eliminar la sesión de ${this.getClassTypeName(session.class_type_id)} del ${this.formatDisplayDate(session.schedule_date)}?`)) {
       return;
     }
-
     this.loading = true;
-
     const sub = this.sessionsService.deleteSession(session.id!).subscribe({
       next: () => {
         this.successMessage = 'Sesión eliminada exitosamente';
@@ -325,18 +263,13 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-
     this.subscriptions.push(sub);
   }
-
-  // Cambiar fecha seleccionada
   onDateChange() {
     if (this.viewMode === 'calendar') {
       this.loadSessionsByDate(this.selectedDate);
     }
   }
-
-  // Cambiar modo de vista
   changeViewMode(mode: 'calendar' | 'list') {
     this.viewMode = mode;
     if (mode === 'list') {
@@ -345,22 +278,16 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       this.loadSessionsByDate(this.selectedDate);
     }
   }
-
-  // Métodos de utilidad
   getClassTypeName(classTypeId: number): string {
     const classType = this.classTypes.find(ct => ct.id === classTypeId);
     return classType ? classType.name : 'Tipo desconocido';
   }
-
   getDayName(dayOfWeek: number): string {
     const day = this.daysOfWeek.find(d => d.value === dayOfWeek);
     return day ? day.name : 'Día desconocido';
   }
-
-  // Agrupar sesiones por fecha
   getSessionsByDate(): { [key: string]: ClassSession[] } {
     const grouped: { [key: string]: ClassSession[] } = {};
-    
     this.sessions.forEach(session => {
       const date = session.schedule_date;
       if (!grouped[date]) {
@@ -368,21 +295,14 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       }
       grouped[date].push(session);
     });
-    
-    // Ordenar por hora
     Object.keys(grouped).forEach(date => {
       grouped[date].sort((a, b) => a.schedule_time.localeCompare(b.schedule_time));
     });
-    
     return grouped;
   }
-
-  // Formatear fecha
   formatDate(date: Date): string {
     return date.toISOString().split('T')[0];
   }
-
-  // Formatear fecha para mostrar
   formatDisplayDate(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
@@ -392,19 +312,13 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       day: 'numeric'
     });
   }
-
-  // Formatear tiempo
   formatTime(time: string): string {
-    return time.substring(0, 5); // HH:mm
+    return time.substring(0, 5);
   }
-
-  // Limpiar mensajes
   clearMessages() {
     this.error = '';
     this.successMessage = '';
   }
-
-  // Track by functions for performance
   trackBySessionId(index: number, session: ClassSession): any {
     return session.id;
   }
