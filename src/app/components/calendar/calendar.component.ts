@@ -198,7 +198,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   async reserveClass() {
     if (!this.selectedSession || !this.currentUserId) {
-      this.error = 'Error: No se pudo procesar la reserva';
+      this.error = 'Error: No se pudo procesar la reserva. Sesión o usuario no válido.';
       return;
     }
 
@@ -208,11 +208,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Verificar disponibilidad de paquete
-    if (!this.canReserveClass()) {
-      const classType = this.selectedSession.class_type_name || '';
+    // Verificar disponibilidad de paquete con mensaje mejorado
+    const classType = this.selectedSession.class_type_name || '';
+    if (!this.hasAvailablePackageForClass(classType)) {
       const databaseType = this.mapClassTypeToDatabase(classType);
-      this.error = `No tienes un paquete disponible para clases de tipo "${classType}" (${databaseType}). Revisa tus paquetes o contacta con recepción.`;
+      this.error = `No tienes un paquete disponible para clases de tipo "${classType}" (${databaseType}). Debug: ${this.getPackageDebugInfo()}`;
       return;
     }
 
@@ -299,7 +299,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // Métodos para verificar disponibilidad de paquetes
   hasAvailablePackageForClass(classType: string): boolean {
-    if (!this.userPackages || this.userPackages.length === 0) return false;
+    if (!this.userPackages || this.userPackages.length === 0) {
+      console.log('No user packages available');
+      return false;
+    }
     
     // Mapear el tipo de clase al formato de la base de datos
     const databaseClassType = this.mapClassTypeToDatabase(classType);
@@ -307,18 +310,30 @@ export class CalendarComponent implements OnInit, OnDestroy {
     console.log(`Checking packages for class type: ${classType} -> ${databaseClassType}`);
     console.log('Available packages:', this.userPackages);
     
-    return this.userPackages.some(userPackage => {
+    const hasValidPackage = this.userPackages.some(userPackage => {
+      // Verificar que el paquete tenga la estructura correcta
+      if (!userPackage || !userPackage.packages) {
+        console.log('Package missing or incomplete structure:', userPackage);
+        return false;
+      }
+      
       // Verificar que el paquete sea para este tipo de clase
-      const isCorrectType = userPackage.packages?.class_type === databaseClassType;
+      const isCorrectType = userPackage.packages.class_type === databaseClassType;
       // Verificar que tenga clases restantes
-      const hasRemainingClasses = userPackage.current_classes_remaining > 0;
+      const hasRemainingClasses = (userPackage.current_classes_remaining || 0) > 0;
       // Verificar que esté activo
       const isActive = userPackage.status === 'ACTIVE';
       
-      console.log(`Package check - Type: ${userPackage.packages?.class_type} === ${databaseClassType} = ${isCorrectType}, Remaining: ${userPackage.current_classes_remaining} > 0 = ${hasRemainingClasses}, Active: ${userPackage.status} === 'ACTIVE' = ${isActive}`);
+      console.log(`Package check - Type: ${userPackage.packages.class_type} === ${databaseClassType} = ${isCorrectType}, Remaining: ${userPackage.current_classes_remaining || 0} > 0 = ${hasRemainingClasses}, Active: ${userPackage.status} === 'ACTIVE' = ${isActive}`);
       
       return isCorrectType && hasRemainingClasses && isActive;
     });
+    
+    if (!hasValidPackage) {
+      console.log(`No valid package found for ${classType}. Package debug info: ${this.getPackageDebugInfo()}`);
+    }
+    
+    return hasValidPackage;
   }
 
   canReserveClass(): boolean {
@@ -335,6 +350,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
     return this.classSessionsService.getClassTypeColors(typeName);
   }
 
+  // =============================
+  // MAPEO DE TIPOS DE CLASE
+  // =============================
+  
   // =============================
   // MAPEO DE TIPOS DE CLASE
   // =============================
@@ -369,6 +388,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
     };
     
     return mapping[databaseName] || databaseName;
+  }
+  
+  /**
+   * Obtiene información de debug sobre los paquetes del usuario
+   */
+  getPackageDebugInfo(): string {
+    if (!this.userPackages || this.userPackages.length === 0) {
+      return 'Sin paquetes disponibles';
+    }
+    
+    return this.userPackages.map(pkg => 
+      `${pkg.packages?.name || 'Sin nombre'} (${pkg.packages?.class_type || 'Sin tipo'}): ${pkg.current_classes_remaining} clases restantes, estado: ${pkg.status}`
+    ).join('; ');
   }
 
   // =============================
