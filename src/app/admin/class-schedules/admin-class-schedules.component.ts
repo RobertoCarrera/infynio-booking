@@ -26,6 +26,14 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
   // Forms
   sessionForm: FormGroup;
   generateForm: FormGroup;
+
+  // Capacidad máxima por tipo de clase
+  readonly classTypeCapacities: { [key: number]: number } = {
+    9: 10, // Funcional
+    2: 8,  // Mat
+    4: 1,  // Personalizada
+    3: 2   // Reformer
+  };
   
   // UI States
   loading = false;
@@ -43,15 +51,13 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
   selectedDate: string = '';
   selectedWeek: Date = new Date();
   
-  // Days of week mapping
+  // Days of week mapping (solo lunes a viernes)
   daysOfWeek = [
     { value: 1, name: 'Lunes' },
     { value: 2, name: 'Martes' },
     { value: 3, name: 'Miércoles' },
     { value: 4, name: 'Jueves' },
-    { value: 5, name: 'Viernes' },
-    { value: 6, name: 'Sábado' },
-    { value: 0, name: 'Domingo' }
+    { value: 5, name: 'Viernes' }
   ];
   
   private subscriptions: Subscription[] = [];
@@ -60,18 +66,17 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private sessionsService: ClassSessionsService
   ) {
+
     this.sessionForm = this.fb.group({
       class_type_id: ['', Validators.required],
       schedule_date: ['', Validators.required],
-      schedule_time: ['', Validators.required],
-      capacity: [10, [Validators.required, Validators.min(1), Validators.max(50)]]
+      schedule_time: ['', Validators.required]
     });
 
     this.generateForm = this.fb.group({
       class_type_id: ['', Validators.required],
       day_of_week: ['', Validators.required],
       schedule_time: ['', Validators.required],
-      capacity: [10, [Validators.required, Validators.min(1), Validators.max(50)]],
       start_date: ['', Validators.required],
       end_date: ['', Validators.required]
     });
@@ -146,7 +151,6 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     this.editingSession = null;
     this.sessionForm.reset();
     this.sessionForm.patchValue({
-      capacity: 10,
       schedule_date: this.selectedDate
     });
     this.showAddModal = true;
@@ -163,8 +167,7 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     this.sessionForm.patchValue({
       class_type_id: session.class_type_id,
       schedule_date: session.schedule_date,
-      schedule_time: session.schedule_time.substring(0, 5), // HH:mm
-      capacity: session.capacity
+      schedule_time: session.schedule_time.substring(0, 5)
     });
     this.showEditModal = true;
   }
@@ -179,7 +182,6 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
   openGenerateModal() {
     this.generateForm.reset();
     this.generateForm.patchValue({
-      capacity: 10,
       start_date: this.selectedDate,
       end_date: this.formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) // +30 días
     });
@@ -199,7 +201,8 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     }
 
     const formData = this.sessionForm.value;
-    
+    // Asignar capacidad según el tipo de clase
+    formData.capacity = this.classTypeCapacities[formData.class_type_id] ?? 10;
     // Formatear la hora para incluir segundos
     formData.schedule_time = formData.schedule_time + ':00';
 
@@ -251,7 +254,8 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
     }
 
     const formData = this.generateForm.value;
-    
+    // Asignar capacidad según el tipo de clase
+    const capacity = this.classTypeCapacities[formData.class_type_id] ?? 10;
     // Formatear la hora para incluir segundos
     const timeWithSeconds = formData.schedule_time + ':00';
 
@@ -262,7 +266,7 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
       formData.class_type_id,
       formData.day_of_week,
       timeWithSeconds,
-      formData.capacity,
+      capacity,
       formData.start_date,
       formData.end_date
     ).subscribe({

@@ -259,7 +259,19 @@
 
 /* Modal Styles */
 .modal {
-  z-index: 1050;
+  z-index: 1050; 
+}
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  background: transparent;
 }
 
 .modal-dialog {
@@ -428,9 +440,20 @@
 
 /* Modal Backdrop */
 .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5); 
+}
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1500;
+  opacity: 1;
+  transition: opacity 0.2s;
 }
 
 .modal-backdrop.show {
-  opacity: 0.5;
+  opacity: 1;
 }
