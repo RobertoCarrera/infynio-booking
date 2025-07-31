@@ -56,7 +56,7 @@ export class ClassSessionsService {
 
   private async fetchClassSessions(): Promise<ClassSession[]> {
     const { data, error } = await this.supabaseService.supabase
-      .rpc('get_class_sessions');
+      .rpc('get_class_sessions_with_types');
 
     if (error) {
       console.error('Error fetching class sessions:', error);
@@ -75,49 +75,17 @@ export class ClassSessionsService {
 
   private async fetchClassSessionsByDateRange(startDate: string, endDate: string): Promise<ClassSession[]> {
     const { data, error } = await this.supabaseService.supabase
-      .from('class_sessions')
-      .select(`
-        *,
-        class_types (
-          id,
-          name,
-          description,
-          duration_minutes
-        ),
-        bookings (
-          id,
-          user_id,
-          booking_time,
-          cancellation_time,
-          status,
-          users (
-            full_name,
-            email
-          )
-        )
-      `)
-      .gte('schedule_date', startDate)
-      .lte('schedule_date', endDate)
-      .order('schedule_date', { ascending: true })
-      .order('schedule_time', { ascending: true });
+      .rpc('get_class_sessions_with_types', {
+        start_date: startDate,
+        end_date: endDate
+      });
 
     if (error) {
       console.error('Error fetching class sessions by date range:', error);
       throw error;
     }
 
-    // Transformar los datos para una estructura más plana
-    return (data || []).map(session => ({
-      id: session.id,
-      class_type_id: session.class_type_id,
-      capacity: session.capacity,
-      schedule_date: session.schedule_date,
-      schedule_time: session.schedule_time,
-      class_type_name: session.class_types?.name,
-      class_type_description: session.class_types?.description,
-      class_type_duration: session.class_types?.duration_minutes,
-      bookings: session.bookings?.filter((b: any) => b.status === 'confirmed') || []
-    }));
+    return data || [];
   }
 
   /**
@@ -201,7 +169,7 @@ export class ClassSessionsService {
         )
       `)
       .eq('user_id', userId)
-      .order('booking_time', { ascending: false });
+      .order('booking_date_time', { ascending: false });
 
     if (error) {
       console.error('Error fetching user bookings:', error);

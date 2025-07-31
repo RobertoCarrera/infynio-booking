@@ -1,6 +1,4 @@
-/* 🎨 CALENDARIO SÚPER CHULO - VERSIÓN OPTIMIZADA */
 
-/* === ESTRUCTURA BASE === */
 .calendar-container {
   height: 100vh;
   padding: 1rem;
@@ -16,7 +14,6 @@
   height: 100% !important;
 }
 
-/* === EVENTOS DEL CALENDARIO === */
 .fc-event {
   border: 2px solid rgba(0, 0, 0, 0.3) !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
@@ -34,7 +31,6 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* === FILTROS SÚPER CHULOS === */
 .class-filters {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   border: 1px solid #cbd5e1;
@@ -92,7 +88,6 @@
   padding-top: 0.5rem;
 }
 
-/* === PÍLDORAS DE FILTRO SÚPER CHULAS === */
 .filter-item {
   display: flex;
   align-items: center;
@@ -154,7 +149,6 @@
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
 }
 
-/* === DOTS DE COLOR CHULOS === */
 .color-dot {
   width: 16px;
   height: 16px;
@@ -213,7 +207,6 @@
   transform: scale(1.2);
 }
 
-/* === MODAL SÚPER CHULO === */
 .modal-content {
   border: none;
   border-radius: 20px;
@@ -258,7 +251,6 @@
   gap: 1rem;
 }
 
-/* === BOTONES SÚPER CHULOS === */
 .btn {
   border-radius: 12px;
   font-weight: 700;
@@ -340,7 +332,6 @@
   box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
 }
 
-/* === ALERTAS CHULAS === */
 .alert {
   border-radius: 12px;
   border: none;
@@ -384,7 +375,6 @@
   border-left: 4px solid #3b82f6;
 }
 
-/* === BADGES CHULOS === */
 .badge {
   border-radius: 8px;
   font-weight: 700;
@@ -400,7 +390,6 @@
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
 }
 
-/* === CARDS CHULOS === */
 .card {
   border: 2px solid #e2e8f0;
   border-radius: 12px;
@@ -421,13 +410,11 @@
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
 }
 
-/* === SPINNER CHULO === */
 .spinner-border-sm {
   width: 1.25rem;
   height: 1.25rem;
 }
 
-/* === RESPONSIVE === */
 @media (max-width: 768px) {
   .calendar-container {
     padding: 0.5rem;
@@ -461,7 +448,6 @@
   }
 }
 
-/* === ANIMACIONES CHULAS === */
 @keyframes pulse-success {
   0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
   70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
@@ -482,7 +468,6 @@
   animation: bounce-in 0.5s ease-out;
 }
 
-/* === EFECTOS DE BRILLO === */
 .class-filters, .modal-content {
   position: relative;
 }
