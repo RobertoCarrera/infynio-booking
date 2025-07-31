@@ -123,7 +123,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
           )
         `)
         .eq('user_id', this.currentUserId)
-        .eq('status', 'ACTIVE');
+        .in('status', ['ACTIVE', 'active']);
 
       if (error) {
         console.error('Error loading user packages:', error);
@@ -321,10 +321,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
       const isCorrectType = userPackage.packages.class_type === databaseClassType;
       // Verificar que tenga clases restantes
       const hasRemainingClasses = (userPackage.current_classes_remaining || 0) > 0;
-      // Verificar que esté activo
-      const isActive = userPackage.status === 'ACTIVE';
+      // Verificar que esté activo (manejar both cases: 'ACTIVE' y 'active')
+      const isActive = userPackage.status === 'ACTIVE' || userPackage.status === 'active';
       
-      console.log(`Package check - Type: ${userPackage.packages.class_type} === ${databaseClassType} = ${isCorrectType}, Remaining: ${userPackage.current_classes_remaining || 0} > 0 = ${hasRemainingClasses}, Active: ${userPackage.status} === 'ACTIVE' = ${isActive}`);
+      console.log(`Package check - Type: ${userPackage.packages.class_type} === ${databaseClassType} = ${isCorrectType}, Remaining: ${userPackage.current_classes_remaining || 0} > 0 = ${hasRemainingClasses}, Active: ${userPackage.status} (ACTIVE or active) = ${isActive}`);
       
       return isCorrectType && hasRemainingClasses && isActive;
     });
