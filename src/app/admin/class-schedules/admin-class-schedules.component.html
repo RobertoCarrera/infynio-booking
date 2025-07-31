@@ -36,11 +36,13 @@
     <!-- Date Picker for Calendar View -->
     <div class="date-controls" *ngIf="viewMode === 'calendar'">
       <label for="dateSelect">Fecha:</label>
+      <button *ngIf="!isPrevDayDisabled()" type="button" class="btn btn-outline-secondary btn-sm me-2" (click)="changeDay(-1)" title="Día anterior">&#8592;</button>
       <input type="date" 
              id="dateSelect"
-             class="form-control" 
+             class="form-control d-inline-block w-auto" 
              [(ngModel)]="selectedDate" 
              (change)="onDateChange()">
+      <button type="button" class="btn btn-outline-secondary btn-sm ms-2" (click)="changeDay(1)" title="Día siguiente">&#8594;</button>
     </div>
   </div>
 

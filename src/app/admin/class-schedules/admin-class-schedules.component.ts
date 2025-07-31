@@ -20,6 +20,18 @@ interface ClassType {
   styleUrls: ['./admin-class-schedules.component.css']
 })
 export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
+  // Deshabilitar ir a días anteriores a hoy
+  isPrevDayDisabled(): boolean {
+    const today = this.formatDate(new Date());
+    return this.selectedDate <= today;
+  }
+  // Cambiar día en la vista diaria
+  changeDay(offset: number) {
+    const current = new Date(this.selectedDate);
+    current.setDate(current.getDate() + offset);
+    this.selectedDate = this.formatDate(current);
+    this.onDateChange();
+  }
   classTypes: ClassType[] = [];
   sessions: ClassSession[] = [];
   
@@ -87,7 +99,12 @@ export class AdminClassSchedulesComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadClassTypes();
-    this.loadSessions();
+    // Al iniciar, cargar solo las sesiones del día seleccionado (hoy) para la vista diaria
+    if (this.viewMode === 'calendar') {
+      this.loadSessionsByDate(this.selectedDate);
+    } else {
+      this.loadSessions();
+    }
   }
 
   ngOnDestroy() {
