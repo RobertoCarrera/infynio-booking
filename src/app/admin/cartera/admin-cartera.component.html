@@ -59,7 +59,7 @@
                   class="btn btn-primary" 
                   (click)="abrirModalAgregar()">
             <i class="fas fa-plus me-2"></i>
-            Agregar Bono
+            Agregar Package
           </button>
         </div>
 
@@ -82,8 +82,8 @@
           <div *ngIf="usuarioSeleccionado && !loadingCartera">
             <div *ngIf="carteraUsuario.length === 0" class="empty-state text-center py-4">
               <i class="fas fa-ticket-alt fa-2x text-muted mb-3"></i>
-              <h6>No tiene bonos activos</h6>
-              <p class="text-muted">Este usuario no tiene bonos de clases activos</p>
+              <h6>No tiene packages activos</h6>
+              <p class="text-muted">Este usuario no tiene packages de clases activos</p>
             </div>
 
             <div *ngIf="carteraUsuario.length > 0">
@@ -91,6 +91,7 @@
                 <table class="table table-hover">
                   <thead>
                     <tr>
+                      <th>Package</th>
                       <th>Tipo</th>
                       <th>Clases</th>
                       <th>Progreso</th>
@@ -100,6 +101,11 @@
                   </thead>
                   <tbody>
                     <tr *ngFor="let entrada of carteraUsuario">
+                      <td>
+                        <strong>{{ getPackageName(entrada) }}</strong>
+                        <br>
+                        <small class="text-muted">€{{ entrada.package_price }}</small>
+                      </td>
                       <td>
                         <span class="badge" 
                               [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
@@ -171,7 +177,7 @@
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="fas fa-plus me-2"></i>
-          Agregar Bono de Clases
+          Agregar Package de Clases
         </h5>
         <button type="button" class="btn-close" (click)="cerrarModalAgregar()"></button>
       </div>
@@ -232,7 +238,7 @@
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="fas fa-edit me-2"></i>
-          Modificar Bono
+          Modificar Package
         </h5>
         <button type="button" class="btn-close" (click)="cerrarModalModificar()"></button>
       </div>
@@ -240,18 +246,50 @@
         <div class="modal-body">
           <div *ngIf="entradaParaModificar" class="mb-3">
             <div class="alert alert-info">
-              <strong>{{ entradaParaModificar.bono_type }}</strong> - 
-              {{ entradaParaModificar.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}
+              <strong>{{ getPackageName(entradaParaModificar) }}</strong>
               <br>
-              <small>Total: {{ entradaParaModificar.clases_totales }} clases</small>
+              <small>Tipo: {{ entradaParaModificar.bono_type }}</small>
+              <br>
+              <small>{{ entradaParaModificar.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}</small>
+              <br>
+              <small>Total: {{ entradaParaModificar.clases_totales }} clases - €{{ entradaParaModificar.package_price }}</small>
             </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Clases Disponibles:</label>
-            <input type="number" class="form-control" formControlName="clases_disponibles" min="0">
+            <input type="number" class="form-control" formControlName="current_classes_remaining" min="0">
             <div class="form-text">
-              Establece el número actual de clases disponibles para este bono.
+              Establece el número actual de clases disponibles para este package.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Clases Rollover:</label>
+            <input type="number" class="form-control" formControlName="rollover_classes_remaining" min="0">
+            <div class="form-text">
+              Clases disponibles del rollover del mes anterior.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Clases Usadas Este Mes:</label>
+            <input type="number" class="form-control" formControlName="classes_used_this_month" min="0">
+            <div class="form-text">
+              Número de clases consumidas en el mes actual.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Estado:</label>
+            <select class="form-select" formControlName="status">
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+              <option value="expired">Expirado</option>
+              <option value="pending">Pendiente</option>
+            </select>
+            <div class="form-text">
+              Estado actual del package.
             </div>
           </div>
         </div>

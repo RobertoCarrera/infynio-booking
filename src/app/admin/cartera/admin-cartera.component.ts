@@ -268,8 +268,14 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     return 'danger';
   }
 
-  getPackageName(packageId: number): string {
-    const package_ = this.packagesDisponibles.find(p => p.id === packageId);
+  getPackageName(entrada: CarteraClase): string {
+    // If the entry already has package_name from the new system, use it
+    if (entrada.package_name) {
+      return entrada.package_name;
+    }
+    
+    // Fallback to finding by package_id (though this shouldn't be needed with new system)
+    const package_ = this.packagesDisponibles.find(p => p.id === entrada.id);
     return package_?.name || 'Package desconocido';
   }
 
