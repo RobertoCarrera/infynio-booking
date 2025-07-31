@@ -9,17 +9,6 @@ import { filter } from 'rxjs/operators';
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.css']
 })
-<<<<<<< HEAD
-export class AdminComponent {
-  showOriginalLayout: boolean = true;
-
-  shouldShowOriginalLayout(): boolean {
-    return this.showOriginalLayout;
-  }
-
-  toggleLayout(): void {
-    this.showOriginalLayout = !this.showOriginalLayout;
-=======
 export class AdminComponent implements OnInit {
   activeTab = 'users';
 
@@ -49,6 +38,5 @@ export class AdminComponent implements OnInit {
     } else if (currentUrl.includes('/admin/cartera')) {
       this.activeTab = 'cartera';
     }
->>>>>>> fix-backend
   }
 }

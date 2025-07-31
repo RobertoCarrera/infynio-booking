@@ -3,28 +3,20 @@ import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../services/supabase.service';
 import { AuthService } from '../services/auth.service';
-<<<<<<< HEAD
-import { CarteraInfoComponent } from '../components/cartera-info/cartera-info.component';
-=======
 import { Subscription, of } from 'rxjs';
 import { distinctUntilChanged, switchMap } from 'rxjs/operators';
->>>>>>> fix-backend
 
 @Component({
   selector: 'app-menu',
   standalone: true,
-  imports: [RouterModule, CommonModule, CarteraInfoComponent],
+  imports: [RouterModule, CommonModule],
   templateUrl: './menu.component.html',
   styleUrls: ['./menu.component.css']
 })
 export class MenuComponent implements OnInit, OnDestroy {
   isAdmin = false;
   isLoggedIn = false;
-<<<<<<< HEAD
-  showCartera = false;
-=======
   private subscriptions: Subscription[] = [];
->>>>>>> fix-backend
 
   constructor(private supabase: SupabaseService, private auth: AuthService) {}
 
@@ -80,13 +72,5 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.isLoggedIn = false;
       this.isAdmin = false;
     });
-  }
-
-  toggleCartera() {
-    this.showCartera = !this.showCartera;
-  }
-
-  closeCartera() {
-    this.showCartera = false;
   }
 }

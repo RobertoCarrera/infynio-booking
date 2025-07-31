@@ -45,19 +45,4 @@ export class UsersService {
         .single()
     );
   }
-
-  // Obtener todos los usuarios (para admin)
-  async getAllUsers(): Promise<User[]> {
-    return new Promise((resolve, reject) => {
-      this.databaseService.query<User>(
-        (supabase) => supabase
-          .from('users')
-          .select('*')
-          .order('created_at', { ascending: false })
-      ).subscribe({
-        next: (users) => resolve(users),
-        error: (error) => reject(error)
-      });
-    });
-  }
 }

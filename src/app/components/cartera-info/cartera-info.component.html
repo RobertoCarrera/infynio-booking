@@ -1,71 +1,3 @@
-<<<<<<< HEAD
-<div class="cartera-container">
-  <div class="cartera-header">
-    <h6 class="mb-0">
-      <i class="fas fa-wallet me-2"></i>
-      Mi Cartera
-    </h6>
-  </div>
-
-  <div class="cartera-content" *ngIf="!isLoading; else loadingTemplate">
-    <div *ngIf="hasAnyClasses(); else noClasses">
-      
-      <!-- MAT FUNCIONAL -->
-      <div class="pack-section" *ngIf="classesSummary.matFuncional.total > 0">
-        <div class="pack-header">
-          <span class="pack-title">MAT FUNCIONAL</span>
-          <span class="pack-total">{{ classesSummary.matFuncional.total }}</span>
-        </div>
-        <div class="pack-details">
-          <div class="detail-item" *ngIf="classesSummary.matFuncional.monthly > 0">
-            <span class="detail-label">Este mes:</span>
-            <span class="detail-value">{{ classesSummary.matFuncional.monthly }}</span>
-          </div>
-          <div class="detail-item" *ngIf="classesSummary.matFuncional.rollover > 0">
-            <span class="detail-label">Acumuladas:</span>
-            <span class="detail-value">{{ classesSummary.matFuncional.rollover }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- REFORMER -->
-      <div class="pack-section" *ngIf="classesSummary.reformer.total > 0">
-        <div class="pack-header">
-          <span class="pack-title">REFORMER</span>
-          <span class="pack-total">{{ classesSummary.reformer.total }}</span>
-        </div>
-        <div class="pack-details">
-          <div class="detail-item" *ngIf="classesSummary.reformer.monthly > 0">
-            <span class="detail-label">Este mes:</span>
-            <span class="detail-value">{{ classesSummary.reformer.monthly }}</span>
-          </div>
-          <div class="detail-item" *ngIf="classesSummary.reformer.rollover > 0">
-            <span class="detail-label">Acumuladas:</span>
-            <span class="detail-value">{{ classesSummary.reformer.rollover }}</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <ng-template #noClasses>
-      <div class="no-classes">
-        <i class="fas fa-info-circle mb-2"></i>
-        <p class="mb-0">No tienes clases disponibles</p>
-        <small class="text-muted">Compra un pack para empezar</small>
-      </div>
-    </ng-template>
-  </div>
-
-  <ng-template #loadingTemplate>
-    <div class="loading">
-      <div class="spinner-border spinner-border-sm me-2" role="status">
-        <span class="visually-hidden">Cargando...</span>
-      </div>
-      <span>Cargando cartera...</span>
-    </div>
-  </ng-template>
-=======
 <div class="cartera-info-container">
   <div class="card">
     <div class="card-header">
@@ -227,5 +159,4 @@
       </div>
     </div>
   </div>
->>>>>>> fix-backend
 </div>
