@@ -1,8 +1,7 @@
-// Modelo para la tabla packages
 export interface Package {
   id: number;
   name: string;
-  class_type: 'MAT_FUNCIONAL' | 'REFORMER';
+  class_type: number; // <-- era string, ahora number
   class_count: number;
   price: number;
   is_single_class: boolean;
