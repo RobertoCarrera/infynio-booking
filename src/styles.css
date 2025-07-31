@@ -9,11 +9,11 @@
 }
 
 .calendar-container, .calendar-content {
-  height: 90dvh;
-  max-height: 900dvh;
+  /* height: 90dvh; */
+  /* max-height: 900dvh; */
   min-height: 0;
   box-sizing: border-box;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 /* Ajusta la altura de las filas de hora para que se repartan el espacio de forma uniforme */

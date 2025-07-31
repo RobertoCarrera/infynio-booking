@@ -1,0 +1,271 @@
+<div class="admin-cartera-container">
+  <div class="row">
+    <!-- Panel de usuarios -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-users me-2"></i>
+            Seleccionar Usuario
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Loading usuarios -->
+          <div *ngIf="loading" class="d-flex justify-content-center">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Cargando usuarios...</span>
+            </div>
+          </div>
+
+          <!-- Lista de usuarios -->
+          <div *ngIf="!loading" class="usuarios-list">
+            <div class="mb-3">
+              <input type="text" class="form-control" placeholder="Buscar usuario..." #searchInput>
+            </div>
+            
+            <div class="usuarios-scroll">
+              <div *ngFor="let usuario of usuarios" 
+                   class="usuario-item" 
+                   [class.selected]="usuarioSeleccionado?.id === usuario.id"
+                   (click)="seleccionarUsuario(usuario)">
+                <div class="d-flex align-items-center">
+                  <div class="avatar me-2">
+                    <i class="fas fa-user-circle fa-2x text-muted"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0">{{ usuario.full_name || usuario.email }}</h6>
+                    <small class="text-muted">{{ usuario.email }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel de cartera -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-ticket-alt me-2"></i>
+            Cartera de Clases
+            <span *ngIf="usuarioSeleccionado" class="text-muted ms-2">
+              - {{ usuarioSeleccionado.full_name || usuarioSeleccionado.email }}
+            </span>
+          </h5>
+          <button *ngIf="usuarioSeleccionado" 
+                  class="btn btn-primary" 
+                  (click)="abrirModalAgregar()">
+            <i class="fas fa-plus me-2"></i>
+            Agregar Bono
+          </button>
+        </div>
+
+        <div class="card-body">
+          <!-- Estado sin usuario seleccionado -->
+          <div *ngIf="!usuarioSeleccionado" class="empty-state text-center py-5">
+            <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+            <h5>Selecciona un usuario</h5>
+            <p class="text-muted">Elige un usuario de la lista para gestionar su cartera de clases</p>
+          </div>
+
+          <!-- Loading cartera -->
+          <div *ngIf="usuarioSeleccionado && loadingCartera" class="d-flex justify-content-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Cargando cartera...</span>
+            </div>
+          </div>
+
+          <!-- Cartera del usuario -->
+          <div *ngIf="usuarioSeleccionado && !loadingCartera">
+            <div *ngIf="carteraUsuario.length === 0" class="empty-state text-center py-4">
+              <i class="fas fa-ticket-alt fa-2x text-muted mb-3"></i>
+              <h6>No tiene bonos activos</h6>
+              <p class="text-muted">Este usuario no tiene bonos de clases activos</p>
+            </div>
+
+            <div *ngIf="carteraUsuario.length > 0">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Clases</th>
+                      <th>Progreso</th>
+                      <th>Fecha Compra</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let entrada of carteraUsuario">
+                      <td>
+                        <span class="badge" 
+                              [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
+                          {{ entrada.bono_type }}
+                        </span>
+                        <br>
+                        <small class="text-muted">
+                          {{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}
+                        </small>
+                      </td>
+                      <td>
+                        <strong>{{ entrada.clases_disponibles }}</strong> / {{ entrada.clases_totales }}
+                      </td>
+                      <td>
+                        <div class="progress mb-1" style="height: 8px;">
+                          <div class="progress-bar" 
+                               [class]="'bg-' + getProgressColor(getProgressPercentage(entrada))"
+                               [style.width.%]="getProgressPercentage(entrada)">
+                          </div>
+                        </div>
+                        <small class="text-muted">{{ getProgressPercentage(entrada) }}%</small>
+                      </td>
+                      <td>
+                        <small>{{ formatearFecha(entrada.fecha_compra) }}</small>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-primary" 
+                                  (click)="abrirModalModificar(entrada)"
+                                  title="Modificar">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button class="btn btn-outline-danger" 
+                                  (click)="eliminarPackage(entrada)"
+                                  title="Desactivar">
+                            <i class="fas fa-times"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensajes -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show mt-3">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ error }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mt-3">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ successMessage }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+</div>
+
+<!-- Modal Agregar Bono -->
+<div class="modal fade" [class.show]="showAgregarModal" [style.display]="showAgregarModal ? 'block' : 'none'" *ngIf="showAgregarModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-plus me-2"></i>
+          Agregar Bono de Clases
+        </h5>
+        <button type="button" class="btn-close" (click)="cerrarModalAgregar()"></button>
+      </div>
+      <form [formGroup]="agregarForm" (ngSubmit)="agregarPackage()">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Usuario:</label>
+            <input type="text" class="form-control" 
+                   [value]="usuarioSeleccionado?.full_name || usuarioSeleccionado?.email" 
+                   readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Package:</label>
+            <select class="form-select" formControlName="package_id">
+              <option value="">Seleccionar package...</option>
+              <optgroup label="MAT-FUNCIONAL">
+                <option *ngFor="let package of getPackagesByType('MAT_FUNCIONAL')" 
+                        [value]="package.id">
+                  {{ package.name }} - {{ package.class_count }} clases - €{{ package.price }}
+                  <span *ngIf="package.is_personal"> (Personal)</span>
+                </option>
+              </optgroup>
+              <optgroup label="REFORMER">
+                <option *ngFor="let package of getPackagesByType('REFORMER')" 
+                        [value]="package.id">
+                  {{ package.name }} - {{ package.class_count }} clases - €{{ package.price }}
+                  <span *ngIf="package.is_personal"> (Personal)</span>
+                </option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Fecha de Activación (opcional):</label>
+            <input type="date" class="form-control" formControlName="activation_date">
+            <div class="form-text">
+              Si no se especifica, se activará inmediatamente.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cerrarModalAgregar()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="agregarForm.invalid || loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+            Agregar Package
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Modificar Bono -->
+<div class="modal fade" [class.show]="showModificarModal" [style.display]="showModificarModal ? 'block' : 'none'" *ngIf="showModificarModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-edit me-2"></i>
+          Modificar Bono
+        </h5>
+        <button type="button" class="btn-close" (click)="cerrarModalModificar()"></button>
+      </div>
+      <form [formGroup]="modificarForm" (ngSubmit)="modificarPackage()">
+        <div class="modal-body">
+          <div *ngIf="entradaParaModificar" class="mb-3">
+            <div class="alert alert-info">
+              <strong>{{ entradaParaModificar.bono_type }}</strong> - 
+              {{ entradaParaModificar.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}
+              <br>
+              <small>Total: {{ entradaParaModificar.clases_totales }} clases</small>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Clases Disponibles:</label>
+            <input type="number" class="form-control" formControlName="clases_disponibles" min="0">
+            <div class="form-text">
+              Establece el número actual de clases disponibles para este bono.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cerrarModalModificar()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="modificarForm.invalid || loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal backdrop -->
+<div class="modal-backdrop fade show" *ngIf="showAgregarModal || showModificarModal"></div>

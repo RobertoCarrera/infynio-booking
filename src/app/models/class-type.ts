@@ -1,5 +1,5 @@
 export interface ClassType {
-    id: string;
+    id: number;
     name: string;
     description: string;
     duration_minutes: number;

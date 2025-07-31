@@ -74,10 +74,17 @@ export class SupabaseService {
           map(result => {
             if (result.error) {
               console.error('❌ Error fetching user role:', result.error);
-              return null;
+              return 'user'; // Default to 'user' role on error, never 'admin'
             }
             console.log('✅ User role data:', result.data);
-            return result.data?.role_id === 1 ? 'admin' : 'user';
+            const roleId = result.data?.role_id;
+            if (roleId === 1) {
+              console.log('✅ User is admin (role_id: 1)');
+              return 'admin';
+            } else {
+              console.log('✅ User is regular user (role_id:', roleId, ')');
+              return 'user';
+            }
           })
         );
       })

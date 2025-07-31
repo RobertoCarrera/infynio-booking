@@ -1,55 +1,207 @@
-<!-- Eliminada la lista previa de clases -->
-<div class="calendar-container p-3">
-  <div class="calendar-content" style="height: 100%;">
-    <full-calendar #fullcalendar [options]="calendarOptions" style="height: 100%; width: 100%"></full-calendar>
-    <!-- Modal para reservar plaza en clase -->
-    <div *ngIf="showReserveModal" class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.3);">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Reservar plaza en clase</h5>
-            <button type="button" class="btn-close" (click)="closeReserveModal()"></button>
-          </div>
-          <div class="modal-body">
-            <p><strong>{{ selectedEvent?.title }}</strong></p>
-            <p>{{ selectedEvent?.extendedProps?.description }}</p>
-            <p><strong>Capacidad:</strong> {{ selectedEvent?.extendedProps?.capacity }} plazas</p>
-            
-            <!-- Estado de la reserva -->
-            <div class="mt-3">
-              <div *ngIf="selectedEvent?.extendedProps?.bookingId" class="alert alert-success">
-                <i class="fas fa-check-circle"></i> Tienes esta clase reservada
-              </div>
-              <div *ngIf="!selectedEvent?.extendedProps?.bookingId" class="alert alert-info">
-                <i class="fas fa-info-circle"></i> Clase disponible para reservar
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeReserveModal()">Cerrar</button>
-            
-            <!-- Mostrar botón de reservar solo si NO tiene reserva -->
-            <button type="button" class="btn btn-primary" 
-              *ngIf="!selectedEvent?.extendedProps?.bookingId"
-              (click)="reserveSpot()">
-              Reservar plaza
-            </button>
-            
-            <!-- Mostrar botón de cancelar solo si SÍ tiene reserva -->
-            <button type="button" class="btn btn-danger" 
-              *ngIf="selectedEvent?.extendedProps?.bookingId"
-              [disabled]="canCancel === false"
-              (click)="onCancelBooking(selectedEvent?.extendedProps?.bookingId)">
-              Cancelar reserva
-            </button>
-          </div>
-          
-          <!-- Mensaje de cancelación (solo si hay reserva y no se puede cancelar) -->
-          <div *ngIf="selectedEvent?.extendedProps?.bookingId && cancelMessage" class="mt-2 px-3 pb-3">
-            <span style="color: red; font-weight: bold;">{{ cancelMessage }}</span>
-          </div>
+<div class="calendar-container">
+  <!-- Filtros de tipos de clase -->
+  <div class="class-filters mb-4" *ngIf="availableClassTypes.length > 0">
+    <div class="filter-controls mb-3">
+      <h6 class="mb-0">
+        <i class="fas fa-filter me-2"></i>
+        Filtrar tipos de clase
+      </h6>
+    </div>
+    
+    <div class="filter-items">
+      <div 
+        *ngFor="let classType of availableClassTypes" 
+        class="filter-item"
+        [class.active]="isClassTypeVisible(classType.name)"
+        (click)="toggleClassTypeFilter(classType.name)">
+        
+        <div 
+          class="color-dot" 
+          [style.background-color]="classType.color.background"
+          [style.border-color]="classType.color.border">
         </div>
+        
+        <span class="type-name">{{ classType.name }}</span>
+        
+        <span class="filter-toggle">
+          {{ isClassTypeVisible(classType.name) ? '✓' : '✗' }}
+        </span>
       </div>
     </div>
   </div>
+
+  <!-- Calendario -->
+  <div class="calendar-content">
+    <full-calendar [options]="calendarOptions"></full-calendar>
+  </div>
 </div>
+
+<!-- Modal de Reserva -->
+<div class="modal fade" 
+     [class.show]="showBookingModal" 
+     [style.display]="showBookingModal ? 'block' : 'none'" 
+     *ngIf="showBookingModal"
+     tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      
+      <!-- Header del Modal -->
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-calendar-plus me-2"></i>
+          {{ selectedSession?.class_type_name || 'Clase' }}
+        </h5>
+        <button type="button" 
+                class="btn-close" 
+                (click)="closeBookingModal()"
+                [disabled]="loadingModal">
+        </button>
+      </div>
+
+      <!-- Body del Modal -->
+      <div class="modal-body">
+        <!-- Loading State -->
+        <div *ngIf="loadingModal" class="text-center py-4">
+          <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+          <p class="mb-0">Verificando disponibilidad...</p>
+        </div>
+
+        <!-- Content cuando no está cargando -->
+        <div *ngIf="!loadingModal">
+          
+          <!-- Información de la clase -->
+          <div class="class-details mb-4" *ngIf="selectedSession">
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-6">
+                    <strong>Fecha:</strong><br>
+                    <span>{{ selectedSession.schedule_date | date:'EEEE, d \'de\' MMMM':'es-ES' }}</span>
+                  </div>
+                  <div class="col-6">
+                    <strong>Hora:</strong><br>
+                    <span>{{ selectedSession.schedule_time }}</span>
+                  </div>
+                </div>
+                <div class="row mt-2">
+                  <div class="col-6">
+                    <strong>Tipo:</strong><br>
+                    <span class="badge bg-primary">{{ selectedSession.class_type_name }}</span>
+                  </div>
+                  <div class="col-6">
+                    <strong>Duración:</strong><br>
+                    <span>{{ selectedSession.class_type_duration || 50 }} min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensajes de Error -->
+          <div *ngIf="modalError" class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ modalError }}
+          </div>
+
+          <!-- Mensajes de Éxito -->
+          <div *ngIf="modalSuccess" class="alert alert-success" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            {{ modalSuccess }}
+          </div>
+
+          <!-- Estado: Usuario puede reservar -->
+          <div *ngIf="userCanBook && !modalError && !modalSuccess">
+            <div class="alert alert-info" role="alert">
+              <i class="fas fa-info-circle me-2"></i>
+              Puedes reservar esta clase con tu bono disponible.
+            </div>
+          </div>
+
+          <!-- Estado: Lista de espera -->
+          <div *ngIf="!userCanBook && !modalError && !modalSuccess && selectedSession">
+            
+            <!-- Usuario NO está en lista de espera -->
+            <div *ngIf="!isInWaitingList">
+              <div class="alert alert-warning" role="alert">
+                <i class="fas fa-users me-2"></i>
+                Esta clase está completa, pero puedes unirte a la lista de espera.
+              </div>
+              
+              <div class="waiting-list-info" *ngIf="waitingListCount > 0">
+                <p class="mb-2">
+                  <strong>Personas en lista de espera:</strong> 
+                  <span class="waiting-list-position">{{ waitingListCount }}</span>
+                </p>
+                <small class="text-muted">
+                  Te notificaremos si se libera un lugar.
+                </small>
+              </div>
+            </div>
+
+            <!-- Usuario SÍ está en lista de espera -->
+            <div *ngIf="isInWaitingList">
+              <div class="alert alert-info" role="alert">
+                <i class="fas fa-clock me-2"></i>
+                Ya estás en la lista de espera para esta clase.
+              </div>
+              
+              <div class="waiting-list-info">
+                <p class="mb-2">
+                  <strong>Tu posición:</strong> 
+                  <span class="waiting-list-position">#{{ waitingListPosition }}</span>
+                </p>
+                <small class="text-muted">
+                  Te notificaremos cuando sea tu turno.
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="modal-footer" *ngIf="!loadingModal">
+        
+        <!-- Botón Cancelar (siempre visible) -->
+        <button type="button" 
+                class="btn btn-secondary" 
+                (click)="closeBookingModal()">
+          Cancelar
+        </button>
+
+        <!-- Botón Reservar (solo si puede reservar) -->
+        <button *ngIf="userCanBook && !modalError && !modalSuccess"
+                type="button" 
+                class="btn btn-success"
+                (click)="reserveClass()">
+          <i class="fas fa-check me-2"></i>
+          Confirmar Reserva
+        </button>
+
+        <!-- Botón Unirse a Lista de Espera -->
+        <button *ngIf="!userCanBook && !isInWaitingList && !modalError && !modalSuccess"
+                type="button" 
+                class="btn btn-warning"
+                (click)="joinWaitingList()">
+          <i class="fas fa-clock me-2"></i>
+          Unirse a Lista de Espera
+        </button>
+
+        <!-- Botón Salir de Lista de Espera -->
+        <button *ngIf="isInWaitingList && !modalError && !modalSuccess"
+                type="button" 
+                class="btn btn-outline-danger"
+                (click)="cancelWaitingList()">
+          <i class="fas fa-times me-2"></i>
+          Salir de Lista de Espera
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Backdrop -->
+<div class="modal-backdrop fade show" *ngIf="showBookingModal"></div>

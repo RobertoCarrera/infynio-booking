@@ -1,147 +1,61 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { FullCalendarModule } from '@fullcalendar/angular';
-import { FULLCALENDAR_OPTIONS } from './fullcalendar-config';
+import { CalendarOptions } from '@fullcalendar/core';
+import { ClassSessionsService, ClassSession } from '../../services/class-sessions.service';
+import { CarteraClasesService } from '../../services/cartera-clases.service';
+import { WaitingListService } from '../../services/waiting-list.service';
 import { SupabaseService } from '../../services/supabase.service';
-import { BookingsService } from '../../services/bookings.service';
-
-export interface CalendarClassSession {
-  id: number;
-  class_type_id: number;
-  capacity: number;
-  schedule_date: string;
-  schedule_time: string;
-  name: string;
-  description: string;
-  duration_minutes: number;
-}
+import { FULLCALENDAR_OPTIONS } from './fullcalendar-config';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [CommonModule, FullCalendarModule],
+  imports: [CommonModule, FormsModule, FullCalendarModule],
   templateUrl: './calendar.component.html',
-  styleUrls: ['./calendar.component.css'],
+  styleUrls: ['./calendar.component.css']
 })
 export class CalendarComponent implements OnInit, OnDestroy {
+  calendarOptions: CalendarOptions;
+  events: any[] = [];
+  filteredClassTypes = signal<Set<string>>(new Set());
+  availableClassTypes: { name: string, color: { background: string, border: string } }[] = [];
+  
+  // Propiedades para el modal de reservas
+  selectedSession: ClassSession | null = null;
+  showBookingModal = false;
+  loadingModal = false;
+  modalError = '';
+  modalSuccess = '';
+  userCanBook = false;
+  
+  // Propiedades del usuario
   currentUserId: number | null = null;
-  canCancel: boolean | null = null;
-  cancelMessage: string = '';
-  private bookingsSubscription: any;
-  showReserveModal = false;
-  selectedEvent: any = null;
-  calendarOptions: any = { ...FULLCALENDAR_OPTIONS, events: [] };
-  classSessions: CalendarClassSession[] = [];
+  
+  // Propiedades para lista de espera
+  isInWaitingList = false;
+  waitingListPosition = 0;
+  waitingListCount = 0;
+  
+  private subscriptions: Subscription[] = [];
 
   constructor(
+    private classSessionsService: ClassSessionsService,
+    private carteraService: CarteraClasesService,
+    private waitingListService: WaitingListService,
     private supabaseService: SupabaseService,
-    private bookingsService: BookingsService
-  ) {}
-
-  async ngOnInit() {
-    this.supabaseService.getCurrentUser().subscribe(async user => {
-      if (user) {
-        const { data: userData } = await this.supabaseService.supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .single();
-        this.currentUserId = userData?.id ?? null;
-      }
-    });
-    await this.refreshCalendarEvents();
-    this.bookingsSubscription = this.supabaseService.supabase
-      .channel('bookings-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
-        await this.refreshCalendarEvents();
-      })
-      .subscribe();
-  }
-
-  async refreshCalendarEvents() {
-    this.classSessions = await this.supabaseService.getClassSessionsWithTypes();
-    
-    const classTypeColors: string[] = [
-      '#E8C4A0', // beige más intenso
-      '#F48FB1', // rosa más vibrante  
-      '#B39DDB', // lavanda más intensa
-      '#80CBC4', // verde agua más saturado
-      '#FFB74D', // naranja más vivo
-      '#FF8A65', // coral más intenso
-      '#A5D6A7', // verde más definido
-      '#FFF176'  // amarillo más brillante
-    ];
-    const mappedEvents = this.classSessions.map((session: any) => {
-      let userBooking = null;
-      if (Array.isArray(session.bookings) && this.currentUserId) {
-        userBooking = session.bookings.find((b: any) => b.user_id === this.currentUserId) || null;
-      }
-      
-      const endTime = this.getEndDateTime(session.schedule_date, session.schedule_time, session.duration_minutes);
-      
-      return {
-        title: `${session.name} (${session.capacity} plazas)`,
-        start: session.schedule_date + 'T' + session.schedule_time,
-        end: endTime,
-        backgroundColor: classTypeColors[session.class_type_id % classTypeColors.length],
-        borderColor: classTypeColors[session.class_type_id % classTypeColors.length],
-        extendedProps: {
-          description: session.description,
-          capacity: session.capacity,
-          classTypeId: session.class_type_id,
-          sessionId: session.id,
-          bookingId: userBooking ? userBooking.id : null,
-          bookingCancellationTime: userBooking ? userBooking.cancellation_time : null
-        }
-      };
-    });
+    private cdr: ChangeDetectorRef
+  ) {
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
-      events: mappedEvents,
-      eventContent: (arg: any) => {
-        // Extraer datos del evento
-        const eventData = arg.event;
-        const title = eventData.title || '';
-        const startTime = eventData.start;
-        const endTime = eventData.end;
-        
-        // Extraer solo el nombre de la clase (sin la capacidad)
-        const className = title.split(' (')[0];
-        const capacity = title.match(/\((\d+) plazas\)/)?.[1] || '';
-        
-        // Formatear horario
-        const timeStr = startTime && endTime 
-          ? `${startTime.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})} - ${endTime.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})}`
-          : '';
-        
-        // Crear el HTML personalizado
-        return {
-          html: `
-            <div class="fc-event-main">
-              <div class="fc-event-title-container">
-                <span class="fc-event-class-name">${className}</span>
-                <span class="fc-event-time">${timeStr}</span>
-              </div>
-              <div class="fc-event-capacity">${capacity} plazas</div>
-            </div>
-          `
-        };
-      },
-      eventClick: async (info: any) => {
-        this.selectedEvent = info.event;
-        this.showReserveModal = true;
-        this.canCancel = null;
-        this.cancelMessage = '';
-        
-        // Si hay una reserva, verificar automáticamente si se puede cancelar
-        const bookingId = info.event.extendedProps?.bookingId;
-        if (bookingId) {
-          await this.checkCanCancelBooking(bookingId);
-        }
-      }
+      eventClick: this.onEventClick.bind(this),
+      events: this.events
     };
   }
 
+<<<<<<< HEAD
   async onCancelBooking(bookingId: number) {
     if (!bookingId) {
       alert('No se encontró la reserva para cancelar.');
@@ -168,84 +82,397 @@ export class CalendarComponent implements OnInit, OnDestroy {
     } catch (error: any) {
       alert('Error al cancelar la reserva: ' + error.message);
     }
+=======
+  ngOnInit() {
+    this.getCurrentUser();
+    this.loadEvents();
+>>>>>>> fix-backend
   }
 
-  ngOnDestroy(): void {
-    if (this.bookingsSubscription) {
-      this.bookingsSubscription.unsubscribe();
-    }
+  ngOnDestroy() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
-  closeReserveModal() {
-    this.canCancel = null;
-    this.cancelMessage = '';
-    this.showReserveModal = false;
-    this.selectedEvent = null;
+  private getCurrentUser() {
+    const sub = this.supabaseService.getCurrentUser().subscribe({
+      next: (user) => {
+        if (user) {
+          // Obtener el ID del usuario desde la tabla users
+          this.supabaseService.supabase
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .single()
+            .then(({ data, error }) => {
+              if (!error && data) {
+                this.currentUserId = data.id;
+                console.log('Current user ID:', this.currentUserId);
+              }
+            });
+        }
+      },
+      error: (error) => {
+        console.error('Error getting current user:', error);
+      }
+    });
+    this.subscriptions.push(sub);
   }
 
-  reserveSpot() {
-    this.supabaseService.getCurrentUser().subscribe(async user => {
-      if (!user) {
-        alert('Debes iniciar sesión para reservar.');
-        return;
+  loadEvents() {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 90);
+
+    const sub = this.classSessionsService.getClassSessionsByDateRange(
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    ).subscribe({
+      next: (sessions) => {
+        this.events = this.transformSessionsToEvents(sessions);
+        this.extractClassTypes(sessions);
+        this.updateCalendarEvents();
+      },
+      error: (error) => {
+        console.error('Error loading events:', error);
       }
-      const { data: userData, error } = await this.supabaseService.supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-      if (error || !userData) {
-        alert('No se pudo encontrar el usuario en la base de datos.');
-        return;
-      }
-      try {
-        const classDateTime = new Date(this.selectedEvent?.start);
-        classDateTime.setHours(classDateTime.getHours() - 12);
-        const cancellationTime = classDateTime.toISOString();
-        await this.bookingsService.reserveSpot(
-          this.selectedEvent?.extendedProps?.sessionId,
-          userData.id,
-          cancellationTime
-        );
-        alert('Reserva realizada para la clase: ' + this.selectedEvent?.title);
-        this.closeReserveModal();
-        await this.refreshCalendarEvents();
-      } catch (error: any) {
-        alert('Error al reservar plaza: ' + error.message);
-      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  private transformSessionsToEvents(sessions: ClassSession[]): any[] {
+    return sessions.map(session => {
+      const isAvailable = this.classSessionsService.isSessionAvailable(session);
+      const colors = this.classSessionsService.getEventColors(session);
+      const availableSpots = this.classSessionsService.getAvailableSpots(session);
+
+      return {
+        id: session.id.toString(),
+        title: `${session.class_type_name} (${availableSpots}/${session.capacity})`,
+        start: `${session.schedule_date}T${session.schedule_time}`,
+        backgroundColor: colors.background,
+        borderColor: colors.border,
+        textColor: '#ffffff',
+        extendedProps: {
+          session: session,
+          available: isAvailable,
+          availableSpots: availableSpots
+        },
+        classNames: [
+          isAvailable ? 'available-class' : 'full-class',
+          `class-type-${session.class_type_name?.toLowerCase().replace(/\s+/g, '-')}`
+        ]
+      };
     });
   }
 
-  getEndDateTime(date: string, time: string, duration: number): string {
-    // Crear fecha sin zona horaria para evitar conversiones UTC
-    const [year, month, day] = date.split('-').map(Number);
-    const [hour, minute, second] = time.split(':').map(Number);
-    
-    const start = new Date(year, month - 1, day, hour, minute, second || 0);
-    start.setMinutes(start.getMinutes() + duration);
-    
-    // Formatear manualmente para evitar conversiones de zona horaria
-    const endYear = start.getFullYear();
-    const endMonth = String(start.getMonth() + 1).padStart(2, '0');
-    const endDay = String(start.getDate()).padStart(2, '0');
-    const endHour = String(start.getHours()).padStart(2, '0');
-    const endMinute = String(start.getMinutes()).padStart(2, '0');
-    
-    return `${endYear}-${endMonth}-${endDay}T${endHour}:${endMinute}`;
+  private extractClassTypes(sessions: ClassSession[]) {
+    const typeSet = new Set<string>();
+    const typeColorsMap = new Map<string, { background: string, border: string }>();
+
+    sessions.forEach(session => {
+      if (session.class_type_name) {
+        typeSet.add(session.class_type_name);
+        if (!typeColorsMap.has(session.class_type_name)) {
+          typeColorsMap.set(session.class_type_name, this.classSessionsService.getClassTypeColors(session.class_type_name));
+        }
+      }
+    });
+
+    this.availableClassTypes = Array.from(typeSet).map(typeName => ({
+      name: typeName,
+      color: typeColorsMap.get(typeName) || { background: '#6b7280', border: '#4b5563' }
+    }));
+
+    // Inicializar con todos los tipos visibles
+    this.filteredClassTypes.set(new Set(Array.from(typeSet)));
   }
 
-  async checkCanCancelBooking(bookingId: number) {
-    try {
-      const canCancel = await this.bookingsService.canCancelBooking(bookingId);
-      this.canCancel = canCancel;
-      if (!canCancel) {
-        this.cancelMessage = 'Ya no se puede anular la reserva porque quedan menos de 12 horas para la clase.';
-      } else {
-        this.cancelMessage = '';
-      }
-    } catch (error) {
-      this.canCancel = null;
-      this.cancelMessage = 'Error al comprobar si se puede cancelar.';
+  private updateCalendarEvents() {
+    const filteredTypes = this.filteredClassTypes();
+    const filteredEvents = this.events.filter(event => 
+      filteredTypes.has(event.extendedProps.session.class_type_name)
+    );
+    
+    this.calendarOptions = {
+      ...this.calendarOptions,
+      events: filteredEvents
+    };
+  }
+
+  toggleClassTypeFilter(typeName: string) {
+    const current = new Set(this.filteredClassTypes());
+    if (current.has(typeName)) {
+      current.delete(typeName);
+    } else {
+      current.add(typeName);
     }
+    this.filteredClassTypes.set(current);
+    this.updateCalendarEvents();
+  }
+
+  isClassTypeVisible(typeName: string): boolean {
+    return this.filteredClassTypes().has(typeName);
+  }
+
+  // FUNCIÓN CORREGIDA - Manejo de click en eventos del calendario
+  onEventClick(eventInfo: any) {
+    console.log('🔄 Event clicked:', eventInfo.event);
+    
+    const session = eventInfo.event.extendedProps.session;
+    const availableSpots = this.classSessionsService.getAvailableSpots(session);
+    
+    console.log('📊 Session data:', {
+      session,
+      availableSpots,
+      classTypeName: session.class_type_name,
+      classTypeId: session.class_type_id
+    });
+
+    if (availableSpots <= 0) {
+      this.handleWaitingList(session);
+      return;
+    }
+
+    this.selectedSession = session;
+    this.loadingModal = true;
+    this.showBookingModal = true;
+    this.modalError = '';
+    this.modalSuccess = '';
+
+    // Verificar disponibilidad usando el ID numérico de class_type
+    this.checkUserClassAvailability(session);
+  }
+
+  // NUEVA FUNCIÓN - Verificar disponibilidad de clases del usuario
+  private checkUserClassAvailability(session: any) {
+    if (!this.currentUserId) {
+      this.modalError = 'Error: Usuario no identificado';
+      this.loadingModal = false;
+      return;
+    }
+
+    const classTypeId = session.class_type_id; // Usar el ID numérico
+    const isPersonal = session.class_type_name?.toLowerCase().includes('personalizada') || false;
+
+    console.log('🔍 Verificando disponibilidad:', {
+      userId: this.currentUserId,
+      classTypeId,
+      classTypeName: session.class_type_name,
+      isPersonal
+    });
+
+    // Verificar si el usuario tiene clases disponibles de este tipo
+    const sub = this.carteraService.tieneClasesDisponibles(this.currentUserId, classTypeId, isPersonal)
+      .subscribe({
+        next: (hasClasses: boolean) => {
+          console.log('✅ Resultado verificación:', hasClasses);
+          
+          this.userCanBook = hasClasses;
+          this.loadingModal = false;
+
+          if (!hasClasses) {
+            this.modalError = `No tienes un paquete disponible para clases de tipo "${session.class_type_name}". Contacta con recepción para adquirir un paquete.`;
+          }
+        },
+        error: (error: any) => {
+          console.error('❌ Error verificando disponibilidad:', error);
+          this.userCanBook = false;
+          this.loadingModal = false;
+          this.modalError = 'Error verificando la disponibilidad de tus clases.';
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  // FUNCIÓN CORREGIDA - Confirmar reserva
+  confirmBooking() {
+    if (!this.selectedSession || !this.currentUserId) {
+      return;
+    }
+
+    this.loadingModal = true;
+    this.modalError = '';
+
+    // Usar el ID numérico del tipo de clase
+    const bookingRequest = {
+      user_id: this.currentUserId,
+      class_session_id: this.selectedSession.id,
+      class_type: this.selectedSession.class_type_name || ''
+    };
+
+    console.log('🔄 Creando reserva:', bookingRequest);
+
+    const sub = this.classSessionsService.createBooking(bookingRequest)
+      .subscribe({
+        next: (result) => {
+          console.log('✅ Reserva creada:', result);
+          this.modalSuccess = 'Reserva confirmada exitosamente';
+          this.loadingModal = false;
+          
+          // Recargar eventos para mostrar la nueva reserva
+          this.loadEvents();
+          
+          // Cerrar modal después de 2 segundos
+          setTimeout(() => {
+            this.closeBookingModal();
+          }, 2000);
+        },
+        error: (error) => {
+          console.error('❌ Error creando reserva:', error);
+          this.loadingModal = false;
+          this.modalError = error.message || 'Error al crear la reserva';
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  // Método para manejar lista de espera
+  handleWaitingList(session: ClassSession) {
+    if (!this.currentUserId) {
+      console.error('Usuario no identificado');
+      return;
+    }
+
+    this.selectedSession = session;
+    this.showBookingModal = true;
+    this.loadingModal = true;
+    this.modalError = '';
+    this.modalSuccess = '';
+    this.userCanBook = false;
+
+    // Verificar si el usuario ya está en la lista de espera
+    const sub1 = this.waitingListService.isUserInWaitingList(this.currentUserId, session.id)
+      .subscribe({
+        next: (isInList) => {
+          this.isInWaitingList = isInList;
+          if (isInList) {
+            // Obtener posición en la lista
+            const sub2 = this.waitingListService.getUserWaitingListPosition(this.currentUserId!, session.id)
+              .subscribe({
+                next: (position) => {
+                  this.waitingListPosition = position;
+                  this.loadingModal = false;
+                },
+                error: (error) => {
+                  console.error('Error obteniendo posición en lista de espera:', error);
+                  this.loadingModal = false;
+                }
+              });
+            this.subscriptions.push(sub2);
+          } else {
+            this.loadingModal = false;
+          }
+        },
+        error: (error) => {
+          console.error('Error verificando lista de espera:', error);
+          this.loadingModal = false;
+          this.modalError = 'Error verificando tu estado en la lista de espera';
+        }
+      });
+    this.subscriptions.push(sub1);
+
+    // Obtener total de personas en lista de espera
+    const sub3 = this.waitingListService.getWaitingListCount(session.id)
+      .subscribe({
+        next: (count) => {
+          this.waitingListCount = count;
+        },
+        error: (error) => {
+          console.error('Error obteniendo conteo de lista de espera:', error);
+        }
+      });
+    this.subscriptions.push(sub3);
+  }
+
+  // Método para unirse a la lista de espera
+  joinWaitingList() {
+    if (!this.selectedSession || !this.currentUserId) {
+      return;
+    }
+
+    this.loadingModal = true;
+    this.modalError = '';
+
+    const request = {
+      user_id: this.currentUserId,
+      class_session_id: this.selectedSession.id,
+      status: 'waiting'
+    };
+
+    const sub = this.waitingListService.joinWaitingList(request)
+      .subscribe({
+        next: () => {
+          this.modalSuccess = 'Te has unido a la lista de espera exitosamente';
+          this.isInWaitingList = true;
+          this.loadingModal = false;
+          
+          // Actualizar posición
+          const sub2 = this.waitingListService.getUserWaitingListPosition(this.currentUserId!, this.selectedSession!.id)
+            .subscribe({
+              next: (position) => {
+                this.waitingListPosition = position;
+              }
+            });
+          this.subscriptions.push(sub2);
+          
+          setTimeout(() => {
+            this.closeBookingModal();
+          }, 2000);
+        },
+        error: (error) => {
+          console.error('Error uniéndose a lista de espera:', error);
+          this.loadingModal = false;
+          this.modalError = error.message || 'Error al unirse a la lista de espera';
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  // Método para cancelar lista de espera
+  async cancelWaitingList() {
+    if (!this.selectedSession || !this.currentUserId) {
+      return;
+    }
+
+    this.loadingModal = true;
+    this.modalError = '';
+
+    const sub = this.waitingListService.cancelWaitingList(this.currentUserId, this.selectedSession.id)
+      .subscribe({
+        next: () => {
+          this.modalSuccess = 'Has salido de la lista de espera';
+          this.isInWaitingList = false;
+          this.waitingListPosition = 0;
+          this.loadingModal = false;
+          
+          setTimeout(() => {
+            this.closeBookingModal();
+          }, 2000);
+        },
+        error: (error) => {
+          console.error('Error cancelando lista de espera:', error);
+          this.loadingModal = false;
+          this.modalError = error.message || 'Error al salir de la lista de espera';
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  // Método para cerrar el modal
+  closeBookingModal() {
+    this.showBookingModal = false;
+    this.selectedSession = null;
+    this.modalError = '';
+    this.modalSuccess = '';
+    this.userCanBook = false;
+    this.isInWaitingList = false;
+    this.waitingListPosition = 0;
+    this.loadingModal = false;
+  }
+
+  // Método para reservar clase (llamado desde el template)
+  reserveClass() {
+    this.confirmBooking();
   }
 }

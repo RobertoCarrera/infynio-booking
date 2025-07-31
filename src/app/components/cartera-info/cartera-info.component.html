@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <div class="cartera-container">
   <div class="cartera-header">
     <h6 class="mb-0">
@@ -64,4 +65,167 @@
       <span>Cargando cartera...</span>
     </div>
   </ng-template>
+=======
+<div class="cartera-info-container">
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-ticket-alt me-2"></i>
+        Mi Cartera de Clases
+      </h5>
+    </div>
+    
+    <div class="card-body" *ngIf="loading">
+      <div class="d-flex justify-content-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body" *ngIf="error">
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {{ error }}
+        <button class="btn btn-sm btn-outline-danger ms-2" (click)="cargarCartera()">
+          Reintentar
+        </button>
+      </div>
+    </div>
+
+    <div class="card-body" *ngIf="!loading && !error">
+      <!-- Resumen de clases disponibles -->
+      <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-2">
+          <div class="stats-card mat-funcional">
+            <div class="stats-icon">
+              <i class="fas fa-dumbbell"></i>
+            </div>
+            <div class="stats-content">
+              <h6>MAT Funcional</h6>
+              <span class="stats-number">{{ resumenClases.matFuncional }}</span>
+              <small>clases</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+          <div class="stats-card reformer">
+            <div class="stats-icon">
+              <i class="fas fa-expand-arrows-alt"></i>
+            </div>
+            <div class="stats-content">
+              <h6>Reformer</h6>
+              <span class="stats-number">{{ resumenClases.reformer }}</span>
+              <small>clases</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+          <div class="stats-card personalizada">
+            <div class="stats-icon">
+              <i class="fas fa-user-check"></i>
+            </div>
+            <div class="stats-content">
+              <h6>MAT Personal</h6>
+              <span class="stats-number">{{ resumenClases.matPersonalizada }}</span>
+              <small>clases</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+          <div class="stats-card personalizada">
+            <div class="stats-icon">
+              <i class="fas fa-crown"></i>
+            </div>
+            <div class="stats-content">
+              <h6>Reformer Personal</h6>
+              <span class="stats-number">{{ resumenClases.reformerPersonalizada }}</span>
+              <small>clases</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total general -->
+      <div class="total-summary mb-4">
+        <div class="row">
+          <div class="col-md-6">
+            <h4 class="text-primary">
+              Total disponible: {{ getTotalClases() }} clases
+            </h4>
+          </div>
+          <div class="col-md-6 text-end">
+            <button class="btn btn-outline-primary" (click)="cargarCartera()">
+              <i class="fas fa-sync-alt me-2"></i>
+              Actualizar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalle de bonos -->
+      <div *ngIf="carteraClases.length > 0">
+        <h6 class="mb-3">Detalle de tus bonos:</h6>
+        <div class="bonos-list">
+          <div *ngFor="let entrada of carteraClases" class="bono-item card mb-3">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-md-4">
+                  <h6 class="mb-1">
+                    <span class="badge" 
+                          [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
+                      {{ entrada.bono_type }}
+                    </span>
+                  </h6>
+                  <small class="text-muted">
+                    {{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Bono de ' + entrada.clases_totales + ' clases' }}
+                  </small>
+                </div>
+                <div class="col-md-3">
+                  <div class="progress-info">
+                    <div class="d-flex justify-content-between mb-1">
+                      <small>Disponibles</small>
+                      <small>{{ entrada.clases_disponibles }}/{{ entrada.clases_totales }}</small>
+                    </div>
+                    <div class="progress">
+                      <div class="progress-bar" 
+                           [class]="'bg-' + getProgressColor(getProgressPercentage(entrada))"
+                           [style.width.%]="getProgressPercentage(entrada)">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <small class="text-muted">
+                    <i class="fas fa-calendar me-1"></i>
+                    Comprado: {{ formatearFecha(entrada.fecha_compra) }}
+                  </small>
+                  <br>
+                  <small class="text-muted" *ngIf="entrada.fecha_expiracion">
+                    <i class="fas fa-clock me-1"></i>
+                    Expira: {{ formatearFecha(entrada.fecha_expiracion) }}
+                  </small>
+                </div>
+                <div class="col-md-2 text-end">
+                  <span class="clases-count">
+                    {{ entrada.clases_disponibles }}
+                  </span>
+                  <br>
+                  <small class="text-muted">clases</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estado vacío -->
+      <div *ngIf="carteraClases.length === 0" class="empty-state text-center py-5">
+        <i class="fas fa-ticket-alt fa-3x text-muted mb-3"></i>
+        <h5>No tienes bonos activos</h5>
+        <p class="text-muted">Contacta con el estudio para adquirir tus bonos de clases</p>
+      </div>
+    </div>
+  </div>
+>>>>>>> fix-backend
 </div>

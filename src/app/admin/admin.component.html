@@ -1,4 +1,5 @@
 <div class="admin-container">
+<<<<<<< HEAD
     <div class="admin-header">
         <h1>Panel de Administración</h1>
         <nav class="admin-nav">
@@ -39,5 +40,43 @@
         
         <!-- Router outlet para las nuevas funcionalidades -->
         <router-outlet></router-outlet>
+=======
+  <div class="container-fluid">
+    <!-- Navigation tabs -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <nav class="nav nav-pills nav-justified">
+          <a class="nav-link" 
+             [class.active]="activeTab === 'users'"
+             routerLink="/admin/users"
+             (click)="activeTab = 'users'">
+            <i class="fas fa-users me-2"></i>
+            Gestión de Usuarios
+          </a>
+          <a class="nav-link" 
+             [class.active]="activeTab === 'invite'"
+             routerLink="/admin/invite"
+             (click)="activeTab = 'invite'">
+            <i class="fas fa-user-plus me-2"></i>
+            Invitar Usuarios
+          </a>
+          <a class="nav-link" 
+             [class.active]="activeTab === 'cartera'"
+             routerLink="/admin/cartera"
+             (click)="activeTab = 'cartera'">
+            <i class="fas fa-ticket-alt me-2"></i>
+            Cartera de Clases
+          </a>
+        </nav>
+      </div>
     </div>
+
+    <!-- Content area -->
+    <div class="row">
+      <div class="col-12">
+        <router-outlet></router-outlet>
+      </div>
+>>>>>>> fix-backend
+    </div>
+  </div>
 </div>

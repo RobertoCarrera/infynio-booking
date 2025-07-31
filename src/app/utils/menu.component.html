@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark ps-3 pe-3">
   <div class="container-fluid">
-    <a class="navbar-brand" href="#">MarsStudio</a>
+    <img src="https://mars-studio.es/wp-content/uploads/2025/04/logo_marron-100x100.png" alt="" id="logo">
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -9,6 +9,9 @@
         <ng-container *ngIf="isLoggedIn">
           <li class="nav-item">
             <a routerLink="/calendario" class="nav-link" routerLinkActive="active">Calendario</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/cartera" class="nav-link" routerLinkActive="active">Mi Cartera</a>
           </li>
           <!-- <li class="nav-item">
             <a routerLink="/clases" class="nav-link" routerLinkActive="active">Clases</a>
@@ -20,7 +23,7 @@
             <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active">Mi Perfil</a>
           </li>
           <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
-            <a routerLink="/perfil" class="nav-link text-danger" (click)="logout()" routerLinkActive="active">Cerrar Sesión</a>
+            <a (click)="logout()" class="nav-link text-danger" style="cursor: pointer;">Cerrar Sesión</a>
           </li>
         </ng-container>
       </ul>
