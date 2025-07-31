@@ -11,7 +11,7 @@ export interface ClassType {
 
 export interface ClassSession {
   id: number;
-  class_type: number;
+  class_type_id: number;
   capacity: number;
   schedule_date: string;
   schedule_time: string;
@@ -29,7 +29,8 @@ export interface Booking {
   cancellation_time: string;
   status: string;
   user?: {
-    full_name: string;
+    name: string;
+    surname: string;
     email: string;
   };
 }
@@ -87,11 +88,12 @@ export class ClassSessionsService {
         bookings (
           id,
           user_id,
-          booking_time,
+          booking_date_time,
           cancellation_time,
           status,
           users (
-            full_name,
+            name,
+            surname,
             email
           )
         )
@@ -109,7 +111,7 @@ export class ClassSessionsService {
     // Transformar los datos para una estructura más plana
     return (data || []).map(session => ({
       id: session.id,
-      class_type: session.class_type,
+      class_type_id: session.class_type_id,
       capacity: session.capacity,
       schedule_date: session.schedule_date,
       schedule_time: session.schedule_time,
@@ -120,37 +122,34 @@ export class ClassSessionsService {
     }));
   }
 
-/**
- * FUNCIÓN CORREGIDA - Crea una nueva reserva para una sesión de clase usando el sistema de packages
- */
-createBooking(bookingRequest: CreateBookingRequest): Observable<any> {
-  return from(this.performCreateBooking(bookingRequest));
-}
-
-private async performCreateBooking(bookingRequest: CreateBookingRequest): Promise<any> {
-  console.log('🔄 Creando reserva:', bookingRequest);
-  
-  // CORRECCIÓN: Usar la nueva función que maneja packages correctamente
-  const { data, error } = await this.supabaseService.supabase
-    .rpc('create_booking_with_package_validation', {
-      p_user_id: bookingRequest.user_id,
-      p_class_session_id: bookingRequest.class_session_id
-    });
-
-  if (error) {
-    console.error('❌ Error creating booking:', error);
-    throw new Error(error.message || 'Error creando la reserva');
+  /**
+   * Crea una nueva reserva para una sesión de clase usando el sistema de packages
+   */
+  createBooking(bookingRequest: CreateBookingRequest): Observable<any> {
+    return from(this.performCreateBooking(bookingRequest));
   }
 
-  console.log('✅ Booking result:', data);
+  private async performCreateBooking(bookingRequest: CreateBookingRequest): Promise<any> {
+    // Usar la nueva función que maneja todo el proceso de forma segura
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('create_booking_from_package', {
+        p_user_id: bookingRequest.user_id,
+        p_class_session_id: bookingRequest.class_session_id,
+        p_class_type: bookingRequest.class_type
+      });
 
-  // La función retorna un JSON con success/error
-  if (!data.success) {
-    throw new Error(data.error);
+    if (error) {
+      console.error('Error creating booking:', error);
+      throw new Error(error.message || 'Error creando la reserva');
+    }
+
+    // La función retorna un JSON con success/error
+    if (!data.success) {
+      throw new Error(data.error);
+    }
+
+    return data;
   }
-
-  return data;
-}
 
   /**
    * Cancela una reserva usando la función segura
@@ -204,7 +203,7 @@ private async performCreateBooking(bookingRequest: CreateBookingRequest): Promis
         )
       `)
       .eq('user_id', userId)
-      .order('booking_time', { ascending: false });
+      .order('booking_date_time', { ascending: false });
 
     if (error) {
       console.error('Error fetching user bookings:', error);
