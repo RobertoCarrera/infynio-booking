@@ -123,7 +123,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
           )
         `)
         .eq('user_id', this.currentUserId)
-        .eq('is_active', true);
+        .eq('status', 'ACTIVE');
 
       if (error) {
         console.error('Error loading user packages:', error);
@@ -186,7 +186,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
     
     // Si no tiene paquete para esta clase, mostrar mensaje informativo
     if (!hasPackageForClass) {
-      this.error = `No tienes un paquete disponible para clases de tipo "${sessionData.class_type_name}". Contacta con recepción para adquirir un paquete.`;
+      const databaseType = this.mapClassTypeToDatabase(sessionData.class_type_name || '');
+      this.error = `No tienes un paquete disponible para clases de tipo "${sessionData.class_type_name}" (${databaseType}). Revisa tus paquetes disponibles o contacta con recepción.`;
       return;
     }
     
@@ -209,7 +210,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Verificar disponibilidad de paquete
     if (!this.canReserveClass()) {
-      this.error = 'No tienes un paquete disponible para este tipo de clase';
+      const classType = this.selectedSession.class_type_name || '';
+      const databaseType = this.mapClassTypeToDatabase(classType);
+      this.error = `No tienes un paquete disponible para clases de tipo "${classType}" (${databaseType}). Revisa tus paquetes o contacta con recepción.`;
       return;
     }
 
@@ -217,11 +220,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.clearMessages();
 
     try {
+      // Asegurar que enviamos el tipo de clase correcto al backend
+      const classTypeForBooking = this.mapClassTypeToDatabase(this.selectedSession.class_type_name || '');
+      
       const bookingRequest: CreateBookingRequest = {
         user_id: this.currentUserId,
         class_session_id: this.selectedSession.id,
-        class_type: this.selectedSession.class_type_name || ''
+        class_type: classTypeForBooking
       };
+      
+      console.log('Creating booking with request:', bookingRequest);
 
       const sub = this.classSessionsService.createBooking(bookingRequest).subscribe({
         next: () => {
@@ -293,13 +301,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
   hasAvailablePackageForClass(classType: string): boolean {
     if (!this.userPackages || this.userPackages.length === 0) return false;
     
+    // Mapear el tipo de clase al formato de la base de datos
+    const databaseClassType = this.mapClassTypeToDatabase(classType);
+    
+    console.log(`Checking packages for class type: ${classType} -> ${databaseClassType}`);
+    console.log('Available packages:', this.userPackages);
+    
     return this.userPackages.some(userPackage => {
       // Verificar que el paquete sea para este tipo de clase
-      const isCorrectType = userPackage.packages?.class_type === classType;
+      const isCorrectType = userPackage.packages?.class_type === databaseClassType;
       // Verificar que tenga clases restantes
-      const hasRemainingClasses = userPackage.remaining_classes > 0;
+      const hasRemainingClasses = userPackage.current_classes_remaining > 0;
       // Verificar que esté activo
-      const isActive = userPackage.is_active;
+      const isActive = userPackage.status === 'ACTIVE';
+      
+      console.log(`Package check - Type: ${userPackage.packages?.class_type} === ${databaseClassType} = ${isCorrectType}, Remaining: ${userPackage.current_classes_remaining} > 0 = ${hasRemainingClasses}, Active: ${userPackage.status} === 'ACTIVE' = ${isActive}`);
       
       return isCorrectType && hasRemainingClasses && isActive;
     });
@@ -317,6 +333,42 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // Métodos para la leyenda de colores
   getTypeColor(typeName: string): { background: string, border: string } {
     return this.classSessionsService.getClassTypeColors(typeName);
+  }
+
+  // =============================
+  // MAPEO DE TIPOS DE CLASE
+  // =============================
+  
+  /**
+   * Mapea nombres de tipos de clase mostrados en el calendario a nombres de la base de datos
+   */
+  private mapClassTypeToDatabase(displayName: string): string {
+    const mapping: { [key: string]: string } = {
+      'Mat': 'MAT_FUNCIONAL',
+      'Barre': 'MAT_FUNCIONAL', // Si Barre es parte de Mat Funcional
+      'Reformer': 'REFORMER',
+      'Personalizada': 'MAT_FUNCIONAL', // Asumiendo que personalizada es parte de Mat
+      'Funcional': 'MAT_FUNCIONAL'
+    };
+    
+    // Si ya es un valor de base de datos, devolverlo tal como está
+    if (displayName === 'MAT_FUNCIONAL' || displayName === 'REFORMER') {
+      return displayName;
+    }
+    
+    return mapping[displayName] || displayName;
+  }
+
+  /**
+   * Mapea nombres de la base de datos a nombres mostrados en el calendario
+   */
+  private mapDatabaseToDisplayName(databaseName: string): string {
+    const mapping: { [key: string]: string } = {
+      'MAT_FUNCIONAL': 'Mat',
+      'REFORMER': 'Reformer'
+    };
+    
+    return mapping[databaseName] || databaseName;
   }
 
   // =============================
