@@ -20,6 +20,34 @@ export class CarteraClasesService {
   constructor(private supabaseService: SupabaseService) {}
 
   /**
+   * MAPA DE CONVERSIÓN CORREGIDO - class_type números a strings
+   */
+  private mapClassTypeToString(classTypeId: number): 'MAT_FUNCIONAL' | 'REFORMER' | 'PERSONALIZADA' | 'FUNCIONAL' | 'BARRE' {
+    const typeMap: { [key: number]: 'MAT_FUNCIONAL' | 'REFORMER' | 'PERSONALIZADA' | 'FUNCIONAL' | 'BARRE' } = {
+      1: 'BARRE',           // Barre
+      2: 'MAT_FUNCIONAL',   // Mat  
+      3: 'REFORMER',        // Reformer
+      4: 'PERSONALIZADA',   // Personalizada
+      9: 'FUNCIONAL'        // Funcional
+    };
+    return typeMap[classTypeId] || 'MAT_FUNCIONAL';
+  }
+
+  /**
+   * CONVERSIÓN INVERSA - strings a números
+   */
+  private mapStringToClassType(classType: string): number {
+    const typeMap: { [key: string]: number } = {
+      'BARRE': 1,
+      'MAT_FUNCIONAL': 2,
+      'REFORMER': 3,
+      'PERSONALIZADA': 4,
+      'FUNCIONAL': 9
+    };
+    return typeMap[classType] || 2;
+  }
+
+  /**
    * Obtiene todos los packages disponibles
    */
   getPackages(): Observable<Package[]> {
@@ -46,7 +74,7 @@ export class CarteraClasesService {
         .from('user_packages')
         .select(`
           *,
-          package:packages (
+          packages (
             id,
             name,
             class_type,
@@ -64,7 +92,7 @@ export class CarteraClasesService {
         if (response.error) throw response.error;
         
         return (response.data || []).map(item => {
-          const packageData = item.package as Package;
+          const packageData = item.packages as any;
           
           // Calcular días hasta rollover
           const daysUntilRollover = item.next_rollover_reset_date 
@@ -74,7 +102,7 @@ export class CarteraClasesService {
           return {
             ...item,
             package_name: packageData.name,
-            package_class_type: packageData.class_type,
+            package_class_type: this.mapClassTypeToString(packageData.class_type), // CORRECCIÓN AQUÍ
             package_class_count: packageData.class_count,
             package_price: packageData.price,
             package_is_single_class: packageData.is_single_class,
@@ -205,79 +233,90 @@ export class CarteraClasesService {
   }
 
   /**
-   * Consume una clase de un user_package específico
+   * FUNCIÓN CORREGIDA - Consume una clase de un user_package específico
    */
-  consumirClase(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', isPersonal: boolean = false): Observable<boolean> {
-    // Buscar un user_package apropiado que tenga clases disponibles
+  consumirClase(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<{success: boolean, message?: string}> {
+    console.log('🔄 Intentando consumir clase:', { userId, classTypeId, isPersonal });
+    
+    // CORRECCIÓN: Usar la nueva función de base de datos
     return from(
-      this.supabaseService.supabase
-        .from('user_packages')
-        .select(`
-          *,
-          packages (
-            class_type,
-            is_personal
-          )
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .gt('current_classes_remaining', 0)
-        .order('purchase_date', { ascending: true }) // Usar los más antiguos primero
+      this.supabaseService.supabase.rpc('consume_class_from_user_package', {
+        p_user_id: userId,
+        p_class_type_id: classTypeId,
+        p_is_personal: isPersonal
+      })
     ).pipe(
-      switchMap(response => {
-        if (response.error) throw response.error;
+      map(response => {
+        console.log('✅ Respuesta de consume_class_from_user_package:', response);
         
-        // Filtrar por tipo de clase y si es personal
-        const appropriatePackages = (response.data || []).filter(item => {
-          const packageData = item.packages as any;
-          return packageData.class_type === classType && packageData.is_personal === isPersonal;
-        });
-
-        if (appropriatePackages.length === 0) {
-          throw new Error('No tienes clases disponibles de este tipo');
+        if (response.error) {
+          console.error('❌ Error en consume_class_from_user_package:', response.error);
+          throw response.error;
         }
-
-        const userPackage = appropriatePackages[0];
-        const newClassesRemaining = userPackage.current_classes_remaining - 1;
-        const newClassesUsedThisMonth = userPackage.classes_used_this_month + 1;
-
-        return this.modificarUserPackage(userPackage.id, {
-          current_classes_remaining: newClassesRemaining,
-          classes_used_this_month: newClassesUsedThisMonth
-        });
-      }),
-      map(() => true)
+        
+        const result = response.data;
+        if (result && result.success) {
+          return { success: true, message: result.message };
+        } else {
+          return { success: false, message: result?.error || 'No tienes clases disponibles de este tipo' };
+        }
+      })
     );
   }
 
   /**
-   * Verifica si el usuario tiene clases disponibles de un tipo específico
+   * FUNCIÓN CORREGIDA - Verifica si el usuario tiene clases disponibles de un tipo específico
    */
-  tieneClasesDisponibles(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', isPersonal: boolean = false): Observable<boolean> {
-    return from(
-      this.supabaseService.supabase
-        .from('user_packages')
-        .select(`
-          current_classes_remaining,
-          packages (
-            class_type,
-            is_personal
-          )
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .gt('current_classes_remaining', 0)
-    ).pipe(
-      map(response => {
-        if (response.error) throw response.error;
+  tieneClasesDisponibles(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<boolean> {
+  console.log('🔍 Verificando disponibilidad de clases:', { userId, classTypeId, isPersonal });
+  
+  return from(
+    this.supabaseService.supabase
+      .from('user_packages')
+      .select(`
+        current_classes_remaining,
+        packages!inner (
+          class_type,
+          is_personal
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .gt('current_classes_remaining', 0)
+  ).pipe(
+    map(response => {
+      if (response.error) {
+        console.error('❌ Error verificando clases disponibles:', response.error);
+        return false;
+      }
+      
+      console.log('📊 User packages encontrados:', response.data);
+      
+      const hasAvailableClasses = (response.data || []).some(item => {
+        const packageData = item.packages as any;
+        const typeMatch = packageData.class_type === classTypeId;
+        const personalMatch = packageData.is_personal === isPersonal;
+        const match = typeMatch && personalMatch;
         
-        return (response.data || []).some(item => {
-          const packageData = item.packages as any;
-          return packageData.class_type === classType && packageData.is_personal === isPersonal;
+        console.log('🔍 Verificando package:', { 
+          packageClassType: packageData.class_type, 
+          targetClassType: classTypeId,
+          typeMatch,
+          packageIsPersonal: packageData.is_personal,
+          targetIsPersonal: isPersonal,
+          personalMatch,
+          finalMatch: match,
+          remainingClasses: item.current_classes_remaining
         });
-      })
-    );
-  }
+        
+        return match;
+      });
+      
+      console.log('✅ Resultado final:', hasAvailableClasses);
+      return hasAvailableClasses;
+    })
+  );
+}
 
   /**
    * Obtiene el resumen de clases disponibles por tipo

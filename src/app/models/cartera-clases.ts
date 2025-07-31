@@ -86,12 +86,18 @@ export interface UpdateUserPackage {
   status?: string;
 }
 
-// Función helper para convertir UserPackageDetailed a CarteraClase (compatibilidad)
+// Función helper CORREGIDA para convertir UserPackageDetailed a CarteraClase
 export function mapUserPackageToCarteraClase(userPackage: UserPackageDetailed): CarteraClase {
+  // CORRECCIÓN: Mapeo correcto de tipos de clase
+  const mapClassTypeToLegacy = (classType: string): 'MAT-FUNCIONAL' | 'REFORMER' => {
+    if (classType === 'REFORMER') return 'REFORMER';
+    return 'MAT-FUNCIONAL'; // Por defecto para MAT_FUNCIONAL, FUNCIONAL, BARRE
+  };
+
   return {
     id: userPackage.id,
     user_id: userPackage.user_id,
-    bono_type: userPackage.package_class_type === 'MAT_FUNCIONAL' ? 'MAT-FUNCIONAL' : 'REFORMER',
+    bono_type: mapClassTypeToLegacy(userPackage.package_class_type),
     bono_subtype: userPackage.package_is_personal ? 'CLASE-PERSONALIZADA' : 'CLASE-NORMAL',
     clases_disponibles: userPackage.current_classes_remaining,
     clases_totales: userPackage.package_class_count,
