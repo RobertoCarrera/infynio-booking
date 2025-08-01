@@ -88,13 +88,15 @@
         <div class="session-actions">
           <button type="button" 
                   class="btn btn-sm btn-outline-primary" 
-                  (click)="openEditModal(session)">
-            <i class="fas fa-edit"></i> Editar
+                  (click)="openEditModal(session)"
+                  title="Editar sesión de clase">
+            <i class="fas fa-edit me-1"></i> Editar
           </button>
           <button type="button" 
                   class="btn btn-sm btn-outline-danger" 
-                  (click)="deleteSession(session)">
-            <i class="fas fa-trash"></i> Eliminar
+                  (click)="deleteSession(session)"
+                  title="Eliminar sesión de clase">
+            <i class="fas fa-trash me-1"></i> Eliminar
           </button>
         </div>
       </div>
@@ -126,13 +128,17 @@
             <div class="session-actions">
               <button type="button" 
                       class="btn btn-sm btn-outline-primary" 
-                      (click)="openEditModal(session)">
-                <i class="fas fa-edit"></i>
+                      (click)="openEditModal(session)"
+                      title="Editar sesión de clase">
+                <i class="fas fa-edit me-1"></i>
+                Editar
               </button>
               <button type="button" 
                       class="btn btn-sm btn-outline-danger" 
-                      (click)="deleteSession(session)">
-                <i class="fas fa-trash"></i>
+                      (click)="deleteSession(session)"
+                      title="Eliminar sesión de clase">
+                <i class="fas fa-trash me-1"></i>
+                Eliminar
               </button>
             </div>
           </div>
