@@ -236,8 +236,6 @@ export class CarteraClasesService {
    * FUNCIÓN CORREGIDA - Consume una clase de un user_package específico
    */
   consumirClase(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<{success: boolean, message?: string}> {
-    console.log('🔄 Intentando consumir clase:', { userId, classTypeId, isPersonal });
-    
     // CORRECCIÓN: Usar la nueva función de base de datos
     return from(
       this.supabaseService.supabase.rpc('consume_class_from_user_package', {
@@ -247,7 +245,6 @@ export class CarteraClasesService {
       })
     ).pipe(
       map(response => {
-        console.log('✅ Respuesta de consume_class_from_user_package:', response);
         
         if (response.error) {
           console.error('❌ Error en consume_class_from_user_package:', response.error);
@@ -268,7 +265,6 @@ export class CarteraClasesService {
    * FUNCIÓN CORREGIDA - Verifica si el usuario tiene clases disponibles de un tipo específico
    */
   tieneClasesDisponibles(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<boolean> {
-  console.log('🔍 Verificando disponibilidad de clases:', { userId, classTypeId, isPersonal });
   
   return from(
     this.supabaseService.supabase
@@ -290,7 +286,6 @@ export class CarteraClasesService {
         return false;
       }
       
-      console.log('📊 User packages encontrados:', response.data);
       
       const hasAvailableClasses = (response.data || []).some(item => {
         const packageData = item.packages as any;
@@ -298,21 +293,9 @@ export class CarteraClasesService {
         const personalMatch = packageData.is_personal === isPersonal;
         const match = typeMatch && personalMatch;
         
-        console.log('🔍 Verificando package:', { 
-          packageClassType: packageData.class_type, 
-          targetClassType: classTypeId,
-          typeMatch,
-          packageIsPersonal: packageData.is_personal,
-          targetIsPersonal: isPersonal,
-          personalMatch,
-          finalMatch: match,
-          remainingClasses: item.current_classes_remaining
-        });
-        
         return match;
       });
       
-      console.log('✅ Resultado final:', hasAvailableClasses);
       return hasAvailableClasses;
     })
   );

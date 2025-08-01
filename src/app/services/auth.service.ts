@@ -27,10 +27,8 @@ export class AuthService {
       
       if (data.session) {
         this.currentUserSubject.next(data.session.user);
-        console.log('Session restored for user:', data.session.user.id);
       } else {
         this.currentUserSubject.next(null);
-        console.log('No active session found');
       }
     } catch (error) {
       console.error('Error checking session:', error);
@@ -58,12 +56,9 @@ export class AuthService {
             // Obtener el rol del usuario y redirigir según corresponda
             return this.supabaseService.getCurrentUserRole().pipe(
               tap(role => {
-                console.log('Login successful, user role:', role);
                 if (role === 'admin') {
-                  console.log('Redirecting admin to /admin');
                   this.router.navigate(['/admin']);
                 } else {
-                  console.log('Redirecting user to /calendario');
                   this.router.navigate(['/calendario']);
                 }
               }),
@@ -99,9 +94,6 @@ resetPassword(email: string, redirectUrl?: string): Observable<any> {
     redirectTo: actualRedirectUrl 
   }))
     .pipe(
-      tap(response => {
-        console.log('Reset password response:', response);
-      }),
       catchError(error => {
         console.error('Reset password error:', error);
         return throwError(() => error);
@@ -113,7 +105,6 @@ resetPassword(email: string, redirectUrl?: string): Observable<any> {
     return from(this.supabaseService.supabase.auth.updateUser({ password: newPassword }))
       .pipe(
         tap(response => {
-          console.log('Update password response:', response);
           if (response.error) {
             throw response.error;
           }
@@ -160,7 +151,6 @@ verifyRecoveryToken(token: string): Observable<any> {
   return from(this.supabaseService.supabase.auth.exchangeCodeForSession(token))
     .pipe(
       tap(response => {
-        console.log('Exchange code response:', response);
         if (response.data?.session) {
           this.currentUserSubject.next(response.data.session.user);
         }
@@ -177,7 +167,6 @@ verifyRecoveryToken(token: string): Observable<any> {
         }))
         .pipe(
           tap(legacyResponse => {
-            console.log('Legacy verify OTP response:', legacyResponse);
             if (legacyResponse.data?.session) {
               this.currentUserSubject.next(legacyResponse.data.session.user);
             }

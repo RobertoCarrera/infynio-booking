@@ -2,12 +2,11 @@ import { Component, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="container mt-5">
       <div class="row justify-content-center">
@@ -62,7 +61,6 @@ export class ForgotPasswordComponent {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
-    console.log('ForgotPasswordComponent inicializado');
     
     this.forgotForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
@@ -82,7 +80,6 @@ export class ForgotPasswordComponent {
             next: () => {
           this.loading = false;
           this.emailSent = true;
-          console.log('Email de recuperación enviado correctamente');
         },
         error: (err) => {
           this.loading = false;
@@ -94,7 +91,6 @@ export class ForgotPasswordComponent {
       // En el servidor simplemente mostramos un mensaje
       this.loading = false;
       this.emailSent = true;
-      console.log('Simulando envío de email en el servidor');
     }
   }
 }

@@ -25,13 +25,11 @@ export class MenuComponent implements OnInit, OnDestroy {
     const userSubscription = this.auth.currentUser$.pipe(
       distinctUntilChanged()
     ).subscribe(user => {
-      console.log('MenuComponent: User state changed', { user: !!user });
       this.isLoggedIn = !!user;
       
       // Si no hay usuario, resetear isAdmin inmediatamente
       if (!user) {
         this.isAdmin = false;
-        console.log('MenuComponent: No user, isAdmin set to false');
       }
     });
 
@@ -42,7 +40,6 @@ export class MenuComponent implements OnInit, OnDestroy {
         if (!user) {
           return of(null);
         }
-        console.log('MenuComponent: User found, checking role...');
         return this.supabase.getCurrentUserRole();
       }),
       distinctUntilChanged()
@@ -50,12 +47,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       if (role !== null) {
         const wasAdmin = this.isAdmin;
         this.isAdmin = role === 'admin';
-        console.log('MenuComponent: Role updated', { role, isAdmin: this.isAdmin, wasAdmin });
-        
-        // Forzar detección de cambios si el estado de admin cambió
-        if (wasAdmin !== this.isAdmin) {
-          console.log('MenuComponent: Admin status changed, forcing update');
-        }
       }
     });
 

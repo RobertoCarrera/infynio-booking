@@ -27,11 +27,6 @@ export class SupabaseService {
         }
       }
     });
-
-    // Log para debugging en desarrollo
-    if (!environment.production) {
-      console.log('🔧 Supabase client initialized for development');
-    }
   }
 
 
@@ -60,10 +55,8 @@ export class SupabaseService {
     return this.getCurrentUser().pipe(
       switchMap(user => {
         if (!user) {
-          console.log('🔍 No authenticated user found');
           return of(null);
         }
-        console.log('🔍 Checking role for user:', user.id);
         return from(
           this.supabase
             .from('users')
@@ -76,13 +69,10 @@ export class SupabaseService {
               console.error('❌ Error fetching user role:', result.error);
               return 'user'; // Default to 'user' role on error, never 'admin'
             }
-            console.log('✅ User role data:', result.data);
             const roleId = result.data?.role_id;
             if (roleId === 1) {
-              console.log('✅ User is admin (role_id: 1)');
               return 'admin';
             } else {
-              console.log('✅ User is regular user (role_id:', roleId, ')');
               return 'user';
             }
           })
@@ -92,7 +82,6 @@ export class SupabaseService {
   }
 
   async inviteUserByEmail(email: string): Promise<any> {
-    console.log('🔄 Inviting user via Edge Function:', email);
     try {
       const { data: { session } } = await this.supabase.auth.getSession();
       if (!session) {

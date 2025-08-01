@@ -1,7 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { UsersService } from '../../services/users.service';
 import { CarteraClase, Package, CreateUserPackage, UpdateUserPackage } from '../../models/cartera-clases';
@@ -10,7 +9,7 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-admin-cartera',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './admin-cartera.component.html',
   styleUrls: ['./admin-cartera.component.css']
 })

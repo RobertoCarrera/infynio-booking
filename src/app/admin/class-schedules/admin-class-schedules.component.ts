@@ -2,7 +2,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ClassSessionsService, ClassSession } from '../../services/class-sessions.service';
 
@@ -16,7 +15,7 @@ interface ClassType {
 @Component({
   selector: 'app-admin-class-schedules',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './admin-class-schedules.component.html',
   styleUrls: ['./admin-class-schedules.component.css']
 })

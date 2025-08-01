@@ -1,6 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
 import { CarteraInfoComponent } from '../cartera-info/cartera-info.component';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { AuthService } from '../../services/auth.service';
@@ -9,7 +8,7 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-cartera-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, CarteraInfoComponent],
+  imports: [CommonModule, CarteraInfoComponent],
   template: `
     <div class="cartera-page-container">
       <div class="container py-4">
