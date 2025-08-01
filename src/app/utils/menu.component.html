@@ -8,22 +8,22 @@
       <ul class="navbar-nav text-end">
         <ng-container *ngIf="isLoggedIn">
           <li class="nav-item">
-            <a routerLink="/calendario" class="nav-link" routerLinkActive="active">Calendario</a>
+            <a routerLink="/calendario" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Calendario</a>
           </li>
           <li class="nav-item">
-            <a routerLink="/cartera" class="nav-link" routerLinkActive="active">Mi Cartera</a>
+            <a routerLink="/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Mi Cartera</a>
           </li>
           <!-- <li class="nav-item">
-            <a routerLink="/clases" class="nav-link" routerLinkActive="active">Clases</a>
+            <a routerLink="/clases" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
           </li> -->
           <li class="nav-item" *ngIf="isAdmin">
-            <a routerLink="/admin" class="nav-link" routerLinkActive="active">Admin</a>
+            <a routerLink="/admin" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Admin</a>
           </li>
           <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
-            <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active">Mi Perfil</a>
+            <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active" (click)="closeMenu()">Mi Perfil</a>
           </li>
           <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
-            <a (click)="logout()" class="nav-link text-danger" style="cursor: pointer;">Cerrar Sesión</a>
+            <a (click)="logout(); closeMenu()" class="nav-link text-danger" style="cursor: pointer;">Cerrar Sesión</a>
           </li>
         </ng-container>
       </ul>

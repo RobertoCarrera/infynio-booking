@@ -64,4 +64,11 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.isAdmin = false;
     });
   }
+
+  closeMenu() {
+    const navCollapse = document.getElementById('navbarNav');
+    if (navCollapse && navCollapse.classList.contains('show')) {
+      navCollapse.classList.remove('show');
+    }
+  }
 }
