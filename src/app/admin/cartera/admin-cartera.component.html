@@ -20,11 +20,14 @@
           <!-- Lista de usuarios -->
           <div *ngIf="!loading" class="usuarios-list">
             <div class="mb-3">
-              <input type="text" class="form-control" placeholder="Buscar usuario..." #searchInput>
+              <input type="text" 
+                     class="form-control" 
+                     placeholder="Buscar usuario..." 
+                     [(ngModel)]="filterText">
             </div>
             
             <div class="usuarios-scroll">
-              <div *ngFor="let usuario of usuarios" 
+              <div *ngFor="let usuario of filteredUsuarios" 
                    class="usuario-item" 
                    [class.selected]="usuarioSeleccionado?.id === usuario.id"
                    (click)="seleccionarUsuario(usuario)">

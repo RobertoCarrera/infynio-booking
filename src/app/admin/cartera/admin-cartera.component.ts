@@ -18,6 +18,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   usuarioSeleccionado: any = null;
   carteraUsuario: CarteraClase[] = [];
   packagesDisponibles: Package[] = [];
+  filterText: string = '';
   
   // Forms
   agregarForm: FormGroup;
@@ -53,6 +54,19 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
       classes_used_this_month: [0, [Validators.min(0)]],
       status: ['active', Validators.required]
     });
+  }
+
+  get filteredUsuarios(): any[] {
+    const text = this.filterText.trim().toLowerCase();
+    if (!text) {
+      return this.usuarios;
+    }
+    return this.usuarios.filter(usuario =>
+      (usuario.full_name || '').toLowerCase().includes(text) ||
+      (usuario.email || '').toLowerCase().includes(text) ||
+      (usuario.name || '').toLowerCase().includes(text) ||
+      (usuario.surname || '').toLowerCase().includes(text)
+    );
   }
 
   ngOnInit() {
