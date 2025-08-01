@@ -91,6 +91,48 @@ export class ClassSessionsService {
     return from(this.fetchClassSessionsByDateRange(startDate, endDate));
   }
 
+  /**
+   * Obtiene sesiones con contadores de reservas usando función SQL optimizada
+   */
+  getSessionsWithBookingCounts(startDate?: string, endDate?: string): Observable<ClassSession[]> {
+    return from(this.fetchSessionsWithBookingCounts(startDate, endDate));
+  }
+
+  private async fetchSessionsWithBookingCounts(startDate?: string, endDate?: string): Promise<ClassSession[]> {
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('get_sessions_with_booking_counts', {
+        p_start_date: startDate || null,
+        p_end_date: endDate || null
+      });
+
+    if (error) {
+      console.warn('Función SQL no disponible, usando método alternativo:', error);
+      // Fallback al método original
+      if (startDate && endDate) {
+        return this.fetchClassSessionsByDateRange(startDate, endDate);
+      } else {
+        return this.fetchClassSessions();
+      }
+    }
+
+    // Transformar los datos para que coincidan con la interfaz ClassSession
+    return (data || []).map((session: any) => ({
+      id: session.id,
+      class_type_id: session.class_type_id,
+      capacity: session.capacity,
+      schedule_date: session.schedule_date,
+      schedule_time: session.schedule_time,
+      bookings: Array(session.confirmed_bookings_count).fill({
+        id: 0,
+        user_id: 0,
+        class_session_id: session.id,
+        booking_date_time: '',
+        cancellation_time: '',
+        status: 'CONFIRMED'
+      }) // Array simulado para mantener compatibilidad
+    }));
+  }
+
   private async fetchClassSessionsByDateRange(startDate: string, endDate: string): Promise<ClassSession[]> {
     const { data, error } = await this.supabaseService.supabase
       .from('class_sessions')
@@ -176,24 +218,76 @@ export class ClassSessionsService {
   }
 
   private async performCancelBooking(bookingId: number, userId: number): Promise<any> {
-    // Usar la función segura que maneja todo el proceso
-    const { data, error } = await this.supabaseService.supabase
-      .rpc('cancel_booking_safe', {
-        p_booking_id: bookingId,
-        p_user_id: userId
-      });
+    // MÉTODO DIRECTO: Cancelar la reserva y devolver el bono manualmente
+    
+    // 1. Primero, obtener la información de la reserva
+    const { data: bookingData, error: bookingError } = await this.supabaseService.supabase
+      .from('bookings')
+      .select(`
+        *,
+        users (name, surname)
+      `)
+      .eq('id', bookingId)
+      .eq('user_id', userId)
+      .eq('status', 'CONFIRMED')
+      .single();
 
-    if (error) {
-      console.error('Error cancelling booking:', error);
-      throw new Error(error.message || 'Error cancelando la reserva');
+    if (bookingError || !bookingData) {
+      console.error('Booking not found:', { bookingId, userId, error: bookingError });
+      throw new Error('Reserva no encontrada o ya cancelada');
     }
 
-    // La función retorna un JSON con success/error
-    if (!data.success) {
-      throw new Error(data.error);
+    // 2. Cancelar la reserva
+    const { error: cancelError } = await this.supabaseService.supabase
+      .from('bookings')
+      .update({
+        status: 'CANCELLED',
+        cancellation_time: new Date().toISOString()
+      })
+      .eq('id', bookingId);
+
+    if (cancelError) {
+      throw new Error(`Error cancelando reserva: ${cancelError.message}`);
     }
 
-    return data;
+    // 3. Devolver el bono al usuario (solo si era de un paquete)
+    if (bookingData.is_from_package) {
+      // Buscar el paquete activo más reciente del usuario
+      const { data: userPackages, error: packageError } = await this.supabaseService.supabase
+        .from('user_packages')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['active', 'expired'])
+        .order('purchase_date', { ascending: false })
+        .limit(1);
+
+      if (!packageError && userPackages && userPackages.length > 0) {
+        const userPackage = userPackages[0];
+        
+        // Actualizar el paquete: devolver una clase
+        const newClassesRemaining = userPackage.current_classes_remaining + 1;
+        const newClassesUsed = Math.max(0, userPackage.classes_used_this_month - 1);
+        const newStatus = newClassesRemaining > 0 ? 'active' : userPackage.status;
+
+        const { error: updateError } = await this.supabaseService.supabase
+          .from('user_packages')
+          .update({
+            current_classes_remaining: newClassesRemaining,
+            classes_used_this_month: newClassesUsed,
+            status: newStatus
+          })
+          .eq('id', userPackage.id);
+
+        if (updateError) {
+          console.warn('Warning: No se pudo actualizar el paquete:', updateError);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Reserva cancelada correctamente'
+    };
   }
 
   /**

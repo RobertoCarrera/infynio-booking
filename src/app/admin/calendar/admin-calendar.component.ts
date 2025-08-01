@@ -3,8 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, DateSelectArg } from '@fullcalendar/core';
-import { ClassSessionsService, ClassSession } from '../../services/class-sessions.service';
+import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
+import { CarteraClasesService } from '../../services/cartera-clases.service';
+import { Package, CreateUserPackage } from '../../models/cartera-clases';
+import { SupabaseService } from '../../services/supabase.service';
 import { FULLCALENDAR_OPTIONS } from '../../components/calendar/fullcalendar-config';
 import { Subscription, forkJoin } from 'rxjs';
 
@@ -25,6 +28,20 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   isEditing = false;
   selectedSession: ClassSession | null = null;
   
+  // Attendees management modal
+  showAttendeesModal = false;
+  sessionAttendees: any[] = []; // Cambiar a any[] para permitir estructura de Supabase con joins
+  allUsers: any[] = [];
+  searchTerm = '';
+  selectedUserToAdd: any = null;
+  showAddUserSection = false;
+  
+  // Add package modal
+  showAddPackageModal = false;
+  selectedUserForPackage: any = null;
+  packageForm: FormGroup;
+  packagesDisponibles: Package[] = [];
+  
   // Form
   sessionForm: FormGroup;
   
@@ -38,6 +55,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   constructor(
     private classSessionsService: ClassSessionsService,
     private classTypesService: ClassTypesService,
+    private carteraService: CarteraClasesService,
+    private supabaseService: SupabaseService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef
   ) {
@@ -49,6 +68,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       recurring: [false],
       recurring_type: [''],
       recurring_end_date: ['']
+    });
+
+    this.packageForm = this.fb.group({
+      package_id: ['', Validators.required],
+      activation_date: ['']
     });
 
     // Configuración del calendario adaptada para admin
@@ -86,16 +110,21 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   loadData() {
     this.loading = true;
     
-    // Cargar tipos de clase y sesiones en paralelo
+    // Cargar tipos de clase, sesiones y paquetes en paralelo
     const classTypes$ = this.classTypesService.getAll();
-    const sessions$ = this.classSessionsService.getClassSessions();
+    const startDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const sessions$ = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate);
+    const packages$ = this.carteraService.getPackages();
     
     const sub = forkJoin({
       classTypes: classTypes$,
-      sessions: sessions$
+      sessions: sessions$,
+      packages: packages$
     }).subscribe({
-      next: ({ classTypes, sessions }) => {
+      next: ({ classTypes, sessions, packages }) => {
         this.classTypes = classTypes;
+        this.packagesDisponibles = packages;
         this.loadSessionsData(sessions);
         this.loading = false;
         this.cdr.detectChanges();
@@ -117,7 +146,12 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   loadSessions() {
     this.loading = true;
-    const sub = this.classSessionsService.getClassSessions().subscribe({
+    
+    // Usar la función optimizada que cuenta las reservas confirmadas
+    const startDate = new Date().toISOString().split('T')[0]; // Fecha actual
+    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 1 año hacia adelante
+    
+    const sub = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate).subscribe({
       next: (sessions: ClassSession[]) => {
         this.loadSessionsData(sessions);
         this.loading = false;
@@ -133,20 +167,23 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   private loadSessionsData(sessions: ClassSession[]) {
-    this.events = sessions.map(session => ({
-      id: session.id.toString(),
-      title: `${this.getClassTypeName(session.class_type_id)} (${session.bookings || 0}/${session.capacity})`,
-      start: `${session.schedule_date}T${session.schedule_time}`,
-      end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
-      backgroundColor: this.getClassTypeColor(session.class_type_id),
-      borderColor: this.getClassTypeColor(session.class_type_id),
-      textColor: '#ffffff',
-      extendedProps: {
-        session: session,
-        capacity: session.capacity,
-        bookings: session.bookings || 0
-      }
-    }));
+    this.events = sessions.map(session => {
+      const bookingCount = session.bookings ? session.bookings.length : 0;
+      return {
+        id: session.id.toString(),
+        title: `${this.getClassTypeName(session.class_type_id)} (${bookingCount}/${session.capacity})`,
+        start: `${session.schedule_date}T${session.schedule_time}`,
+        end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
+        backgroundColor: this.getClassTypeColor(session.class_type_id),
+        borderColor: this.getClassTypeColor(session.class_type_id),
+        textColor: '#ffffff',
+        extendedProps: {
+          session: session,
+          capacity: session.capacity,
+          bookings: bookingCount
+        }
+      };
+    });
     
     this.calendarOptions = {
       ...this.calendarOptions,
@@ -165,9 +202,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   onEventClick(clickInfo: EventClickArg) {
-    // Editar sesión existente
+    // Abrir modal de gestión de asistentes en lugar de editar sesión
     const session = clickInfo.event.extendedProps['session'] as ClassSession;
-    this.openEditModal(session);
+    this.openAttendeesModal(session);
   }
 
   openCreateModal(date?: string, time?: string) {
@@ -198,7 +235,17 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       capacity: session.capacity
     });
     
-    this.showModal = true;
+    // Si el modal de asistentes está abierto, cerrarlo primero
+    if (this.showAttendeesModal) {
+      this.showAttendeesModal = false;
+      // Pequeño delay para evitar conflictos de z-index
+      setTimeout(() => {
+        this.showModal = true;
+      }, 100);
+    } else {
+      this.showModal = true;
+    }
+    
     this.clearMessages();
   }
 
@@ -508,5 +555,674 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   clearMessages() {
     this.error = '';
     this.successMessage = '';
+  }
+
+  // ==============================================
+  // GESTIÓN DE ASISTENTES
+  // ==============================================
+
+  async openAttendeesModal(session: ClassSession) {
+    this.selectedSession = session;
+    this.showAttendeesModal = true;
+    this.loading = true;
+    this.clearMessages();
+    
+    try {
+      // Cargar asistentes de la sesión
+      await this.loadSessionAttendees(session.id);
+      // Cargar todos los usuarios para poder añadir nuevos
+      await this.loadAllUsers();
+    } catch (error: any) {
+      console.error('Error loading attendees:', error);
+      this.error = 'Error al cargar los asistentes';
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async loadSessionAttendees(sessionId: number) {
+    const { data, error } = await this.supabaseService.supabase
+      .from('bookings')
+      .select(`
+        *,
+        users (
+          id,
+          name,
+          surname,
+          email
+        )
+      `)
+      .eq('class_session_id', sessionId)
+      .eq('status', 'CONFIRMED');
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`Cargados ${data?.length || 0} asistentes para sesión ${sessionId}`);
+    if (data && data.length > 0) {
+      console.log('Estructura primer booking:', {
+        user_id: data[0].user_id,
+        users: data[0].users,
+        hasUsers: !!data[0].users
+      });
+    }
+
+    this.sessionAttendees = data || [];
+    
+    // Actualizar también la sesión seleccionada con el conteo real
+    if (this.selectedSession) {
+      this.selectedSession.bookings = this.sessionAttendees;
+    }
+  }
+
+  async loadAllUsers() {
+    const { data, error } = await this.supabaseService.getValidUsers();
+    if (error) {
+      throw error;
+    }
+    this.allUsers = data || [];
+  }
+
+  get filteredUsers() {
+    if (!this.searchTerm) return this.allUsers;
+    
+    return this.allUsers.filter(user => 
+      user.name?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+      user.surname?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(this.searchTerm.toLowerCase())
+    );
+  }
+
+  get availableUsers() {
+    const attendeeUserIds = this.sessionAttendees.map(booking => booking.user_id);
+    return this.filteredUsers.filter(user => !attendeeUserIds.includes(user.id));
+  }
+
+  async removeAttendee(booking: any) {
+    // Acceder correctamente a la estructura de datos de Supabase
+    const userName = booking.users?.name || 'Usuario';
+    
+    console.log('Intentando eliminar booking:', {
+      bookingId: booking.id,
+      userId: booking.user_id,
+      userName: userName,
+      status: booking.status
+    });
+    
+    if (!confirm(`¿Estás seguro de que quieres eliminar a ${userName} de esta clase?`)) {
+      return;
+    }
+
+    this.loading = true;
+    try {
+      // Cancelar la reserva usando el método mejorado
+      const result = await this.classSessionsService.cancelBooking(booking.id, booking.user_id).toPromise();
+      
+      console.log('Resultado de cancelación:', result);
+      
+      this.successMessage = `${userName} eliminado correctamente. Bono devuelto.`;
+      
+      // Recargar asistentes Y actualizar contadores
+      await this.loadSessionAttendees(this.selectedSession!.id);
+      
+      // ACTUALIZAR también el evento en el calendario local para UI inmediata
+      this.updateCalendarEventCounts(this.selectedSession!.id, this.sessionAttendees.length);
+      
+      // Recargar eventos del calendario para actualizar contadores
+      this.loadSessions();
+      
+    } catch (error: any) {
+      console.error('Error removing attendee:', error);
+      console.error('Booking data:', booking);
+      this.error = error.message || 'Error al eliminar asistente';
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async addAttendee(user: any) {
+    if (!this.selectedSession) return;
+
+    this.loading = true;
+    try {
+      // VERIFICAR PRIMERO: No permitir duplicados
+      const { data: existingBooking, error: checkError } = await this.supabaseService.supabase
+        .from('bookings')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('class_session_id', this.selectedSession.id)
+        .eq('status', 'CONFIRMED')
+        .maybeSingle();
+
+      if (checkError) {
+        throw new Error(`Error verificando reserva existente: ${checkError.message}`);
+      }
+
+      if (existingBooking) {
+        this.error = `${user.name} ya está inscrito en esta clase`;
+        this.loading = false;
+        return;
+      }
+
+      // VERIFICAR CAPACIDAD: No exceder límite - Calcular desde la BD
+      const { data: currentBookingsData, error: countError } = await this.supabaseService.supabase
+        .from('bookings')
+        .select('id', { count: 'exact' })
+        .eq('class_session_id', this.selectedSession.id)
+        .eq('status', 'CONFIRMED');
+
+      if (countError) {
+        throw new Error(`Error verificando capacidad: ${countError.message}`);
+      }
+
+      const currentBookingsCount = currentBookingsData?.length || 0;
+      if (currentBookingsCount >= this.selectedSession.capacity) {
+        this.error = `La clase está completa (${currentBookingsCount}/${this.selectedSession.capacity})`;
+        this.loading = false;
+        return;
+      }
+
+      // Verificar si el usuario tiene bono para este tipo de clase
+      const classTypeName = this.getClassTypeName(this.selectedSession.class_type_id);
+      const hasPackage = await this.checkUserHasPackage(user.id, this.selectedSession.class_type_id);
+
+      if (!hasPackage) {
+        // Mostrar opción para añadir bono
+        const shouldAddPackage = confirm(
+          `${user.name} no tiene un bono para clases de ${classTypeName}. ¿Quieres añadir un bono primero?`
+        );
+
+        if (shouldAddPackage) {
+          // Abrir modal para añadir bono
+          this.openAddPackageModal(user, classTypeName);
+          return;
+        } else {
+          this.error = 'No se puede añadir al usuario sin un bono válido';
+          this.loading = false;
+          return;
+        }
+      }
+
+      // MÉTODO MEJORADO: Usar función SQL atómica para validaciones
+      const { data: result, error: functionError } = await this.supabaseService.supabase
+        .rpc('create_booking_with_validations', {
+          p_user_id: user.id,
+          p_class_session_id: this.selectedSession.id,
+          p_booking_date_time: new Date().toISOString()
+        });
+
+      if (functionError) {
+        console.warn('Función SQL no disponible, usando método manual:', functionError);
+        
+        // FALLBACK: Método manual si la función no existe aún
+        await this.createBookingManuallyFallback(user);
+        return;
+      }
+
+      const bookingResult = result[0];
+      if (!bookingResult.success) {
+        throw new Error(bookingResult.message);
+      }
+
+      // Obtener la reserva completa con información del usuario
+      const { data: bookingData, error: bookingDataError } = await this.supabaseService.supabase
+        .rpc('get_booking_with_user', {
+          p_booking_id: bookingResult.booking_id
+        });
+
+      if (bookingDataError || !bookingData || bookingData.length === 0) {
+        console.warn('No se pudo obtener datos completos, recargando asistentes...');
+      } else {
+        // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+        const completeBooking = bookingData[0];
+        const newBooking: any = {
+          id: completeBooking.id,
+          user_id: completeBooking.user_id,
+          class_session_id: completeBooking.class_session_id,
+          booking_date_time: completeBooking.booking_date_time,
+          status: completeBooking.status,
+          cancellation_time: completeBooking.cancellation_time || '',
+          users: {  // Usar 'users' (plural) para consistencia con Supabase
+            name: completeBooking.user_name,
+            surname: completeBooking.user_surname,
+            email: completeBooking.user_email
+          }
+        };
+        
+        // Agregar a la lista local inmediatamente
+        this.sessionAttendees.push(newBooking);
+      }
+      
+      this.successMessage = `${user.name} añadido correctamente a la clase`;
+      
+      // Recargar asistentes desde la BD para confirmar
+      await this.loadSessionAttendees(this.selectedSession.id);
+      
+      // Recargar eventos del calendario INMEDIATAMENTE
+      this.loadSessions();
+      
+      // ACTUALIZAR también el evento en el calendario local para UI inmediata
+      this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+      
+      // Resetear búsqueda
+      this.searchTerm = '';
+      this.showAddUserSection = false;
+      
+    } catch (error: any) {
+      console.error('Error adding attendee:', error);
+      this.error = error.message || 'Error al añadir asistente';
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async checkUserHasPackage(userId: number, classTypeId: number): Promise<boolean> {
+    try {
+      const { data, error } = await this.supabaseService.supabase
+        .from('user_packages')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      if (error || !data) return false;
+
+      // Verificar si tiene paquetes compatibles con el tipo de clase
+      const hasCompatiblePackage = data.some(userPkg => {
+        // Aquí deberíamos verificar si el paquete es compatible
+        // Por ahora asumimos que cualquier paquete activo sirve
+        return true;
+      });
+
+      return hasCompatiblePackage;
+    } catch (error) {
+      console.error('Error checking user package:', error);
+      return false;
+    }
+  }
+
+  toggleAddUserSection() {
+    this.showAddUserSection = !this.showAddUserSection;
+    if (this.showAddUserSection) {
+      this.searchTerm = '';
+    }
+  }
+
+  closeAttendeesModal() {
+    this.showAttendeesModal = false;
+    this.selectedSession = null;
+    this.sessionAttendees = [];
+    this.searchTerm = '';
+    this.showAddUserSection = false;
+    this.clearMessages();
+  }
+
+  // ==============================================
+  // GESTIÓN DEL MODAL DE PAQUETES
+  // ==============================================
+
+  openAddPackageModal(user: any, classTypeName: string) {
+    this.selectedUserForPackage = user;
+    this.showAddPackageModal = true;
+    
+    // Establecer fecha de activación para el día de la clase
+    const activationDate = this.selectedSession?.schedule_date || new Date().toISOString().split('T')[0];
+    this.packageForm.patchValue({
+      activation_date: activationDate
+    });
+    
+    this.clearMessages();
+  }
+
+  closeAddPackageModal() {
+    this.showAddPackageModal = false;
+    this.selectedUserForPackage = null;
+    this.packageForm.reset();
+    this.clearMessages();
+  }
+
+  async addPackageToUser() {
+    if (this.packageForm.invalid || !this.selectedUserForPackage) {
+      return;
+    }
+
+    this.loading = true;
+    try {
+      const formData = this.packageForm.value;
+      
+      const createData: CreateUserPackage = {
+        user_id: this.selectedUserForPackage.id,
+        package_id: formData.package_id,
+        activation_date: formData.activation_date || null
+      };
+
+      await this.carteraService.agregarPackageAUsuario(createData).toPromise();
+      
+      this.successMessage = `Bono añadido correctamente a ${this.selectedUserForPackage.name}`;
+      
+      // Guardar referencia del usuario antes de cerrar modal
+      const userToAdd = this.selectedUserForPackage;
+      
+      // Cerrar modal de paquetes
+      this.closeAddPackageModal();
+      
+      // Intentar añadir al usuario a la clase ahora que tiene bono
+      if (this.selectedSession && userToAdd) {
+        await this.addAttendeeWithPackage(userToAdd);
+      }
+      
+    } catch (error: any) {
+      console.error('Error adding package:', error);
+      this.error = error.message || 'Error al añadir el bono';
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async addAttendeeWithPackage(user: any) {
+    if (!this.selectedSession) return;
+
+    try {
+      // MÉTODO MEJORADO: Usar función SQL atómica para validaciones
+      const { data: result, error: functionError } = await this.supabaseService.supabase
+        .rpc('create_booking_with_validations', {
+          p_user_id: user.id,
+          p_class_session_id: this.selectedSession.id,
+          p_booking_date_time: new Date().toISOString()
+        });
+
+      if (functionError) {
+        console.warn('Función SQL no disponible, usando método manual:', functionError);
+        
+        // FALLBACK: Método manual si la función no existe aún
+        await this.addAttendeeWithPackageFallback(user);
+        return;
+      }
+
+      const bookingResult = result[0];
+      if (!bookingResult.success) {
+        throw new Error(bookingResult.message);
+      }
+
+      // Obtener la reserva completa con información del usuario
+      const { data: bookingData, error: bookingDataError } = await this.supabaseService.supabase
+        .rpc('get_booking_with_user', {
+          p_booking_id: bookingResult.booking_id
+        });
+
+      if (bookingDataError || !bookingData || bookingData.length === 0) {
+        console.warn('No se pudo obtener datos completos, recargando asistentes...');
+      } else {
+        // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+        const completeBooking = bookingData[0];
+        const newBooking: Booking = {
+          id: completeBooking.id,
+          user_id: completeBooking.user_id,
+          class_session_id: completeBooking.class_session_id,
+          booking_date_time: completeBooking.booking_date_time,
+          status: completeBooking.status,
+          cancellation_time: completeBooking.cancellation_time || '',
+          user: {
+            name: completeBooking.user_name,
+            surname: completeBooking.user_surname,
+            email: completeBooking.user_email
+          }
+        };
+        
+        // Agregar a la lista local inmediatamente
+        this.sessionAttendees.push(newBooking);
+      }
+      
+      this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
+      
+      // Recargar asistentes desde la BD para confirmar
+      await this.loadSessionAttendees(this.selectedSession.id);
+      
+      // Recargar eventos del calendario INMEDIATAMENTE
+      this.loadSessions();
+      
+      // ACTUALIZAR también el evento en el calendario local para UI inmediata
+      this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+      
+      // Resetear búsqueda
+      this.searchTerm = '';
+      this.showAddUserSection = false;
+      
+    } catch (error: any) {
+      console.error('Error adding attendee with package:', error);
+      this.error = error.message || 'Error al añadir asistente';
+    }
+  }
+
+  getPackagesByClassType(classTypeName: string): Package[] {
+    // Mapear el nombre de la clase al ID del tipo de clase
+    const typeMapping: { [key: string]: number } = {
+      'Barre': 1,
+      'Mat': 2,
+      'Reformer': 3,
+      'Personalizada': 4,
+      'Funcional': 5
+    };
+
+    const classTypeId = typeMapping[classTypeName];
+    if (!classTypeId) return [];
+
+    return this.packagesDisponibles.filter(pkg => {
+      // Filtrar paquetes según el tipo de clase
+      if (classTypeId === 1) { // Barre
+        return pkg.class_type === 1 || pkg.class_type === 2; // Barre puede usar MAT_FUNCIONAL también
+      } else if (classTypeId === 2) { // Mat/Funcional
+        return pkg.class_type === 2;
+      } else if (classTypeId === 3) { // Reformer
+        return pkg.class_type === 3;
+      } else if (classTypeId === 4) { // Personalizada
+        return pkg.is_personal === true; // Paquetes personales
+      } else if (classTypeId === 5) { // Funcional
+        return pkg.class_type === 2; // Funcional usa MAT_FUNCIONAL
+      }
+      return false;
+    });
+  }
+
+  getCurrentDate(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  // ==============================================
+  // MÉTODO FALLBACK PARA RESERVAS MANUALES
+  // ==============================================
+
+  private async createBookingManuallyFallback(user: any) {
+    if (!this.selectedSession) return;
+
+    // MÉTODO TEMPORAL: Crear reserva e actualizar paquete manualmente
+    // 1. Primero, obtener el paquete activo del usuario
+    const { data: userPackages, error: packageQueryError } = await this.supabaseService.supabase
+      .from('user_packages')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .gt('current_classes_remaining', 0)
+      .order('purchase_date', { ascending: true })
+      .limit(1);
+
+    if (packageQueryError || !userPackages || userPackages.length === 0) {
+      throw new Error('Usuario no tiene bonos disponibles');
+    }
+
+    const userPackage = userPackages[0];
+
+    // 2. Crear la reserva
+    const { data: bookingData, error: bookingError } = await this.supabaseService.supabase
+      .from('bookings')
+      .insert({
+        user_id: user.id,
+        class_session_id: this.selectedSession.id,
+        booking_date_time: new Date().toISOString(),
+        status: 'CONFIRMED',
+        is_from_package: true,
+        cancellation_time: null,
+        payment_id: null
+      });
+
+    if (bookingError) {
+      throw new Error(`Error creando reserva: ${bookingError.message}`);
+    }
+
+    // 3. Actualizar el paquete del usuario
+    const newClassesRemaining = userPackage.current_classes_remaining - 1;
+    const newClassesUsed = userPackage.classes_used_this_month + 1;
+    const newStatus = newClassesRemaining <= 0 ? 'expired' : 'active';
+
+    const { error: packageUpdateError } = await this.supabaseService.supabase
+      .from('user_packages')
+      .update({
+        current_classes_remaining: newClassesRemaining,
+        classes_used_this_month: newClassesUsed,
+        status: newStatus
+      })
+      .eq('id', userPackage.id);
+
+    if (packageUpdateError) {
+      console.warn('Warning: No se pudo actualizar el paquete automáticamente:', packageUpdateError);
+    }
+
+    // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+    const newBooking: Booking = {
+      id: Date.now(), // ID temporal
+      user_id: user.id,
+      class_session_id: this.selectedSession.id,
+      booking_date_time: new Date().toISOString(),
+      status: 'CONFIRMED',
+      cancellation_time: '', // String vacío en lugar de null
+      user: {
+        name: user.name,
+        surname: user.surname,
+        email: user.email
+      }
+    };
+    
+    // Agregar a la lista local inmediatamente
+    this.sessionAttendees.push(newBooking);
+
+    this.successMessage = `${user.name} añadido correctamente a la clase`;
+    
+    // Recargar asistentes desde la BD para confirmar
+    await this.loadSessionAttendees(this.selectedSession.id);
+    
+    // Recargar eventos del calendario INMEDIATAMENTE
+    this.loadSessions();
+  }
+
+  private async addAttendeeWithPackageFallback(user: any) {
+    if (!this.selectedSession) return;
+
+    // MÉTODO TEMPORAL: Crear reserva e actualizar paquete manualmente
+    // 1. Primero, obtener el paquete activo del usuario
+    const { data: userPackages, error: packageQueryError } = await this.supabaseService.supabase
+      .from('user_packages')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .gt('current_classes_remaining', 0)
+      .order('purchase_date', { ascending: true })
+      .limit(1);
+
+    if (packageQueryError || !userPackages || userPackages.length === 0) {
+      throw new Error('Usuario no tiene bonos disponibles');
+    }
+
+    const userPackage = userPackages[0];
+
+    // 2. Crear la reserva
+    const { data: bookingData, error: bookingError } = await this.supabaseService.supabase
+      .from('bookings')
+      .insert({
+        user_id: user.id,
+        class_session_id: this.selectedSession.id,
+        booking_date_time: new Date().toISOString(),
+        status: 'CONFIRMED',
+        is_from_package: true,
+        cancellation_time: null,
+        payment_id: null
+      });
+
+    if (bookingError) {
+      throw new Error(`Error creando reserva: ${bookingError.message}`);
+    }
+
+    // 3. Actualizar el paquete del usuario
+    const newClassesRemaining = userPackage.current_classes_remaining - 1;
+    const newClassesUsed = userPackage.classes_used_this_month + 1;
+    const newStatus = newClassesRemaining <= 0 ? 'expired' : 'active';
+
+    const { error: packageUpdateError } = await this.supabaseService.supabase
+      .from('user_packages')
+      .update({
+        current_classes_remaining: newClassesRemaining,
+        classes_used_this_month: newClassesUsed,
+        status: newStatus
+      })
+      .eq('id', userPackage.id);
+
+    if (packageUpdateError) {
+      console.warn('Warning: No se pudo actualizar el paquete automáticamente:', packageUpdateError);
+    }
+
+    // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+    const newBooking: Booking = {
+      id: Date.now(), // ID temporal
+      user_id: user.id,
+      class_session_id: this.selectedSession.id,
+      booking_date_time: new Date().toISOString(),
+      status: 'CONFIRMED',
+      cancellation_time: '', // String vacío en lugar de null
+      user: {
+        name: user.name,
+        surname: user.surname,
+        email: user.email
+      }
+    };
+    
+    // Agregar a la lista local inmediatamente
+    this.sessionAttendees.push(newBooking);
+
+    this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
+    
+    // Recargar asistentes desde la BD para confirmar
+    await this.loadSessionAttendees(this.selectedSession.id);
+    
+    // Recargar eventos del calendario INMEDIATAMENTE
+    this.loadSessions();
+    
+    // Resetear búsqueda
+    this.searchTerm = '';
+    this.showAddUserSection = false;
+  }
+
+  // ==============================================
+  // MÉTODO PARA ACTUALIZAR CONTADORES EN TIEMPO REAL
+  // ==============================================
+
+  private updateCalendarEventCounts(sessionId: number, bookingCount: number) {
+    // Encontrar y actualizar el evento en el calendario local
+    const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
+    if (eventIndex !== -1) {
+      const session = this.events[eventIndex].extendedProps.session;
+      const classTypeName = this.getClassTypeName(session.class_type_id);
+      
+      // Actualizar el título del evento
+      this.events[eventIndex].title = `${classTypeName} (${bookingCount}/${session.capacity})`;
+      this.events[eventIndex].extendedProps.bookings = bookingCount;
+      
+      // Actualizar las opciones del calendario para reflejar los cambios
+      this.calendarOptions = {
+        ...this.calendarOptions,
+        events: [...this.events]
+      };
+      
+      this.cdr.detectChanges();
+    }
   }
 }

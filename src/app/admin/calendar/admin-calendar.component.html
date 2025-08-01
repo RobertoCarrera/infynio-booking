@@ -41,8 +41,9 @@
     <div class="alert alert-info">
       <h6><i class="fas fa-info-circle me-2"></i>Instrucciones:</h6>
       <ul class="mb-0">
-        <li><strong>Crear sesión:</strong> Haz clic en una fecha/hora libre del calendario</li>
-        <li><strong>Editar sesión:</strong> Haz clic en una sesión existente</li>
+        <li><strong>Crear sesión:</strong> Haz clic en el botón "Nueva Sesión" o en una fecha/hora libre del calendario</li>
+        <li><strong>Gestionar asistentes:</strong> Haz clic en una sesión existente para ver y gestionar los asistentes</li>
+        <li><strong>Añadir/Eliminar usuarios:</strong> Usa el modal de asistentes para gestionar quién está en cada clase</li>
         <li><strong>Navegación:</strong> Usa los botones de la barra superior para cambiar vista</li>
       </ul>
     </div>
@@ -210,3 +211,330 @@
 
 <!-- Modal backdrop -->
 <div class="modal-backdrop fade show" *ngIf="showModal"></div>
+
+<!-- Modal de Gestión de Asistentes -->
+<div class="modal fade" 
+     [class.show]="showAttendeesModal" 
+     [style.display]="showAttendeesModal ? 'block' : 'none'" 
+     *ngIf="showAttendeesModal"
+     tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      
+      <!-- Header del Modal -->
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-users me-2"></i>
+          Gestionar Asistentes - {{ selectedSession?.class_type_name }}
+        </h5>
+        <button type="button" 
+                class="btn-close" 
+                (click)="closeAttendeesModal()"
+                [disabled]="loading">
+        </button>
+      </div>
+
+      <!-- Body del Modal -->
+      <div class="modal-body">
+        <!-- Loading State -->
+        <div *ngIf="loading" class="text-center py-4">
+          <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+          <p class="mb-0">Cargando asistentes...</p>
+        </div>
+
+        <!-- Content cuando no está cargando -->
+        <div *ngIf="!loading">
+          
+          <!-- Información de la clase -->
+          <div class="class-details mb-4" *ngIf="selectedSession">
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-3">
+                    <strong>Fecha:</strong><br>
+                    <span>{{ selectedSession.schedule_date | date:'dd/MM/yyyy' }}</span>
+                  </div>
+                  <div class="col-md-3">
+                    <strong>Hora:</strong><br>
+                    <span>{{ selectedSession.schedule_time }}</span>
+                  </div>
+                  <div class="col-md-3">
+                    <strong>Capacidad:</strong><br>
+                    <span>{{ sessionAttendees.length }}/{{ selectedSession.capacity }}</span>
+                  </div>
+                  <div class="col-md-3">
+                    <strong>Espacios:</strong><br>
+                    <span class="badge" 
+                          [class.bg-success]="sessionAttendees.length < selectedSession.capacity"
+                          [class.bg-warning]="sessionAttendees.length >= selectedSession.capacity">
+                      {{ selectedSession.capacity - sessionAttendees.length }} libres
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensajes de Error -->
+          <div *ngIf="error" class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ error }}
+          </div>
+
+          <!-- Mensajes de Éxito -->
+          <div *ngIf="successMessage" class="alert alert-success" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            {{ successMessage }}
+          </div>
+
+          <!-- Lista de Asistentes Actuales -->
+          <div class="attendees-section mb-4">
+            <h6 class="mb-3">
+              <i class="fas fa-user-check me-2"></i>
+              Asistentes Confirmados ({{ sessionAttendees.length }})
+            </h6>
+            
+            <div *ngIf="sessionAttendees.length === 0" class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              No hay asistentes confirmados para esta clase.
+            </div>
+
+            <div *ngIf="sessionAttendees.length > 0" class="attendees-list">
+              <div *ngFor="let booking of sessionAttendees" 
+                   class="attendee-item d-flex justify-content-between align-items-center mb-2 p-3 border rounded bg-white">
+                <div class="attendee-info">
+                  <div class="d-flex align-items-center">
+                    <i class="fas fa-user-circle me-2 text-primary"></i>
+                    <div>
+                      <strong class="text-dark">
+                        {{ (booking.users?.name || booking.user?.name || 'Usuario') }} 
+                        {{ (booking.users?.surname || booking.user?.surname || '') }}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-danger btn-sm" 
+                        (click)="removeAttendee(booking)"
+                        [disabled]="loading"
+                        title="Eliminar asistente">
+                  <i class="fas fa-times me-1"></i>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección para Añadir Usuarios -->
+          <div class="add-user-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="mb-0">
+                <i class="fas fa-user-plus me-2"></i>
+                Añadir Asistente
+              </h6>
+              <button class="btn btn-outline-primary btn-sm" 
+                      (click)="toggleAddUserSection()"
+                      [disabled]="loading || sessionAttendees.length >= selectedSession?.capacity!">
+                <i class="fas fa-plus me-1"></i>
+                {{ showAddUserSection ? 'Cancelar' : 'Añadir Usuario' }}
+              </button>
+            </div>
+
+            <!-- Formulario de búsqueda y selección -->
+            <div *ngIf="showAddUserSection" class="add-user-form">
+              <div class="search-section mb-3">
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                  </span>
+                  <input type="text" 
+                         class="form-control" 
+                         placeholder="Buscar usuario por nombre o email..."
+                         [(ngModel)]="searchTerm">
+                </div>
+              </div>
+
+              <!-- Lista de usuarios disponibles -->
+              <div class="available-users">
+                <div *ngIf="availableUsers.length === 0 && searchTerm" 
+                     class="alert alert-warning">
+                  <i class="fas fa-search me-2"></i>
+                  No se encontraron usuarios que coincidan con "{{ searchTerm }}"
+                </div>
+
+                <div *ngIf="availableUsers.length === 0 && !searchTerm" 
+                     class="alert alert-info">
+                  <i class="fas fa-users me-2"></i>
+                  Todos los usuarios ya están asignados a esta clase.
+                </div>
+
+                <div class="user-list" style="max-height: 200px; overflow-y: auto;">
+                  <div *ngFor="let user of availableUsers.slice(0, 10)" 
+                       class="user-item p-3 border rounded bg-light mb-2 cursor-pointer user-card-hover"
+                       (click)="addAttendee(user)"
+                       [class.disabled]="loading"
+                       title="Clic para añadir a la clase">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="user-info flex-grow-1">
+                        <div class="d-flex align-items-center">
+                          <i class="fas fa-user-plus me-2 text-success"></i>
+                          <div>
+                            <strong class="text-dark">{{ user.name }} {{ user.surname }}</strong>
+                            <br>
+                            <small class="text-muted">{{ user.email }}</small>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="add-indicator">
+                        <i class="fas fa-plus-circle text-success fs-5"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div *ngIf="availableUsers.length > 10" class="text-muted text-center mt-2">
+                  <small>Mostrando 10 de {{ availableUsers.length }} usuarios. Usa la búsqueda para refinar.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="modal-footer" *ngIf="!loading">
+        <button type="button" 
+                class="btn btn-secondary" 
+                (click)="closeAttendeesModal()">
+          <i class="fas fa-times me-2"></i>
+          Cerrar
+        </button>
+        
+        <button type="button" 
+                class="btn btn-primary" 
+                (click)="openEditModal(selectedSession!)"
+                *ngIf="selectedSession">
+          <i class="fas fa-cog me-2"></i>
+          Configurar Sesión
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal backdrop para asistentes -->
+<div class="modal-backdrop fade show" *ngIf="showAttendeesModal"></div>
+
+<!-- Modal de Añadir Bono -->
+<div class="modal fade show" 
+     *ngIf="showAddPackageModal" 
+     style="display: block; background-color: rgba(0,0,0,0.6); z-index: 1060;">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content package-modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa fa-gift me-2"></i>
+          Añadir Bono a {{ selectedUserForPackage?.name }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeAddPackageModal()"></button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Información del usuario -->
+        <div class="user-info-card mb-3" *ngIf="selectedUserForPackage">
+          <div class="d-flex align-items-center">
+            <div class="user-avatar me-3">
+              {{ selectedUserForPackage.name?.charAt(0).toUpperCase() }}
+            </div>
+            <div>
+              <h6 class="mb-1">{{ selectedUserForPackage.name }}</h6>
+              <small class="text-muted">{{ selectedUserForPackage.email }}</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulario de bono -->
+        <form [formGroup]="packageForm" (ngSubmit)="addPackageToUser()">
+          <!-- Selección del bono -->
+          <div class="mb-3">
+            <label for="package_id" class="form-label">
+              <i class="fa fa-box me-2"></i>Seleccionar Bono
+            </label>
+            <select id="package_id" class="form-select" formControlName="package_id" required>
+              <option value="">Selecciona un bono...</option>
+              <option 
+                *ngFor="let pkg of getPackagesByClassType(getClassTypeName(selectedSession?.class_type_id || 0))" 
+                [value]="pkg.id">
+                {{ pkg.name }} 
+                <span *ngIf="pkg.class_count">- {{ pkg.class_count }} clases</span>
+                <span *ngIf="pkg.price"> - €{{ pkg.price }}</span>
+              </option>
+            </select>
+            <div class="invalid-feedback" *ngIf="packageForm.get('package_id')?.invalid && packageForm.get('package_id')?.touched">
+              Por favor selecciona un bono.
+            </div>
+          </div>
+
+          <!-- Fecha de activación -->
+          <div class="mb-3">
+            <label for="activation_date" class="form-label">
+              <i class="fa fa-calendar me-2"></i>Fecha de Activación
+            </label>
+            <input 
+              type="date" 
+              id="activation_date" 
+              class="form-control" 
+              formControlName="activation_date"
+              [min]="getCurrentDate()">
+            <small class="form-text text-muted">
+              El bono se activará en esta fecha. Si no se especifica, se activará inmediatamente.
+            </small>
+          </div>
+
+          <!-- Información del bono seleccionado -->
+          <div class="package-info-card" *ngIf="packageForm.get('package_id')?.value">
+            <ng-container *ngFor="let pkg of packagesDisponibles">
+              <div *ngIf="pkg.id === packageForm.get('package_id')?.value" class="selected-package-info">
+                <h6><i class="fa fa-info-circle me-2"></i>Información del Bono</h6>
+                <ul class="list-unstyled mb-0">
+                  <li><strong>Nombre:</strong> {{ pkg.name }}</li>
+                  <li *ngIf="pkg.class_count"><strong>Clases:</strong> {{ pkg.class_count }}</li>
+                  <li *ngIf="pkg.price"><strong>Precio:</strong> €{{ pkg.price }}</li>
+                  <li *ngIf="pkg.class_type"><strong>Tipo de clase:</strong> {{ getClassTypeName(pkg.class_type) }}</li>
+                  <li *ngIf="pkg.is_single_class"><strong>Clase única:</strong> {{ pkg.is_single_class ? 'Sí' : 'No' }}</li>
+                  <li *ngIf="pkg.is_personal"><strong>Personal:</strong> {{ pkg.is_personal ? 'Sí' : 'No' }}</li>
+                </ul>
+              </div>
+            </ng-container>
+          </div>
+
+          <!-- Mensajes -->
+          <div class="alert alert-success" *ngIf="successMessage">
+            <i class="fa fa-check-circle me-2"></i>{{ successMessage }}
+          </div>
+          
+          <div class="alert alert-danger" *ngIf="error">
+            <i class="fa fa-exclamation-circle me-2"></i>{{ error }}
+          </div>
+        </form>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeAddPackageModal()">
+          <i class="fa fa-times me-2"></i>Cancelar
+        </button>
+        <button 
+          type="button" 
+          class="btn btn-primary" 
+          (click)="addPackageToUser()"
+          [disabled]="packageForm.invalid || loading">
+          <i class="fa fa-spinner fa-spin me-2" *ngIf="loading"></i>
+          <i class="fa fa-plus me-2" *ngIf="!loading"></i>
+          {{ loading ? 'Añadiendo...' : 'Añadir Bono' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

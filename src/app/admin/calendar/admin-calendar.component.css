@@ -34,6 +34,134 @@
   padding: 20px;
 }
 
+/* Attendees Modal Styles */
+.attendee-item {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+}
+
+.attendee-item:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.user-item {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.user-item:hover {
+  background-color: #e9ecef;
+  border-color: #007bff;
+}
+
+/* Enhanced User Card Hover Effects */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.user-card-hover {
+  transition: all 0.3s ease;
+  border: 1px solid #dee2e6 !important;
+}
+
+.user-card-hover:hover {
+  background-color: #e8f5e8 !important;
+  border-color: #28a745 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.2);
+}
+
+.user-card-hover.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.user-card-hover.disabled:hover {
+  background-color: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  transform: none;
+  box-shadow: none;
+}
+
+.add-indicator {
+  transition: transform 0.2s ease;
+}
+
+.user-card-hover:hover .add-indicator {
+  transform: scale(1.2);
+}
+
+.attendees-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.search-section .input-group-text {
+  background-color: #f8f9fa;
+  border-color: #ced4da;
+}
+
+.add-user-form {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #f8f9fa;
+}
+
+.user-list {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 10px;
+  background-color: white;
+}
+
+.attendee-info .fa-user-circle {
+  font-size: 1.2em;
+}
+
+.user-info .fa-user {
+  font-size: 1.1em;
+}
+
+/* Modal size adjustments */
+.modal-lg {
+  max-width: 800px;
+}
+
+/* Z-index management for stacked modals */
+.modal {
+  z-index: 1050;
+}
+
+.modal-backdrop {
+  z-index: 1040;
+}
+
+/* Higher z-index for edit modal when opened from attendees modal */
+.modal.show + .modal {
+  z-index: 1060;
+}
+
+.modal.show + .modal + .modal-backdrop {
+  z-index: 1055;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .attendee-item, .user-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .attendee-item .btn, .user-item .btn {
+    margin-top: 10px;
+  }
+}
+
 /* FullCalendar customizations */
 ::ng-deep .fc {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -288,6 +416,83 @@
   height: 1rem;
 }
 
+/* ======================================
+   MODAL DE PAQUETES
+   ====================================== */
+
+/* Modal de paquetes con z-index mayor para aparecer encima */
+.package-modal-content {
+  position: relative;
+  z-index: 1070;
+}
+
+/* Información del usuario en el modal de paquetes */
+.user-info-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  background: #007bff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* Información del paquete seleccionado */
+.package-info-card {
+  background: #e7f3ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.selected-package-info h6 {
+  color: #0056b3;
+  margin-bottom: 0.75rem;
+}
+
+.selected-package-info ul li {
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #d1ecf1;
+}
+
+.selected-package-info ul li:last-child {
+  border-bottom: none;
+}
+
+/* Estilos mejorados para select */
+.form-select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Botones en el modal de paquetes */
+.package-modal-content .btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.package-modal-content .btn-primary {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  border: none;
+}
+
+.package-modal-content .btn-primary:hover {
+  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+  transform: translateY(-1px);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .admin-calendar-container {
@@ -317,4 +522,81 @@
     display: flex;
     justify-content: center;
   }
+}
+
+/* ======================================
+   MODAL DE PAQUETES
+   ====================================== */
+
+/* Modal de paquetes con z-index mayor para aparecer encima del modal de asistentes */
+.package-modal-content {
+  position: relative;
+  z-index: 1070;
+}
+
+/* Información del usuario en el modal de paquetes */
+.user-info-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  background: #007bff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* Información del paquete seleccionado */
+.package-info-card {
+  background: #e7f3ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.selected-package-info h6 {
+  color: #0056b3;
+  margin-bottom: 0.75rem;
+}
+
+.selected-package-info ul li {
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #d1ecf1;
+}
+
+.selected-package-info ul li:last-child {
+  border-bottom: none;
+}
+
+/* Estilos mejorados para select */
+.form-select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Botones en el modal de paquetes */
+.package-modal-content .btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.package-modal-content .btn-primary {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  border: none;
+}
+
+.package-modal-content .btn-primary:hover {
+  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+  transform: translateY(-1px);
 }
