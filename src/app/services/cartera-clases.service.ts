@@ -197,36 +197,40 @@ export class CarteraClasesService {
   }
 
   /**
-   * Modifica un user_package existente
+   * Modifica un user_package existente usando RPC segura
    */
   modificarUserPackage(userPackageId: number, updateData: UpdateUserPackage): Observable<UserPackage> {
     return from(
-      this.supabaseService.supabase
-        .from('user_packages')
-        .update(updateData)
-        .eq('id', userPackageId)
-        .select()
-        .single()
+      this.supabaseService.supabase.rpc('modify_user_package', {
+        package_id_param: userPackageId,
+        current_classes_remaining_param: updateData.current_classes_remaining,
+        monthly_classes_limit_param: updateData.monthly_classes_limit,
+        classes_used_this_month_param: updateData.classes_used_this_month,
+        rollover_classes_remaining_param: updateData.rollover_classes_remaining,
+        next_rollover_reset_date_param: updateData.next_rollover_reset_date,
+        status_param: updateData.status
+      })
     ).pipe(
       map(response => {
         if (response.error) throw response.error;
+        if (response.data?.error) throw new Error(response.data.error);
         return response.data;
       })
     );
   }
 
   /**
-   * Desactiva un user_package
+   * Desactiva un user_package usando RPC segura
    */
   desactivarUserPackage(userPackageId: number): Observable<boolean> {
     return from(
-      this.supabaseService.supabase
-        .from('user_packages')
-        .update({ status: 'inactive' })
-        .eq('id', userPackageId)
+      this.supabaseService.supabase.rpc('deactivate_user_package', {
+        package_id_param: userPackageId
+      })
     ).pipe(
       map(response => {
         if (response.error) throw response.error;
+        if (response.data?.success === false) throw new Error(response.data.error);
         return true;
       })
     );

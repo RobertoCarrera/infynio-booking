@@ -148,53 +148,226 @@ export class SupabaseService {
   }
 
   async getAllUsers(): Promise<any> {
-    return await this.supabase.from('users').select('*');
+    // Obtener TODOS los usuarios (incluye huérfanos para poder limpiarlos)
+    return await this.supabase
+      .from('users')
+      .select('*');
+  }
+
+  async getValidUsers(): Promise<any> {
+    // Solo obtener usuarios que tengan auth_user_id (usuarios válidos)
+    return await this.supabase
+      .from('users')
+      .select('*')
+      .not('auth_user_id', 'is', null);
+  }
+
+  async getOrphanedUsers(): Promise<any> {
+    // Solo obtener usuarios huérfanos (sin auth_user_id)
+    return await this.supabase
+      .from('users')
+      .select('*')
+      .is('auth_user_id', null);
+  }
+
+  /**
+   * Función para limpiar TODOS los usuarios huérfanos de una vez
+   */
+  async cleanAllOrphanedUsers(): Promise<any> {
+    try {
+      console.log('🧹 Starting mass cleanup of orphaned users...');
+      
+      // Obtener todos los usuarios huérfanos
+      const { data: orphanedUsers, error: fetchError } = await this.getOrphanedUsers();
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!orphanedUsers || orphanedUsers.length === 0) {
+        return {
+          success: true,
+          message: 'No hay usuarios huérfanos para limpiar.',
+          deletedCount: 0
+        };
+      }
+
+      console.log(`🗑️ Found ${orphanedUsers.length} orphaned users to delete`);
+      
+      const deletedUsers = [];
+      const errors = [];
+
+      // Eliminar cada usuario huérfano
+      for (const user of orphanedUsers) {
+        try {
+          console.log(`🗑️ Deleting orphaned user: ${user.email || `ID: ${user.id}`}`);
+          
+          // Eliminar user_packages primero
+          await this.supabase
+            .from('user_packages')
+            .delete()
+            .eq('user_id', user.id);
+          
+          // Eliminar el usuario
+          const { error: deleteError } = await this.supabase
+            .from('users')
+            .delete()
+            .eq('id', user.id);
+          
+          if (deleteError) {
+            errors.push(`Error deleting user ${user.email || user.id}: ${deleteError.message}`);
+          } else {
+            deletedUsers.push(user.email || `ID: ${user.id}`);
+          }
+        } catch (error: any) {
+          errors.push(`Error deleting user ${user.email || user.id}: ${error.message}`);
+        }
+      }
+
+      let message = `Limpieza completada. ${deletedUsers.length} usuarios huérfanos eliminados.`;
+      if (errors.length > 0) {
+        message += ` ${errors.length} errores encontrados.`;
+        console.warn('⚠️ Errors during cleanup:', errors);
+      }
+
+      return {
+        success: true,
+        message,
+        deletedCount: deletedUsers.length,
+        deletedUsers,
+        errors: errors.length > 0 ? errors : undefined
+      };
+    } catch (error: any) {
+      console.error('❌ Error in cleanAllOrphanedUsers:', error);
+      throw new Error(`Error en limpieza masiva: ${error.message}`);
+    }
   }
 
   async deleteUser(userId: number): Promise<any> {
     try {
       console.log('🔄 Deleting user with ID:', userId);
+      
+      // Obtener información del usuario antes de eliminarlo
       const { data: userData, error: fetchError } = await this.supabase
         .from('users')
-        .select('auth_user_id, email')
+        .select('auth_user_id, email, name, surname')
         .eq('id', userId)
         .single();
+        
       if (fetchError) {
         throw fetchError;
       }
-      const { error: deleteUserError } = await this.supabase
-        .from('users')
+
+      // PASO 1: Eliminar TODOS los user_packages del usuario primero (CASCADE manual)
+      console.log('🗑️ Deleting user packages for user:', userId);
+      const { error: packagesError } = await this.supabase
+        .from('user_packages')
         .delete()
-        .eq('id', userId);
-      if (deleteUserError) {
-        throw deleteUserError;
+        .eq('user_id', userId);
+      
+      if (packagesError) {
+        console.warn('⚠️ Error deleting user packages:', packagesError);
+      } else {
+        console.log('✅ User packages deleted successfully');
       }
-      try {
-        if (userData.auth_user_id) {
+
+      // PASO 2: Si tiene auth_user_id, intentar eliminar del auth system
+      if (userData.auth_user_id) {
+        try {
           const { data: session } = await this.supabase.auth.getSession();
           if (session.session) {
-            const { data, error } = await this.supabase.functions.invoke('delete-user', {
+            const { data: authData, error: authError } = await this.supabase.functions.invoke('delete-user', {
               body: { auth_user_id: userData.auth_user_id },
               headers: {
                 Authorization: `Bearer ${session.session.access_token}`,
               },
             });
-            if (error) {
-              console.warn('⚠️ Could not delete from auth system via Edge Function:', error);
+            if (authError) {
+              console.warn('⚠️ Could not delete from auth system via Edge Function:', authError);
             } else {
               console.log('✅ User deleted from auth system via Edge Function');
             }
           }
+        } catch (authError: any) {
+          console.warn('⚠️ Could not delete from auth system:', authError);
         }
-      } catch (authError: any) {
-        console.warn('⚠️ Could not delete from auth system (user deleted from app only):', authError);
       }
+
+      // PASO 3: Finalmente, eliminar físicamente el usuario de public.users
+      console.log('🗑️ Deleting user from public.users table');
+      const { error: deleteError } = await this.supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
       return {
         success: true,
-        message: `Usuario ${userData.email} eliminado correctamente del sistema.`
+        message: `Usuario ${userData.email || 'Usuario'} eliminado completamente del sistema (incluyendo paquetes).`
       };
     } catch (error: any) {
+      console.error('❌ Error in deleteUser:', error);
       throw new Error(`Error al eliminar usuario: ${error.message}`);
+    }
+  }
+
+  /**
+   * Función para limpiar usuarios huérfanos (solo en public.users, sin auth_user_id)
+   */
+  async deleteOrphanedUser(userId: number): Promise<any> {
+    try {
+      console.log('🧹 Cleaning orphaned user with ID:', userId);
+      
+      // Obtener información del usuario
+      const { data: userData, error: fetchError } = await this.supabase
+        .from('users')
+        .select('auth_user_id, email, name, surname')
+        .eq('id', userId)
+        .single();
+        
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // Verificar que sea realmente un usuario huérfano
+      if (userData.auth_user_id) {
+        throw new Error('Este usuario tiene cuenta de autenticación. Usa deleteUser() en su lugar.');
+      }
+
+      // PASO 1: Eliminar TODOS los user_packages del usuario primero
+      console.log('🗑️ Deleting user packages for orphaned user:', userId);
+      const { error: packagesError } = await this.supabase
+        .from('user_packages')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (packagesError) {
+        console.warn('⚠️ Error deleting user packages:', packagesError);
+      } else {
+        console.log('✅ User packages deleted successfully');
+      }
+
+      // PASO 2: Eliminar el usuario huérfano de public.users
+      console.log('🗑️ Deleting orphaned user from public.users table');
+      const { error: deleteError } = await this.supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      return {
+        success: true,
+        message: `Usuario huérfano ${userData.email || 'Usuario'} eliminado completamente (incluyendo paquetes).`
+      };
+    } catch (error: any) {
+      console.error('❌ Error in deleteOrphanedUser:', error);
+      throw new Error(`Error al eliminar usuario huérfano: ${error.message}`);
     }
   }
 
@@ -205,5 +378,13 @@ export class SupabaseService {
     const response = await this.supabase.functions.invoke('get-class-sessions');
     if (response.error) throw response.error;
     return response.data ?? [];
+  }
+
+  /**
+   * Método de utilidad para acceso directo desde consola
+   */
+  static exposeToWindow(service: SupabaseService) {
+    (window as any).supabaseService = service;
+    console.log('🔧 SupabaseService exposed to window.supabaseService');
   }
 }
