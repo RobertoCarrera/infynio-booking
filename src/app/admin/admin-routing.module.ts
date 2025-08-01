@@ -4,7 +4,7 @@ import { AdminComponent } from './admin.component';
 import { UsersListComponent } from './users/users-list.component';
 import { InviteUserComponent } from './users/invite-user.component';
 import { AdminCarteraComponent } from './cartera/admin-cartera.component';
-import { AdminClassSchedulesComponent } from './class-schedules/admin-class-schedules.component';
+import { AdminCalendarComponent } from './calendar/admin-calendar.component';
 import { AdminGuard } from '../guards/admin.guard';
 
 const routes: Routes = [
@@ -16,7 +16,7 @@ const routes: Routes = [
       { path: 'users', component: UsersListComponent },
       { path: 'invite', component: InviteUserComponent },
       { path: 'cartera', component: AdminCarteraComponent },
-      { path: 'schedules', component: AdminClassSchedulesComponent },
+      { path: 'calendar', component: AdminCalendarComponent },
       { path: '', redirectTo: 'users', pathMatch: 'full' }
     ]
   }

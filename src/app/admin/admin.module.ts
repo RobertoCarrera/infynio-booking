@@ -4,7 +4,7 @@ import { AdminComponent } from './admin.component';
 import { UsersListComponent } from './users/users-list.component';
 import { InviteUserComponent } from './users/invite-user.component';
 import { AdminCarteraComponent } from './cartera/admin-cartera.component';
-import { AdminClassSchedulesComponent } from './class-schedules/admin-class-schedules.component';
+import { AdminCalendarComponent } from './calendar/admin-calendar.component';
 import { RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AdminRoutingModule } from './admin-routing.module';
@@ -20,7 +20,7 @@ import { AdminRoutingModule } from './admin-routing.module';
     UsersListComponent,
     InviteUserComponent,
     AdminCarteraComponent,
-    AdminClassSchedulesComponent
+    AdminCalendarComponent
   ]
 })
 export class AdminModule {}

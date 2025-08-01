@@ -1,0 +1,170 @@
+<div class="admin-calendar-container">
+  <!-- Header -->
+  <div class="calendar-header">
+    <h2>
+      <i class="fas fa-calendar-alt me-2"></i>
+      Gestión de Horarios - Vista Calendario
+    </h2>
+    <button class="btn btn-primary" (click)="openCreateModal()">
+      <i class="fas fa-plus me-2"></i>
+      Nueva Sesión
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ error }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ successMessage }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="d-flex justify-content-center py-4">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="calendar-container" *ngIf="!loading">
+    <full-calendar [options]="calendarOptions"></full-calendar>
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions mt-3">
+    <div class="alert alert-info">
+      <h6><i class="fas fa-info-circle me-2"></i>Instrucciones:</h6>
+      <ul class="mb-0">
+        <li><strong>Crear sesión:</strong> Haz clic en una fecha/hora libre del calendario</li>
+        <li><strong>Editar sesión:</strong> Haz clic en una sesión existente</li>
+        <li><strong>Navegación:</strong> Usa los botones de la barra superior para cambiar vista</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para crear/editar sesión -->
+<div class="modal fade" [class.show]="showModal" [style.display]="showModal ? 'block' : 'none'" *ngIf="showModal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-calendar-plus me-2" *ngIf="!isEditing"></i>
+          <i class="fas fa-edit me-2" *ngIf="isEditing"></i>
+          {{ isEditing ? 'Editar Sesión' : 'Nueva Sesión' }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeModal()"></button>
+      </div>
+      
+      <form [formGroup]="sessionForm" (ngSubmit)="onSubmit()">
+        <div class="modal-body">
+          <!-- Session info if editing -->
+          <div *ngIf="isEditing && selectedSession" class="alert alert-info mb-3">
+            <h6 class="mb-1">Sesión Actual:</h6>
+            <p class="mb-0">
+              <strong>{{ getClassTypeName(selectedSession.class_type_id) }}</strong><br>
+              <small>{{ selectedSession.schedule_date }} a las {{ selectedSession.schedule_time }}</small>
+            </p>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Tipo de Clase:</label>
+                <select class="form-select" 
+                        formControlName="class_type_id" 
+                        (change)="onClassTypeChange()">
+                  <option value="">Seleccionar tipo...</option>
+                  <option *ngFor="let type of classTypes" [value]="type.id">
+                    {{ type.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Capacidad:</label>
+                <input type="number" 
+                       class="form-control" 
+                       formControlName="capacity"
+                       min="1" 
+                       max="15">
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Fecha:</label>
+                <input type="date" 
+                       class="form-control" 
+                       formControlName="schedule_date">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Hora:</label>
+                <input type="time" 
+                       class="form-control" 
+                       formControlName="schedule_time">
+              </div>
+            </div>
+          </div>
+
+          <!-- Recurring options (for future implementation) -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     formControlName="recurring" 
+                     id="recurring">
+              <label class="form-check-label" for="recurring">
+                Sesión recurrente (próximamente)
+              </label>
+            </div>
+          </div>
+
+          <!-- Error messages -->
+          <div *ngIf="error" class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ error }}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">
+            Cancelar
+          </button>
+          
+          <button *ngIf="isEditing" 
+                  type="button" 
+                  class="btn btn-danger me-2" 
+                  (click)="deleteSession()"
+                  [disabled]="loading">
+            <i class="fas fa-trash me-1"></i>
+            Eliminar
+          </button>
+          
+          <button type="submit" 
+                  class="btn btn-primary" 
+                  [disabled]="sessionForm.invalid || loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+            <i *ngIf="!loading && !isEditing" class="fas fa-plus me-1"></i>
+            <i *ngIf="!loading && isEditing" class="fas fa-save me-1"></i>
+            {{ isEditing ? 'Guardar Cambios' : 'Crear Sesión' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal backdrop -->
+<div class="modal-backdrop fade show" *ngIf="showModal"></div>
