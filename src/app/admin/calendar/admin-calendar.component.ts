@@ -4,15 +4,9 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, DateSelectArg } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession } from '../../services/class-sessions.service';
+import { ClassTypesService, ClassType } from '../../services/class-types.service';
 import { FULLCALENDAR_OPTIONS } from '../../components/calendar/fullcalendar-config';
-import { Subscription } from 'rxjs';
-
-interface ClassType {
-  id: number;
-  name: string;
-  description: string;
-  duration_minutes: number;
-}
+import { Subscription, forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-admin-calendar',
@@ -39,19 +33,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   error = '';
   successMessage = '';
   
-  // Capacidades por tipo de clase (automáticas según BD)
-  readonly classTypeCapacities: { [key: number]: number } = {
-    1: 8,   // Barre
-    2: 8,   // Mat
-    3: 2,   // Reformer
-    4: 2,   // Personalizada
-    9: 10   // Funcional
-  };
-  
   private subscriptions: Subscription[] = [];
 
   constructor(
     private classSessionsService: ClassSessionsService,
+    private classTypesService: ClassTypesService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef
   ) {
@@ -90,49 +76,50 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.loadClassTypes();
-    this.loadSessions();
+    this.loadData();
   }
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
+  loadData() {
+    this.loading = true;
+    
+    // Cargar tipos de clase y sesiones en paralelo
+    const classTypes$ = this.classTypesService.getAll();
+    const sessions$ = this.classSessionsService.getClassSessions();
+    
+    const sub = forkJoin({
+      classTypes: classTypes$,
+      sessions: sessions$
+    }).subscribe({
+      next: ({ classTypes, sessions }) => {
+        this.classTypes = classTypes;
+        this.loadSessionsData(sessions);
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        console.error('Error loading data:', err);
+        this.error = 'Error al cargar los datos';
+        this.loading = false;
+      }
+    });
+    
+    this.subscriptions.push(sub);
+  }
+
   loadClassTypes() {
-    // Tipos de clase según la tabla class_types de la BD
-    this.classTypes = [
-      { id: 1, name: 'Barre', description: 'Clase grupal de Barre.', duration_minutes: 50 },
-      { id: 2, name: 'Mat', description: 'Clase grupal de Pilates Mat.', duration_minutes: 50 },
-      { id: 3, name: 'Reformer', description: 'Clase grupal de Pilates Reformer.', duration_minutes: 50 },
-      { id: 4, name: 'Personalizada', description: 'Clase individual y personalizada.', duration_minutes: 50 },
-      { id: 9, name: 'Funcional', description: 'Clase grupal de Pilates Funcional.', duration_minutes: 50 }
-    ];
+    // Este método ahora forma parte de loadData()
+    // Los tipos de clase se cargan dinámicamente desde la BD
   }
 
   loadSessions() {
     this.loading = true;
     const sub = this.classSessionsService.getClassSessions().subscribe({
       next: (sessions: ClassSession[]) => {
-        this.events = sessions.map(session => ({
-          id: session.id.toString(),
-          title: `${this.getClassTypeName(session.class_type_id)} (${session.bookings || 0}/${session.capacity})`,
-          start: `${session.schedule_date}T${session.schedule_time}`,
-          end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
-          backgroundColor: this.getClassTypeColor(session.class_type_id),
-          borderColor: this.getClassTypeColor(session.class_type_id),
-          textColor: '#ffffff',
-          extendedProps: {
-            session: session,
-            capacity: session.capacity,
-            bookings: session.bookings || 0
-          }
-        }));
-        
-        this.calendarOptions = {
-          ...this.calendarOptions,
-          events: this.events
-        };
-        
+        this.loadSessionsData(sessions);
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -143,6 +130,28 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       }
     });
     this.subscriptions.push(sub);
+  }
+
+  private loadSessionsData(sessions: ClassSession[]) {
+    this.events = sessions.map(session => ({
+      id: session.id.toString(),
+      title: `${this.getClassTypeName(session.class_type_id)} (${session.bookings || 0}/${session.capacity})`,
+      start: `${session.schedule_date}T${session.schedule_time}`,
+      end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
+      backgroundColor: this.getClassTypeColor(session.class_type_id),
+      borderColor: this.getClassTypeColor(session.class_type_id),
+      textColor: '#ffffff',
+      extendedProps: {
+        session: session,
+        capacity: session.capacity,
+        bookings: session.bookings || 0
+      }
+    }));
+    
+    this.calendarOptions = {
+      ...this.calendarOptions,
+      events: this.events
+    };
   }
 
   onDateSelect(selectInfo: DateSelectArg) {
@@ -385,15 +394,27 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   onClassTypeChange() {
     const classTypeId = this.sessionForm.get('class_type_id')?.value;
-    if (classTypeId && this.classTypeCapacities[classTypeId]) {
-      const capacity = this.classTypeCapacities[classTypeId];
+    if (classTypeId) {
+      const capacity = this.getClassTypeCapacity(classTypeId);
       this.sessionForm.patchValue({
         capacity: capacity
       });
       
-      // Opcional: mostrar mensaje informativo
       console.log(`Capacidad automática establecida: ${capacity} para ${this.getClassTypeName(classTypeId)}`);
     }
+  }
+
+  getClassTypeCapacity(classTypeId: number): number {
+    // Capacidades por defecto según el tipo de clase
+    // La capacidad real se establece individualmente en cada class_session
+    const capacityMap: { [key: number]: number } = {
+      1: 8,   // Barre
+      2: 8,   // Mat
+      3: 2,   // Reformer
+      4: 2,   // Personalizada
+      9: 10   // Funcional
+    };
+    return capacityMap[classTypeId] || 8; // Default 8 si no se encuentra
   }
 
   onRecurringChange() {
@@ -463,6 +484,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   getClassTypeColor(classTypeId: number): string {
+    // Colores definidos en el frontend como parte del diseño de la UI
     const colorMap: { [key: number]: string } = {
       1: '#FF6B6B',  // Rojo coral - Barre
       2: '#4CAF50',  // Verde - Mat

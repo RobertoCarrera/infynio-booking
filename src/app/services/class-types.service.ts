@@ -3,7 +3,7 @@ import { Observable } from 'rxjs';
 import { DatabaseService } from './database.service';
 
 export interface ClassType {
-  id: string;
+  id: number;
   name: string;
   description?: string;
   duration_minutes?: number;

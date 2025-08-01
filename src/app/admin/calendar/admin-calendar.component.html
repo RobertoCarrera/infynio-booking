@@ -92,7 +92,7 @@
                 <label class="form-label">Capacidad:</label>
                 <div class="form-control-plaintext capacity-display">
                   <span *ngIf="sessionForm.get('class_type_id')?.value" class="badge bg-primary">
-                    {{ classTypeCapacities[sessionForm.get('class_type_id')?.value] || 0 }} personas
+                    {{ getClassTypeCapacity(sessionForm.get('class_type_id')?.value) }} personas
                   </span>
                   <span *ngIf="!sessionForm.get('class_type_id')?.value" class="text-muted">
                     Automática
