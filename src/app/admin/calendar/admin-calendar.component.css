@@ -166,6 +166,55 @@
   border-color: #667eea;
 }
 
+/* Configuración de recurrencia */
+.recurring-config {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border-left: 4px solid #667eea;
+}
+
+.recurring-config .alert-info {
+  margin-bottom: 0;
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+  border-radius: 6px;
+}
+
+.form-check-label strong {
+  color: #495057;
+  font-size: 1rem;
+}
+
+.form-check-label small {
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  color: #6c757d;
+}
+
+/* Visualización de capacidad automática */
+.capacity-display {
+  padding: 12px 16px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.capacity-display .badge {
+  font-size: 0.9rem;
+  padding: 8px 12px;
+}
+
+.capacity-display .text-muted {
+  font-style: italic;
+}
+
 /* Buttons */
 .btn {
   border-radius: 6px;

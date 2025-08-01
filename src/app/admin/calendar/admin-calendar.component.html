@@ -74,7 +74,7 @@
           </div>
 
           <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-8">
               <div class="mb-3">
                 <label class="form-label">Tipo de Clase:</label>
                 <select class="form-select" 
@@ -87,14 +87,19 @@
                 </select>
               </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label">Capacidad:</label>
-                <input type="number" 
-                       class="form-control" 
-                       formControlName="capacity"
-                       min="1" 
-                       max="15">
+                <div class="form-control-plaintext capacity-display">
+                  <span *ngIf="sessionForm.get('class_type_id')?.value" class="badge bg-primary">
+                    {{ classTypeCapacities[sessionForm.get('class_type_id')?.value] || 0 }} personas
+                  </span>
+                  <span *ngIf="!sessionForm.get('class_type_id')?.value" class="text-muted">
+                    Automática
+                  </span>
+                </div>
+                <!-- Campo oculto para la capacidad -->
+                <input type="hidden" formControlName="capacity">
               </div>
             </div>
           </div>
@@ -118,16 +123,53 @@
             </div>
           </div>
 
-          <!-- Recurring options (for future implementation) -->
-          <div class="mb-3">
+          <!-- Recurring options -->
+          <div class="mb-3" *ngIf="!isEditing">
             <div class="form-check">
               <input class="form-check-input" 
                      type="checkbox" 
                      formControlName="recurring" 
-                     id="recurring">
+                     id="recurring"
+                     (change)="onRecurringChange()">
               <label class="form-check-label" for="recurring">
-                Sesión recurrente (próximamente)
+                <strong>Sesión recurrente</strong>
+                <small class="text-muted d-block">Crear múltiples sesiones automáticamente</small>
               </label>
+            </div>
+          </div>
+
+          <!-- Recurring configuration -->
+          <div *ngIf="!isEditing && sessionForm.get('recurring')?.value" class="recurring-config">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Frecuencia:</label>
+                  <select class="form-select" 
+                          formControlName="recurring_type"
+                          (change)="onRecurringChange()">
+                    <option value="">Seleccionar frecuencia...</option>
+                    <option value="daily">Diariamente</option>
+                    <option value="weekly">Semanalmente</option>
+                    <option value="biweekly">Cada 2 semanas</option>
+                    <option value="monthly">Mensualmente</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Fecha de fin:</label>
+                  <input type="date" 
+                         class="form-control" 
+                         formControlName="recurring_end_date"
+                         [min]="sessionForm.get('schedule_date')?.value">
+                </div>
+              </div>
+            </div>
+
+            <!-- Preview de sesiones recurrentes -->
+            <div class="alert alert-info mb-3" *ngIf="getRecurringPreview()">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Vista previa:</strong> {{ getRecurringPreview() }}
             </div>
           </div>
 

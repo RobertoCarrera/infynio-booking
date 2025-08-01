@@ -39,12 +39,13 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   error = '';
   successMessage = '';
   
-  // Capacidades por tipo de clase
+  // Capacidades por tipo de clase (automáticas según BD)
   readonly classTypeCapacities: { [key: number]: number } = {
-    9: 10,  // MAT-FUNCIONAL
-    2: 8,   // REFORMER 
-    4: 1,   // MAT-FUNCIONAL Personal
-    3: 2    // REFORMER Personal
+    1: 8,   // Barre
+    2: 8,   // Mat
+    3: 2,   // Reformer
+    4: 2,   // Personalizada
+    9: 10   // Funcional
   };
   
   private subscriptions: Subscription[] = [];
@@ -58,7 +59,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       class_type_id: ['', Validators.required],
       schedule_date: ['', Validators.required],
       schedule_time: ['', Validators.required],
-      capacity: [8, [Validators.required, Validators.min(1), Validators.max(15)]],
+      capacity: [8, [Validators.required, Validators.min(1), Validators.max(15)]], // Se establece automáticamente
       recurring: [false],
       recurring_type: [''],
       recurring_end_date: ['']
@@ -98,13 +99,13 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   loadClassTypes() {
-    // Los tipos de clase se cargarán junto con las sesiones
-    // Por ahora, creamos los tipos básicos manualmente
+    // Tipos de clase según la tabla class_types de la BD
     this.classTypes = [
-      { id: 9, name: 'MAT-FUNCIONAL', description: 'Clase de Mat Funcional', duration_minutes: 60 },
-      { id: 2, name: 'REFORMER', description: 'Clase de Reformer', duration_minutes: 60 },
-      { id: 4, name: 'MAT-FUNCIONAL Personal', description: 'Clase Personal de Mat Funcional', duration_minutes: 60 },
-      { id: 3, name: 'REFORMER Personal', description: 'Clase Personal de Reformer', duration_minutes: 60 }
+      { id: 1, name: 'Barre', description: 'Clase grupal de Barre.', duration_minutes: 50 },
+      { id: 2, name: 'Mat', description: 'Clase grupal de Pilates Mat.', duration_minutes: 50 },
+      { id: 3, name: 'Reformer', description: 'Clase grupal de Pilates Reformer.', duration_minutes: 50 },
+      { id: 4, name: 'Personalizada', description: 'Clase individual y personalizada.', duration_minutes: 50 },
+      { id: 9, name: 'Funcional', description: 'Clase grupal de Pilates Funcional.', duration_minutes: 50 }
     ];
   }
 
@@ -169,7 +170,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       this.sessionForm.patchValue({
         schedule_date: date,
         schedule_time: time || '09:00',
-        capacity: 8
+        capacity: 8 // Capacidad por defecto hasta que se seleccione tipo
       });
     }
     
@@ -206,13 +207,21 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Validar campos de recurrencia si está activada
+    if (this.sessionForm.get('recurring')?.value) {
+      if (!this.sessionForm.get('recurring_type')?.value || !this.sessionForm.get('recurring_end_date')?.value) {
+        this.error = 'Por favor completa todos los campos de recurrencia';
+        return;
+      }
+    }
+
     this.loading = true;
     this.clearMessages();
 
     const formData = this.sessionForm.value;
     
     if (this.isEditing && this.selectedSession) {
-      // Actualizar sesión existente
+      // Actualizar sesión existente (las sesiones recurrentes no se pueden editar para mantener integridad)
       const updateData = {
         class_type_id: formData.class_type_id,
         schedule_date: formData.schedule_date,
@@ -235,29 +244,119 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       });
       this.subscriptions.push(sub);
     } else {
-      // Crear nueva sesión
-      const newSession = {
-        class_type_id: formData.class_type_id,
-        schedule_date: formData.schedule_date,
-        schedule_time: formData.schedule_time,
-        capacity: formData.capacity
-      };
+      // Crear nueva sesión o sesiones recurrentes
+      if (formData.recurring) {
+        this.createRecurringSessions(formData);
+      } else {
+        this.createSingleSession(formData);
+      }
+    }
+  }
 
-      const sub = this.classSessionsService.createSession(newSession).subscribe({
+  private createSingleSession(formData: any) {
+    const newSession = {
+      class_type_id: formData.class_type_id,
+      schedule_date: formData.schedule_date,
+      schedule_time: formData.schedule_time,
+      capacity: formData.capacity
+    };
+
+    const sub = this.classSessionsService.createSession(newSession).subscribe({
+      next: () => {
+        this.successMessage = 'Sesión creada correctamente';
+        this.closeModal();
+        this.loadSessions();
+        this.loading = false;
+      },
+      error: (err: any) => {
+        console.error('Error creating session:', err);
+        this.error = 'Error al crear la sesión';
+        this.loading = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  private createRecurringSessions(formData: any) {
+    const sessions = this.generateRecurringSessions(formData);
+    let createdCount = 0;
+    let totalSessions = sessions.length;
+
+    if (totalSessions === 0) {
+      this.error = 'No se pudieron generar sesiones con los parámetros especificados';
+      this.loading = false;
+      return;
+    }
+
+    // Crear todas las sesiones en secuencia
+    sessions.forEach((session, index) => {
+      const sub = this.classSessionsService.createSession(session).subscribe({
         next: () => {
-          this.successMessage = 'Sesión creada correctamente';
-          this.closeModal();
-          this.loadSessions();
-          this.loading = false;
+          createdCount++;
+          if (createdCount === totalSessions) {
+            this.successMessage = `${createdCount} sesiones recurrentes creadas correctamente`;
+            this.closeModal();
+            this.loadSessions();
+            this.loading = false;
+          }
         },
         error: (err: any) => {
-          console.error('Error creating session:', err);
-          this.error = 'Error al crear la sesión';
-          this.loading = false;
+          console.error(`Error creating session ${index + 1}:`, err);
+          createdCount++;
+          if (createdCount === totalSessions) {
+            this.error = `Se crearon ${createdCount - 1} sesiones. Algunas no se pudieron crear.`;
+            this.loadSessions();
+            this.loading = false;
+          }
         }
       });
       this.subscriptions.push(sub);
+    });
+  }
+
+  private generateRecurringSessions(formData: any): any[] {
+    const sessions: any[] = [];
+    const startDate = new Date(formData.schedule_date);
+    const endDate = new Date(formData.recurring_end_date);
+    const recurringType = formData.recurring_type;
+
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      sessions.push({
+        class_type_id: formData.class_type_id,
+        schedule_date: currentDate.toISOString().split('T')[0],
+        schedule_time: formData.schedule_time,
+        capacity: formData.capacity
+      });
+
+      // Avanzar según el tipo de recurrencia
+      switch (recurringType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 7);
+          break;
+        case 'biweekly':
+          currentDate.setDate(currentDate.getDate() + 14);
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          break;
+        default:
+          // Si no hay tipo válido, salir del bucle
+          break;
+      }
+
+      // Protección contra bucles infinitos
+      if (sessions.length > 100) {
+        console.warn('Limitando a 100 sesiones recurrentes');
+        break;
+      }
     }
+
+    return sessions;
   }
 
   deleteSession() {
@@ -287,10 +386,74 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   onClassTypeChange() {
     const classTypeId = this.sessionForm.get('class_type_id')?.value;
     if (classTypeId && this.classTypeCapacities[classTypeId]) {
+      const capacity = this.classTypeCapacities[classTypeId];
       this.sessionForm.patchValue({
-        capacity: this.classTypeCapacities[classTypeId]
+        capacity: capacity
+      });
+      
+      // Opcional: mostrar mensaje informativo
+      console.log(`Capacidad automática establecida: ${capacity} para ${this.getClassTypeName(classTypeId)}`);
+    }
+  }
+
+  onRecurringChange() {
+    const isRecurring = this.sessionForm.get('recurring')?.value;
+    const recurringTypeControl = this.sessionForm.get('recurring_type');
+    const recurringEndDateControl = this.sessionForm.get('recurring_end_date');
+
+    if (isRecurring) {
+      // Hacer campos obligatorios cuando está activada la recurrencia
+      recurringTypeControl?.setValidators([Validators.required]);
+      recurringEndDateControl?.setValidators([Validators.required]);
+      
+      // Establecer fecha por defecto (1 mes desde la fecha de inicio)
+      const startDate = this.sessionForm.get('schedule_date')?.value;
+      if (startDate) {
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+        this.sessionForm.patchValue({
+          recurring_end_date: endDate.toISOString().split('T')[0]
+        });
+      }
+    } else {
+      // Quitar validadores cuando no está activada
+      recurringTypeControl?.clearValidators();
+      recurringEndDateControl?.clearValidators();
+      this.sessionForm.patchValue({
+        recurring_type: '',
+        recurring_end_date: ''
       });
     }
+
+    recurringTypeControl?.updateValueAndValidity();
+    recurringEndDateControl?.updateValueAndValidity();
+  }
+
+  getRecurringPreview(): string {
+    const isRecurring = this.sessionForm.get('recurring')?.value;
+    if (!isRecurring) return '';
+
+    const type = this.sessionForm.get('recurring_type')?.value;
+    const startDate = this.sessionForm.get('schedule_date')?.value;
+    const endDate = this.sessionForm.get('recurring_end_date')?.value;
+
+    if (!type || !startDate || !endDate) return '';
+
+    const typeLabels: { [key: string]: string } = {
+      'daily': 'diariamente',
+      'weekly': 'semanalmente',
+      'biweekly': 'cada 2 semanas',
+      'monthly': 'mensualmente'
+    };
+
+    const preview = this.generateRecurringSessions({
+      ...this.sessionForm.value,
+      schedule_date: startDate,
+      recurring_end_date: endDate,
+      recurring_type: type
+    });
+
+    return `Se crearán ${preview.length} sesiones ${typeLabels[type]} desde ${startDate} hasta ${endDate}`;
   }
 
   // Métodos auxiliares
@@ -301,10 +464,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   getClassTypeColor(classTypeId: number): string {
     const colorMap: { [key: number]: string } = {
-      9: '#4CAF50',  // Verde - MAT-FUNCIONAL
-      2: '#2196F3',  // Azul - REFORMER
-      4: '#8BC34A',  // Verde claro - MAT-FUNCIONAL Personal
-      3: '#03A9F4'   // Azul claro - REFORMER Personal
+      1: '#FF6B6B',  // Rojo coral - Barre
+      2: '#4CAF50',  // Verde - Mat
+      3: '#2196F3',  // Azul - Reformer
+      4: '#9C27B0',  // Morado - Personalizada
+      9: '#FF9800'   // Naranja - Funcional
     };
     return colorMap[classTypeId] || '#9E9E9E';
   }
