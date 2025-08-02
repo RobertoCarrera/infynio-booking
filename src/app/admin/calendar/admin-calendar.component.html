@@ -34,7 +34,7 @@
   <!-- Calendar -->
   <div class="calendar-container" *ngIf="!loading">
     <div class="full-calendar-wrapper" style="flex:1 1 auto; display:flex; flex-direction:column; min-height:100%;">
-      <full-calendar [options]="calendarOptions" style="flex:1 1 auto; min-height:100%; height:100%; width:100%;"></full-calendar>
+      <full-calendar #calendar [options]="calendarOptions" style="flex:1 1 auto; min-height:100%; height:100%; width:100%;"></full-calendar>
     </div>
   </div>
 
@@ -538,5 +538,19 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" [class.show]="showToast">
+  <div class="toast" [class.toast-success]="toastType === 'success'" [class.toast-error]="toastType === 'error'">
+    <div class="toast-content">
+      <i class="fas fa-check-circle" *ngIf="toastType === 'success'"></i>
+      <i class="fas fa-exclamation-triangle" *ngIf="toastType === 'error'"></i>
+      <span>{{ toastMessage }}</span>
+    </div>
+    <button class="toast-close" (click)="hideToast()">
+      <i class="fas fa-times"></i>
+    </button>
   </div>
 </div>

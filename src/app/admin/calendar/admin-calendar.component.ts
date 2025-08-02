@@ -1,8 +1,8 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { FullCalendarModule } from '@fullcalendar/angular';
-import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
+import { FullCalendarModule, FullCalendarComponent } from '@fullcalendar/angular';
+import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg, Calendar } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
@@ -19,6 +19,8 @@ import { Subscription, forkJoin } from 'rxjs';
   styleUrls: ['./admin-calendar.component.css']
 })
 export class AdminCalendarComponent implements OnInit, OnDestroy {
+  @ViewChild('calendar') calendarComponent!: FullCalendarComponent;
+  
   calendarOptions: CalendarOptions;
   events: any[] = [];
   classTypes: ClassType[] = [];
@@ -49,6 +51,15 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   loading = false;
   error = '';
   successMessage = '';
+  
+  // Toast notification system
+  showToast = false;
+  toastMessage = '';
+  toastType: 'success' | 'error' = 'success';
+  
+  // Calendar state preservation
+  currentCalendarDate: Date | null = null;
+  currentCalendarView: string | null = null;
   
   private subscriptions: Subscription[] = [];
 
@@ -154,7 +165,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   loadSessions() {
-    this.loading = true;
+    // No mostrar loading si ya tenemos eventos (actualización en background)
+    const hasEvents = this.events && this.events.length > 0;
+    if (!hasEvents) {
+      this.loading = true;
+    }
     
     // Usar la función optimizada que cuenta las reservas confirmadas
     const startDate = new Date().toISOString().split('T')[0]; // Fecha actual
@@ -168,7 +183,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       },
       error: (err: any) => {
         console.error('Error loading sessions:', err);
-        this.error = 'Error al cargar las sesiones';
+        this.showToastNotification('Error al cargar las sesiones', 'error');
         this.loading = false;
       }
     });
@@ -576,6 +591,71 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   // ==============================================
+  // SISTEMA DE NOTIFICACIONES TOAST
+  // ==============================================
+
+  showToastNotification(message: string, type: 'success' | 'error' = 'success') {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.showToast = true;
+    
+    // Auto-ocultar después de 3 segundos
+    setTimeout(() => {
+      this.hideToast();
+    }, 3000);
+  }
+
+  hideToast() {
+    this.showToast = false;
+    setTimeout(() => {
+      this.toastMessage = '';
+    }, 300); // Esperar a que termine la animación
+  }
+
+  // ==============================================
+  // PRESERVACIÓN DE ESTADO DEL CALENDARIO
+  // ==============================================
+
+  private saveCalendarState() {
+    if (this.calendarComponent && this.calendarComponent.getApi) {
+      const calendarApi = this.calendarComponent.getApi();
+      this.currentCalendarDate = calendarApi.getDate();
+      this.currentCalendarView = calendarApi.view.type;
+      console.log('Estado del calendario guardado:', {
+        date: this.currentCalendarDate,
+        view: this.currentCalendarView
+      });
+    }
+  }
+
+  private restoreCalendarState() {
+    if (this.currentCalendarDate && this.calendarComponent) {
+      setTimeout(() => {
+        try {
+          const calendarApi = this.calendarComponent.getApi();
+          
+          // Restaurar la vista si es diferente a la actual
+          if (this.currentCalendarView && calendarApi.view.type !== this.currentCalendarView) {
+            calendarApi.changeView(this.currentCalendarView);
+          }
+          
+          // Restaurar la fecha (verificar que no sea null)
+          if (this.currentCalendarDate) {
+            calendarApi.gotoDate(this.currentCalendarDate);
+          }
+          
+          console.log('Estado del calendario restaurado:', {
+            date: this.currentCalendarDate,
+            view: this.currentCalendarView
+          });
+        } catch (error) {
+          console.warn('Error restaurando estado del calendario:', error);
+        }
+      }, 300); // Aumentar timeout para asegurar que el calendario esté completamente cargado
+    }
+  }
+
+  // ==============================================
   // GESTIÓN DE ASISTENTES
   // ==============================================
 
@@ -679,21 +759,24 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       
       console.log('Resultado de cancelación:', result);
       
-      this.successMessage = `${userName} eliminado correctamente. Bono devuelto.`;
+      // Mostrar notificación inmediatamente
+      this.showToastNotification(`${userName} eliminado correctamente. Bono devuelto.`, 'success');
       
-      // Recargar asistentes Y actualizar contadores
-      await this.loadSessionAttendees(this.selectedSession!.id);
+      // Actualizar UI local inmediatamente - remover de la lista
+      this.sessionAttendees = this.sessionAttendees.filter(attendee => attendee.id !== booking.id);
       
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
       this.updateCalendarEventCounts(this.selectedSession!.id, this.sessionAttendees.length);
       
-      // Recargar eventos del calendario para actualizar contadores
-      this.loadSessions();
+      // Recargar asistentes desde la BD de forma asíncrona para confirmar
+      setTimeout(async () => {
+        await this.loadSessionAttendees(this.selectedSession!.id);
+      }, 100);
       
     } catch (error: any) {
       console.error('Error removing attendee:', error);
       console.error('Booking data:', booking);
-      this.error = error.message || 'Error al eliminar asistente';
+      this.showToastNotification(error.message || 'Error al eliminar asistente', 'error');
     } finally {
       this.loading = false;
     }
@@ -792,44 +875,46 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       if (bookingDataError || !bookingData || bookingData.length === 0) {
         console.warn('No se pudo obtener datos completos, recargando asistentes...');
       } else {
-        // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
-        const completeBooking = bookingData[0];
-        const newBooking: any = {
-          id: completeBooking.id,
-          user_id: completeBooking.user_id,
-          class_session_id: completeBooking.class_session_id,
-          booking_date_time: completeBooking.booking_date_time,
-          status: completeBooking.status,
-          cancellation_time: completeBooking.cancellation_time || '',
-          users: {  // Usar 'users' (plural) para consistencia con Supabase
-            name: completeBooking.user_name,
-            surname: completeBooking.user_surname,
-            email: completeBooking.user_email
-          }
-        };
-        
-        // Agregar a la lista local inmediatamente
-        this.sessionAttendees.push(newBooking);
+      // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+      const completeBooking = bookingData[0];
+      const newBooking: any = {
+        id: completeBooking.id,
+        user_id: completeBooking.user_id,
+        class_session_id: completeBooking.class_session_id,
+        booking_date_time: completeBooking.booking_date_time,
+        status: completeBooking.status,
+        cancellation_time: completeBooking.cancellation_time || '',
+        users: {  // Usar 'users' (plural) para consistencia con Supabase
+          name: completeBooking.user_name,
+          surname: completeBooking.user_surname,
+          email: completeBooking.user_email
+        }
+      };
+      
+      // Agregar a la lista local inmediatamente
+      this.sessionAttendees.push(newBooking);
+    }
+    
+    // Mostrar notificación inmediatamente
+    this.showToastNotification(`${user.name} añadido correctamente a la clase`, 'success');
+    
+    // ACTUALIZAR también el evento en el calendario local para UI inmediata
+    this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+    
+    // Recargar asistentes desde la BD de forma asíncrona para confirmar
+    setTimeout(async () => {
+      if (this.selectedSession) {
+        await this.loadSessionAttendees(this.selectedSession.id);
       }
-      
-      this.successMessage = `${user.name} añadido correctamente a la clase`;
-      
-      // Recargar asistentes desde la BD para confirmar
-      await this.loadSessionAttendees(this.selectedSession.id);
-      
-      // Recargar eventos del calendario INMEDIATAMENTE
-      this.loadSessions();
-      
-      // ACTUALIZAR también el evento en el calendario local para UI inmediata
-      this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
-      
-      // Resetear búsqueda
-      this.searchTerm = '';
-      this.showAddUserSection = false;
-      
+    }, 100);
+    
+    // Resetear búsqueda
+    this.searchTerm = '';
+    this.showAddUserSection = false;
+    
     } catch (error: any) {
       console.error('Error adding attendee:', error);
-      this.error = error.message || 'Error al añadir asistente';
+      this.showToastNotification(error.message || 'Error al añadir asistente', 'error');
     } finally {
       this.loading = false;
     }
@@ -994,14 +1079,15 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       
       this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
       
-      // Recargar asistentes desde la BD para confirmar
-      await this.loadSessionAttendees(this.selectedSession.id);
-      
-      // Recargar eventos del calendario INMEDIATAMENTE
-      this.loadSessions();
-      
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
       this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+      
+      // Recargar asistentes desde la BD de forma asíncrona para confirmar
+      setTimeout(async () => {
+        if (this.selectedSession) {
+          await this.loadSessionAttendees(this.selectedSession.id);
+        }
+      }, 100);
       
       // Resetear búsqueda
       this.searchTerm = '';
@@ -1234,6 +1320,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         return;
       }
 
+      // Guardar estado del calendario ANTES de cualquier operación
+      this.saveCalendarState();
+
       // Obtener datos del evento original
       const originalEvent = this.events.find(event => event.id === sessionId.toString());
       if (!originalEvent) {
@@ -1257,10 +1346,25 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       console.log('Session ID:', sessionId);
       console.log('Fecha original:', originalEvent.extendedProps.session.schedule_date);
       console.log('Hora original:', originalEvent.extendedProps.session.schedule_time);
-      console.log('Nueva fecha (raw):', newDate);
-      console.log('Año:', year, 'Mes:', month, 'Día:', day);
       console.log('Nueva fecha formateada:', formattedDate);
       console.log('Nueva hora formateada:', formattedTime);
+
+      // Actualizar el evento local INMEDIATAMENTE para UI responsive
+      const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
+      if (eventIndex !== -1) {
+        // Actualizar todas las propiedades del evento
+        this.events[eventIndex].start = dropInfo.event.start;
+        this.events[eventIndex].end = dropInfo.event.end;
+        
+        // Actualizar también los datos internos de la sesión
+        this.events[eventIndex].extendedProps.session.schedule_date = formattedDate;
+        this.events[eventIndex].extendedProps.session.schedule_time = formattedTime;
+        
+        console.log('Evento local actualizado inmediatamente');
+      }
+
+      // Mostrar notificación de éxito INMEDIATAMENTE
+      this.showToastNotification('Moviendo evento...', 'success');
 
       // Llamar al servicio para actualizar la sesión en la base de datos
       const updateData = {
@@ -1268,7 +1372,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         schedule_time: formattedTime
       };
 
-      console.log('Datos a actualizar:', updateData);
+      console.log('Actualizando en BD:', updateData);
 
       const result = await this.classSessionsService.updateSession(sessionId, updateData).toPromise();
 
@@ -1277,41 +1381,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       if (result && result.length > 0) {
         console.log('Sesión actualizada exitosamente en BD');
         
-        // Actualizar el evento local inmediatamente
-        const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
-        if (eventIndex !== -1) {
-          // Actualizar todas las propiedades del evento
-          this.events[eventIndex].start = dropInfo.event.start;
-          this.events[eventIndex].end = dropInfo.event.end;
-          
-          // Actualizar también los datos internos de la sesión
-          this.events[eventIndex].extendedProps.session.schedule_date = formattedDate;
-          this.events[eventIndex].extendedProps.session.schedule_time = formattedTime;
-          
-          console.log('Evento local actualizado:', this.events[eventIndex]);
-        }
+        // Actualizar notificación de éxito
+        this.showToastNotification('Evento movido exitosamente', 'success');
         
-        // Actualizar las opciones del calendario
+        // NO recargar todo el calendario - mantener la vista actual
+        // Solo actualizar las opciones si es necesario
         this.calendarOptions = {
           ...this.calendarOptions,
           events: [...this.events]
         };
         
-        // Forzar detección de cambios
+        // Forzar detección de cambios suave
         this.cdr.detectChanges();
-        
-        // IMPORTANTE: Recargar todos los eventos desde la BD para asegurar consistencia
-        setTimeout(() => {
-          this.loadSessions();
-        }, 500);
-        
-        // Mostrar mensaje de éxito
-        this.successMessage = 'Evento movido exitosamente';
-        
-        // Limpiar mensaje después de 3 segundos
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 3000);
         
       } else {
         throw new Error('La actualización no devolvió datos válidos');
@@ -1322,12 +1403,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       console.error('Error completo:', error);
       console.error('Mensaje:', error.message);
       
-      this.error = `Error al mover el evento: ${error.message}`;
-      
-      // Limpiar mensaje después de 5 segundos
-      setTimeout(() => {
-        this.error = '';
-      }, 5000);
+      // Mostrar notificación de error
+      this.showToastNotification(`Error al mover el evento: ${error.message}`, 'error');
       
       dropInfo.revert(); // Revertir el cambio visual si hay error
     }

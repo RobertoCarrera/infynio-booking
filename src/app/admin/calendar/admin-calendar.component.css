@@ -695,3 +695,177 @@
   background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
   transform: translateY(-1px);
 }
+
+
+/* ==============================================
+   TOAST NOTIFICATIONS
+   ============================================== */
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.toast-container.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.toast {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 500px;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  margin: 0 20px;
+  border-left: 4px solid #28a745;
+  animation: slideInDown 0.3s ease-out;
+}
+
+.toast-success {
+  border-left-color: #28a745;
+}
+
+.toast-error {
+  border-left-color: #dc3545;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+}
+
+.toast-content i {
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+.toast-success .toast-content i {
+  color: #28a745;
+}
+
+.toast-error .toast-content i {
+  color: #dc3545;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 16px;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+
+/* ==============================================
+   OPTIMIZACIONES DE RENDIMIENTO Y ANIMACIONES
+   ============================================== */
+
+/* Transiciones suaves para eventos del calendario */
+.fc-event {
+  transition: all 0.2s ease-in-out !important;
+}
+
+.fc-event:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Transiciones para cambios de estado */
+.fc-daygrid-event {
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+/* Animación suave para cargas */
+.calendar-container {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.calendar-container.loading {
+  opacity: 0.7;
+}
+
+/* Optimización de GPU para mejor rendimiento */
+.fc-event,
+.fc-daygrid-event,
+.fc-timegrid-event {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Transiciones para modales */
+.modal {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Animaciones para listas de asistentes */
+.attendee-item {
+  transition: all 0.2s ease-in-out;
+}
+
+.attendee-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(5px);
+}
+
+/* Optimización de scroll suave */
+.modal-body {
+  scroll-behavior: smooth;
+}
+
+/* Transiciones para botones */
+.btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Animación de entrada para elementos dinámicos */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
