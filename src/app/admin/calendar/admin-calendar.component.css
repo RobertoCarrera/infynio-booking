@@ -1,7 +1,47 @@
+.fc-event {
+  border: 2px solid rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  opacity: 0.95 !important;
+  background-clip: padding-box !important;
+  transition: all 0.2s ease !important;
+  min-height: 70px !important;
+  height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.fc-event:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.custom-event-content {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 4px !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  color: white !important;
+  word-wrap: break-word !important;
+}
+
 .admin-calendar-container {
-  padding: 20px;
+  padding: 16px;
   background-color: #f8f9fa;
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header */
@@ -9,11 +49,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding: 20px;
+  margin-bottom: 20px;
+  padding: 15px 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-shrink: 0;
 }
 
 .calendar-header h2 {
@@ -26,12 +67,15 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Calendar Container */
 .calendar-container {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  padding: 20px;
+  padding: 16px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
 }
 
 /* Attendees Modal Styles */
@@ -165,6 +209,81 @@
 /* FullCalendar customizations */
 ::ng-deep .fc {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  height: 100% !important;
+}
+
+::ng-deep .fc-view-harness {
+  height: 100% !important;
+}
+
+::ng-deep .fc-daygrid {
+  height: 100% !important;
+}
+
+::ng-deep .fc-scrollgrid {
+  height: 100% !important;
+}
+
+::ng-deep .fc-daygrid-body {
+  height: 100% !important;
+}
+
+::ng-deep .fc-daygrid-week {
+  height: 100% !important;
+}
+
+::ng-deep .fc-daygrid-day {
+  height: auto !important;
+  min-height: 300px !important;
+}
+
+::ng-deep .fc-daygrid-day-frame {
+  height: 100% !important;
+  min-height: 300px !important;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+::ng-deep .fc-daygrid-day-top {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+::ng-deep .fc-daygrid-day-events {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 250px;
+}
+
+::ng-deep .fc-daygrid-event-harness {
+  margin: 0 !important;
+  margin-bottom: 3px !important;
+}
+
+::ng-deep .fc-daygrid-event {
+  margin: 0 !important;
+  height: auto !important;
+  min-height: 70px !important;
+}
+
+::ng-deep .fc-event-main {
+  padding: 12px !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+::ng-deep .fc-event-title {
+  line-height: 1.4 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  word-wrap: break-word !important;
+  white-space: normal !important;
 }
 
 ::ng-deep .fc-header-toolbar {
@@ -180,30 +299,6 @@
 
 ::ng-deep .fc-button-primary:hover {
   background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-}
-
-::ng-deep .fc-daygrid-event {
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-::ng-deep .fc-timegrid-event {
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-::ng-deep .fc-event {
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-::ng-deep .fc-event:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 ::ng-deep .fc-day-today {

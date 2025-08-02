@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FullCalendarModule } from '@fullcalendar/angular';
-import { CalendarOptions, EventClickArg, DateSelectArg } from '@fullcalendar/core';
+import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
@@ -83,8 +83,17 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       select: this.onDateSelect.bind(this),
       eventClick: this.onEventClick.bind(this),
       editable: true,
+      eventDrop: this.onEventDrop.bind(this),
+      eventResizableFromStart: false, // Deshabilitar redimensionado desde el inicio
+      eventDurationEditable: false, // Deshabilitar edición de duración
+      events: this.events,
+      height: 'calc(100vh - 100px)', // Usar altura optimizada
       dayMaxEvents: false,
-      height: 'auto',
+      moreLinkClick: 'popover',
+      // Configuración para mostrar el título completo personalizado
+      eventDisplay: 'block',
+      displayEventTime: false, // Deshabilitar el formato automático de tiempo
+      eventContent: this.renderEventContent.bind(this), // Usar renderizado personalizado
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
@@ -94,7 +103,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         today: 'Hoy',
         month: 'Mes',
         week: 'Semana',
-        day: 'Día'
+        día: 'Día'
       }
     };
   }
@@ -169,9 +178,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   private loadSessionsData(sessions: ClassSession[]) {
     this.events = sessions.map(session => {
       const bookingCount = session.bookings ? session.bookings.length : 0;
+      const className = this.getClassTypeName(session.class_type_id);
+      
       return {
         id: session.id.toString(),
-        title: `${this.getClassTypeName(session.class_type_id)} (${bookingCount}/${session.capacity})`,
+        title: `${session.schedule_time} • ${className} • (${bookingCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
         end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
         backgroundColor: this.getClassTypeColor(session.class_type_id),
@@ -205,6 +216,13 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     // Abrir modal de gestión de asistentes en lugar de editar sesión
     const session = clickInfo.event.extendedProps['session'] as ClassSession;
     this.openAttendeesModal(session);
+  }
+
+  renderEventContent(eventInfo: any) {
+    // Renderizado personalizado para mostrar el título completo
+    return {
+      html: `<div class="custom-event-content">${eventInfo.event.title}</div>`
+    };
   }
 
   openCreateModal(date?: string, time?: string) {
@@ -1202,6 +1220,58 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   // ==============================================
+  // MÉTODO PARA MOVER EVENTOS (DRAG & DROP)
+  // ==============================================
+
+  async onEventDrop(dropInfo: EventDropArg) {
+    try {
+      const sessionId = parseInt(dropInfo.event.id);
+      const newDate = dropInfo.event.start;
+      
+      if (!newDate) {
+        console.error('Nueva fecha no válida');
+        dropInfo.revert();
+        return;
+      }
+
+      // Formatear la nueva fecha en formato YYYY-MM-DD
+      const formattedDate = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate())
+        .toISOString().split('T')[0];
+
+      // Formatear la nueva hora en formato HH:MM
+      const formattedTime = newDate.toTimeString().slice(0, 5);
+
+      console.log(`Moviendo sesión ${sessionId} a fecha: ${formattedDate} hora: ${formattedTime}`);
+
+      // Llamar al servicio para actualizar la sesión en la base de datos
+      const result = await this.classSessionsService.updateSession(sessionId, {
+        schedule_date: formattedDate,
+        schedule_time: formattedTime
+      }).toPromise();
+
+      if (result) {
+        console.log('Sesión actualizada exitosamente');
+        // Actualizar el evento local
+        const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
+        if (eventIndex !== -1) {
+          this.events[eventIndex].start = dropInfo.event.start;
+          this.events[eventIndex].end = dropInfo.event.end;
+        }
+        
+        // Mostrar mensaje de éxito
+        alert('Evento movido exitosamente');
+      } else {
+        throw new Error('Error al actualizar la sesión');
+      }
+
+    } catch (error) {
+      console.error('Error al mover el evento:', error);
+      alert('Error al mover el evento. Inténtalo de nuevo.');
+      dropInfo.revert(); // Revertir el cambio visual si hay error
+    }
+  }
+
+  // ==============================================
   // MÉTODO PARA ACTUALIZAR CONTADORES EN TIEMPO REAL
   // ==============================================
 
@@ -1211,9 +1281,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     if (eventIndex !== -1) {
       const session = this.events[eventIndex].extendedProps.session;
       const classTypeName = this.getClassTypeName(session.class_type_id);
+      const capacity = `${bookingCount}/${session.capacity}`;
       
-      // Actualizar el título del evento
-      this.events[eventIndex].title = `${classTypeName} (${bookingCount}/${session.capacity})`;
+      // Actualizar el título del evento con formato simple
+      this.events[eventIndex].title = `${session.schedule_time} • ${classTypeName} • (${capacity})`;
       this.events[eventIndex].extendedProps.bookings = bookingCount;
       
       // Actualizar las opciones del calendario para reflejar los cambios

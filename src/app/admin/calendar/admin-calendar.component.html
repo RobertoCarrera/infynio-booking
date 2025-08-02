@@ -33,7 +33,9 @@
 
   <!-- Calendar -->
   <div class="calendar-container" *ngIf="!loading">
-    <full-calendar [options]="calendarOptions"></full-calendar>
+    <div class="full-calendar-wrapper" style="flex:1 1 auto; display:flex; flex-direction:column; min-height:100%;">
+      <full-calendar [options]="calendarOptions" style="flex:1 1 auto; min-height:100%; height:100%; width:100%;"></full-calendar>
+    </div>
   </div>
 
   <!-- Instructions -->
