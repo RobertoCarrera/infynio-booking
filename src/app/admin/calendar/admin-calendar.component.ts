@@ -1234,39 +1234,101 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Formatear la nueva fecha en formato YYYY-MM-DD
-      const formattedDate = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate())
-        .toISOString().split('T')[0];
-
-      // Formatear la nueva hora en formato HH:MM
-      const formattedTime = newDate.toTimeString().slice(0, 5);
-
-      console.log(`Moviendo sesión ${sessionId} a fecha: ${formattedDate} hora: ${formattedTime}`);
-
-      // Llamar al servicio para actualizar la sesión en la base de datos
-      const result = await this.classSessionsService.updateSession(sessionId, {
-        schedule_date: formattedDate,
-        schedule_time: formattedTime
-      }).toPromise();
-
-      if (result) {
-        console.log('Sesión actualizada exitosamente');
-        // Actualizar el evento local
-        const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
-        if (eventIndex !== -1) {
-          this.events[eventIndex].start = dropInfo.event.start;
-          this.events[eventIndex].end = dropInfo.event.end;
-        }
-        
-        // Mostrar mensaje de éxito
-        alert('Evento movido exitosamente');
-      } else {
-        throw new Error('Error al actualizar la sesión');
+      // Obtener datos del evento original
+      const originalEvent = this.events.find(event => event.id === sessionId.toString());
+      if (!originalEvent) {
+        console.error('No se encontró el evento original');
+        dropInfo.revert();
+        return;
       }
 
-    } catch (error) {
-      console.error('Error al mover el evento:', error);
-      alert('Error al mover el evento. Inténtalo de nuevo.');
+      // Formatear la nueva fecha en formato YYYY-MM-DD (sin problemas de zona horaria)
+      const year = newDate.getFullYear();
+      const month = (newDate.getMonth() + 1).toString().padStart(2, '0');
+      const day = newDate.getDate().toString().padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+
+      // Formatear la nueva hora en formato HH:MM (asegurándonos de que esté en formato correcto)
+      const hours = newDate.getHours().toString().padStart(2, '0');
+      const minutes = newDate.getMinutes().toString().padStart(2, '0');
+      const formattedTime = `${hours}:${minutes}`;
+
+      console.log('=== DATOS DEL MOVIMIENTO ===');
+      console.log('Session ID:', sessionId);
+      console.log('Fecha original:', originalEvent.extendedProps.session.schedule_date);
+      console.log('Hora original:', originalEvent.extendedProps.session.schedule_time);
+      console.log('Nueva fecha (raw):', newDate);
+      console.log('Año:', year, 'Mes:', month, 'Día:', day);
+      console.log('Nueva fecha formateada:', formattedDate);
+      console.log('Nueva hora formateada:', formattedTime);
+
+      // Llamar al servicio para actualizar la sesión en la base de datos
+      const updateData = {
+        schedule_date: formattedDate,
+        schedule_time: formattedTime
+      };
+
+      console.log('Datos a actualizar:', updateData);
+
+      const result = await this.classSessionsService.updateSession(sessionId, updateData).toPromise();
+
+      console.log('Resultado de la actualización:', result);
+
+      if (result && result.length > 0) {
+        console.log('Sesión actualizada exitosamente en BD');
+        
+        // Actualizar el evento local inmediatamente
+        const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
+        if (eventIndex !== -1) {
+          // Actualizar todas las propiedades del evento
+          this.events[eventIndex].start = dropInfo.event.start;
+          this.events[eventIndex].end = dropInfo.event.end;
+          
+          // Actualizar también los datos internos de la sesión
+          this.events[eventIndex].extendedProps.session.schedule_date = formattedDate;
+          this.events[eventIndex].extendedProps.session.schedule_time = formattedTime;
+          
+          console.log('Evento local actualizado:', this.events[eventIndex]);
+        }
+        
+        // Actualizar las opciones del calendario
+        this.calendarOptions = {
+          ...this.calendarOptions,
+          events: [...this.events]
+        };
+        
+        // Forzar detección de cambios
+        this.cdr.detectChanges();
+        
+        // IMPORTANTE: Recargar todos los eventos desde la BD para asegurar consistencia
+        setTimeout(() => {
+          this.loadSessions();
+        }, 500);
+        
+        // Mostrar mensaje de éxito
+        this.successMessage = 'Evento movido exitosamente';
+        
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => {
+          this.successMessage = '';
+        }, 3000);
+        
+      } else {
+        throw new Error('La actualización no devolvió datos válidos');
+      }
+
+    } catch (error: any) {
+      console.error('=== ERROR AL MOVER EVENTO ===');
+      console.error('Error completo:', error);
+      console.error('Mensaje:', error.message);
+      
+      this.error = `Error al mover el evento: ${error.message}`;
+      
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => {
+        this.error = '';
+      }, 5000);
+      
       dropInfo.revert(); // Revertir el cambio visual si hay error
     }
   }
