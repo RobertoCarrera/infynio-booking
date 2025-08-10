@@ -167,8 +167,8 @@ export class ClassSessionsService {
       throw error;
     }
 
-    // Transformar los datos para una estructura más plana
-    return (data || []).map(session => ({
+  // Transformar los datos para una estructura más plana
+  return (data || []).map(session => ({
       id: session.id,
       class_type_id: session.class_type_id,
       capacity: session.capacity,
@@ -177,7 +177,7 @@ export class ClassSessionsService {
       class_type_name: session.class_types?.name,
       class_type_description: session.class_types?.description,
       class_type_duration: session.class_types?.duration_minutes,
-      bookings: session.bookings?.filter((b: any) => b.status === 'confirmed') || []
+  bookings: session.bookings?.filter((b: any) => (b.status || '').toUpperCase() === 'CONFIRMED') || []
     }));
   }
 
@@ -328,9 +328,7 @@ export class ClassSessionsService {
    * Verifica si una sesión tiene espacios disponibles
    */
   isSessionAvailable(session: ClassSession): boolean {
-    const confirmedBookings = session.bookings?.filter(b => 
-      b.status === 'confirmed'
-    ) || [];
+  const confirmedBookings = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED') || [];
     return confirmedBookings.length < session.capacity;
   }
 
@@ -338,9 +336,7 @@ export class ClassSessionsService {
    * Obtiene el número de espacios disponibles en una sesión
    */
   getAvailableSpots(session: ClassSession): number {
-    const confirmedBookings = session.bookings?.filter(b => 
-      b.status === 'confirmed'
-    ) || [];
+  const confirmedBookings = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED') || [];
     return Math.max(0, session.capacity - confirmedBookings.length);
   }
 

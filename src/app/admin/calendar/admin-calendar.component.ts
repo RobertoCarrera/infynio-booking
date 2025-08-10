@@ -2,14 +2,14 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChild } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FullCalendarModule, FullCalendarComponent } from '@fullcalendar/angular';
-import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg, Calendar } from '@fullcalendar/core';
+import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { Package, CreateUserPackage } from '../../models/cartera-clases';
 import { SupabaseService } from '../../services/supabase.service';
 import { FULLCALENDAR_OPTIONS } from '../../components/calendar/fullcalendar-config';
-import { Subscription, forkJoin } from 'rxjs';
+import { Subscription, forkJoin, firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-admin-calendar',
@@ -322,7 +322,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         next: () => {
           this.successMessage = 'Sesión actualizada correctamente';
           this.closeModal();
-          this.loadSessions();
+          // Refrescar solo el evento afectado en el calendario
+          const updatedId = this.selectedSession!.id;
+          const idx = this.events.findIndex(e => e.id === String(updatedId));
+          if (idx !== -1) {
+            const s = { ...this.events[idx].extendedProps.session, ...updateData };
+            this.events[idx].extendedProps.session = s;
+            const currentBookings = this.events[idx].extendedProps.bookings ?? 0;
+            this.updateCalendarEventCounts(updatedId, currentBookings);
+          } else {
+            // Si no está cargado, como fallback recargar sesiones
+            this.loadSessions();
+          }
           this.loading = false;
         },
         error: (err: any) => {
@@ -352,9 +363,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
     const sub = this.classSessionsService.createSession(newSession).subscribe({
       next: () => {
-        this.successMessage = 'Sesión creada correctamente';
-        this.closeModal();
-        this.loadSessions();
+  this.successMessage = 'Sesión creada correctamente';
+  this.closeModal();
+  // Fallback: recargar sesiones para incluir la nueva
+  this.loadSessions();
         this.loading = false;
       },
       error: (err: any) => {
@@ -460,7 +472,16 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       next: () => {
         this.successMessage = 'Sesión eliminada correctamente';
         this.closeModal();
-        this.loadSessions();
+        // Quitar el evento del calendario local si existe
+        const removedId = this.selectedSession!.id;
+        const before = this.events.length;
+        this.events = this.events.filter(e => e.id !== String(removedId));
+        if (this.events.length !== before) {
+          this.calendarOptions = { ...this.calendarOptions, events: [...this.events] };
+          this.cdr.detectChanges();
+        } else {
+          this.loadSessions();
+        }
         this.loading = false;
       },
       error: (err: any) => {
@@ -755,7 +776,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     this.loading = true;
     try {
       // Cancelar la reserva usando el método mejorado
-      const result = await this.classSessionsService.cancelBooking(booking.id, booking.user_id).toPromise();
+  const result = await firstValueFrom(this.classSessionsService.cancelBooking(booking.id, booking.user_id));
       
       console.log('Resultado de cancelación:', result);
       
@@ -1000,7 +1021,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         activation_date: formData.activation_date || null
       };
 
-      await this.carteraService.agregarPackageAUsuario(createData).toPromise();
+  await firstValueFrom(this.carteraService.agregarPackageAUsuario(createData));
       
       this.successMessage = `Bono añadido correctamente a ${this.selectedUserForPackage.name}`;
       
@@ -1310,6 +1331,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   // ==============================================
 
   async onEventDrop(dropInfo: EventDropArg) {
+  // Variables para poder revertir el estado local en caso de error
+  let originalDateStr = '';
+  let originalTimeStr = '';
     try {
       const sessionId = parseInt(dropInfo.event.id);
       const newDate = dropInfo.event.start;
@@ -1330,6 +1354,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         dropInfo.revert();
         return;
       }
+
+  // Guardar valores originales para posible revert local
+  originalDateStr = originalEvent.extendedProps.session.schedule_date;
+  originalTimeStr = originalEvent.extendedProps.session.schedule_time;
 
       // Formatear la nueva fecha en formato YYYY-MM-DD (sin problemas de zona horaria)
       const year = newDate.getFullYear();
@@ -1352,13 +1380,20 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       // Actualizar el evento local INMEDIATAMENTE para UI responsive
       const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
       if (eventIndex !== -1) {
-        // Actualizar todas las propiedades del evento
-        this.events[eventIndex].start = dropInfo.event.start;
-        this.events[eventIndex].end = dropInfo.event.end;
+  // Actualizar todas las propiedades del evento
+  this.events[eventIndex].start = dropInfo.event.start;
+  // Recalcular end según duración de la clase tras el cambio
+  const session = this.events[eventIndex].extendedProps.session;
+  const newEndIso = this.calculateEndTime(formattedDate, formattedTime, session.class_type_id);
+  this.events[eventIndex].end = newEndIso;
         
         // Actualizar también los datos internos de la sesión
         this.events[eventIndex].extendedProps.session.schedule_date = formattedDate;
         this.events[eventIndex].extendedProps.session.schedule_time = formattedTime;
+        
+  // Refrescar SOLO este evento (título con la nueva hora y conteo actual)
+  const currentBookings = this.events[eventIndex].extendedProps.bookings ?? 0;
+  this.updateCalendarEventCounts(sessionId, currentBookings);
         
         console.log('Evento local actualizado inmediatamente');
       }
@@ -1374,7 +1409,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
       console.log('Actualizando en BD:', updateData);
 
-      const result = await this.classSessionsService.updateSession(sessionId, updateData).toPromise();
+  const result = await firstValueFrom(this.classSessionsService.updateSession(sessionId, updateData));
 
       console.log('Resultado de la actualización:', result);
 
@@ -1406,6 +1441,19 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       // Mostrar notificación de error
       this.showToastNotification(`Error al mover el evento: ${error.message}`, 'error');
       
+      // Revertir cambios locales en el modelo
+      try {
+        const eventIndex = this.events.findIndex(e => e.id === dropInfo.event.id);
+        if (eventIndex !== -1) {
+          // Restaurar fecha/hora originales en el modelo
+          this.events[eventIndex].extendedProps.session.schedule_date = originalDateStr;
+          this.events[eventIndex].extendedProps.session.schedule_time = originalTimeStr;
+          // Refrescar título con hora original
+          const currentBookings = this.events[eventIndex].extendedProps.bookings ?? 0;
+          this.updateCalendarEventCounts(parseInt(dropInfo.event.id), currentBookings);
+        }
+      } catch {}
+
       dropInfo.revert(); // Revertir el cambio visual si hay error
     }
   }
