@@ -17,7 +17,10 @@
 }
 
 /* === EVENTOS DEL CALENDARIO === */
-.fc-event {
+/* Base para cualquier evento */
+.fc-event,
+.fc-timegrid-event,
+.fc-daygrid-event {
   border: 2px solid rgba(0, 0, 0, 0.3) !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
   font-weight: 700 !important;
@@ -26,12 +29,42 @@
   border-radius: 6px !important;
   opacity: 0.95 !important;
   background-clip: padding-box !important;
-  transition: all 0.2s ease !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+  cursor: pointer;
 }
 
-.fc-event:hover {
+/* Hover sutil que invita a pulsar (aplica a todas las variantes) */
+.fc-event:hover,
+.fc-timegrid-event:hover,
+.fc-daygrid-event:hover,
+.fc-event-main:hover {
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  filter: brightness(1.03) saturate(1.02);
+}
+
+/* Asegurar que el contenido interno también responde al hover */
+.fc-event .fc-event-main,
+.fc-timegrid-event .fc-event-main,
+.fc-daygrid-event .fc-event-main {
+  transition: inherit !important;
+}
+
+/* Forzar estilos a través de la encapsulación de Angular */
+:host ::ng-deep .fc .fc-event,
+:host ::ng-deep .fc .fc-timegrid-event,
+:host ::ng-deep .fc .fc-daygrid-event {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+}
+
+:host ::ng-deep .fc .fc-event:hover,
+:host ::ng-deep .fc .fc-timegrid-event:hover,
+:host ::ng-deep .fc .fc-daygrid-event:hover,
+:host ::ng-deep .fc .fc-event .fc-event-main:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  filter: brightness(1.03) saturate(1.02) !important;
 }
 
 /* === FILTROS SÚPER CHULOS === */

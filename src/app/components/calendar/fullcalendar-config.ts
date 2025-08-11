@@ -37,7 +37,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
     ? {
         left: 'prev,next today',
         center: 'title',
-        right: 'timeGridDay,timeGridThreeDay,dayGridMonth'
+  right: 'timeGridDay,timeGridThreeDay'
       }
     : {
         left: 'prev,next today',
