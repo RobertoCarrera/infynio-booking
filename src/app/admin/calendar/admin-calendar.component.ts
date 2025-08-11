@@ -75,7 +75,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       class_type_id: ['', Validators.required],
       schedule_date: ['', Validators.required],
       schedule_time: ['', Validators.required],
-      capacity: [8, [Validators.required, Validators.min(1), Validators.max(15)]], // Se establece automáticamente
+  // Capacidad por defecto; el límite máximo se ajusta dinámicamente según el tipo
+  capacity: [8, [Validators.required, Validators.min(1), Validators.max(10)]], // se recalibra en onClassTypeChange
       recurring: [false],
       recurring_type: [''],
       recurring_end_date: ['']
@@ -267,6 +268,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       schedule_time: session.schedule_time,
       capacity: session.capacity
     });
+  // Asegurar que los validadores de capacidad respeten el tipo seleccionado
+  this.onClassTypeChange();
     
     // Si el modal de asistentes está abierto, cerrarlo primero
     if (this.showAttendeesModal) {
@@ -550,12 +553,16 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   onClassTypeChange() {
     const classTypeId = this.sessionForm.get('class_type_id')?.value;
     if (classTypeId) {
-      const capacity = this.getClassTypeCapacity(classTypeId);
-      this.sessionForm.patchValue({
-        capacity: capacity
-      });
-      
-      console.log(`Capacidad automática establecida: ${capacity} para ${this.getClassTypeName(classTypeId)}`);
+  const capacity = this.getClassTypeCapacity(classTypeId);
+  // Establecer capacidad por defecto según el tipo seleccionado
+  this.sessionForm.patchValue({ capacity });
+
+  // Ajustar validadores para respetar el máximo por tipo
+  const capacityControl = this.sessionForm.get('capacity');
+  capacityControl?.setValidators([Validators.required, Validators.min(1), Validators.max(capacity)]);
+  capacityControl?.updateValueAndValidity();
+
+  console.log(`Capacidad automática establecida: ${capacity} para ${this.getClassTypeName(classTypeId)}`);
     }
   }
 
@@ -563,11 +570,13 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     // Capacidades por defecto según el tipo de clase
     // La capacidad real se establece individualmente en cada class_session
     const capacityMap: { [key: number]: number } = {
-      1: 8,   // Barre
-      2: 8,   // Mat
-      3: 2,   // Reformer
-      4: 2,   // Personalizada
-      9: 10   // Funcional
+  1: 2,   // Barre
+  2: 8,   // Mat
+  3: 2,   // Reformer
+  4: 1,   // Mat Personalizada
+  9: 10,  // Funcional
+  22: 1,  // Funcional Personalizada
+  23: 1   // Reformer Personalizada
     };
     return capacityMap[classTypeId] || 8; // Default 8 si no se encuentra
   }
@@ -644,8 +653,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       1: '#FF6B6B',  // Rojo coral - Barre
       2: '#4CAF50',  // Verde - Mat
       3: '#2196F3',  // Azul - Reformer
-      4: '#9C27B0',  // Morado - Personalizada
-      9: '#FF9800'   // Naranja - Funcional
+  4: '#9C27B0',  // Morado - Mat Personalizada
+  9: '#FF9800',  // Naranja - Funcional
+  22: '#8BC34A', // Verde claro - Funcional Personalizada
+  23: '#00BCD4'  // Cian - Reformer Personalizada
     };
     return colorMap[classTypeId] || '#9E9E9E';
   }
@@ -1182,8 +1193,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       'Barre': 1,
       'Mat': 2,
       'Reformer': 3,
-      'Personalizada': 4,
-      'Funcional': 5
+      'Mat Personalizada': 4,
+      'Funcional': 9,
+      'Funcional Personalizada': 22,
+      'Reformer Personalizada': 23
     };
 
     const classTypeId = typeMapping[classTypeName];
@@ -1193,14 +1206,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       // Filtrar paquetes según el tipo de clase
       if (classTypeId === 1) { // Barre
         return pkg.class_type === 1 || pkg.class_type === 2; // Barre puede usar MAT_FUNCIONAL también
-      } else if (classTypeId === 2) { // Mat/Funcional
+      } else if (classTypeId === 2) { // Mat
         return pkg.class_type === 2;
+      } else if (classTypeId === 9) { // Funcional
+        return pkg.class_type === 2; // Funcional usa MAT_FUNCIONAL
       } else if (classTypeId === 3) { // Reformer
         return pkg.class_type === 3;
-      } else if (classTypeId === 4) { // Personalizada
+      } else if (classTypeId === 4) { // Mat Personalizada
         return pkg.is_personal === true; // Paquetes personales
-      } else if (classTypeId === 5) { // Funcional
-        return pkg.class_type === 2; // Funcional usa MAT_FUNCIONAL
+      } else if (classTypeId === 22) { // Funcional Personalizada
+        return pkg.is_personal === true; // Paquetes personales
+      } else if (classTypeId === 23) { // Reformer Personalizada
+        return pkg.is_personal === true; // Paquetes personales
       }
       return false;
     });
