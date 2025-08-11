@@ -92,15 +92,26 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   loadEvents() {
-    if (!this.currentUserId) return;
-    const sub = this.classSessionsService.getFilteredSessions(this.currentUserId).subscribe({
+    if (!this.userNumericId) return;
+    const startDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, startDate, endDate).subscribe({
       next: (sessions) => {
         this.events = this.transformSessionsToEvents(sessions);
         this.extractClassTypes(sessions);
         this.updateCalendarEvents();
       },
       error: (error) => {
-        console.error('Error loading events:', error);
+        console.warn('Fallo get_sessions_for_calendar, fallback a contadores:', error);
+        const sub2 = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate).subscribe({
+          next: (sessions) => {
+            this.events = this.transformSessionsToEvents(sessions);
+            this.extractClassTypes(sessions);
+            this.updateCalendarEvents();
+          },
+          error: (err2) => console.error('Error loading events (fallback):', err2)
+        });
+        this.subscriptions.push(sub2);
       }
     });
     this.subscriptions.push(sub);
@@ -108,24 +119,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   private transformSessionsToEvents(sessions: ClassSession[]): any[] {
     return sessions.map(session => {
-      const isAvailable = this.classSessionsService.isSessionAvailable(session);
-      const colors = this.classSessionsService.getEventColors(session);
-      const availableSpots = this.classSessionsService.getAvailableSpots(session);
+    const colors = this.classSessionsService.getEventColors(session);
+    const availableSpots = this.classSessionsService.getAvailableSpots(session);
+  const confirmedCount = this.getConfirmedCount(session);
+    const isFull = confirmedCount >= (session.capacity || 0);
+    const isAvailable = !isFull;
+      const selfTag = session.is_self_booked ? ' (Tú)' : '';
 
       return {
         id: session.id.toString(),
-        title: `${session.class_type_name} (${availableSpots}/${session.capacity})`,
+        title: `${session.class_type_name}${selfTag} (${confirmedCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
         backgroundColor: colors.background,
         borderColor: colors.border,
         textColor: '#ffffff',
         extendedProps: {
           session: session,
-          available: isAvailable,
+      available: !isFull,
           availableSpots: availableSpots
         },
         classNames: [
-          isAvailable ? 'available-class' : 'full-class',
+      isFull ? 'full-class' : 'available-class',
           `class-type-${session.class_type_name?.toLowerCase().replace(/\s+/g, '-')}`
         ]
       };
@@ -185,22 +199,35 @@ export class CalendarComponent implements OnInit, OnDestroy {
   onEventClick(eventInfo: any) {
     console.log('🔄 Event clicked:', eventInfo.event);
     
-    const session = eventInfo.event.extendedProps.session;
-    const availableSpots = this.classSessionsService.getAvailableSpots(session);
+  // Siempre obtener la versión más reciente del objeto sesión del evento
+  const session = eventInfo.event.extendedProps.session as ClassSession;
+    const confirmedCount = this.getConfirmedCount(session);
     
     console.log('📊 Session data:', {
       session,
-      availableSpots,
+      confirmedCount,
       classTypeName: session.class_type_name,
       classTypeId: session.class_type_id
     });
 
-    if (availableSpots <= 0) {
+  // Si ya estás reservado, abrir modal directamente para opción de cancelar
+  if (session.is_self_booked) {
+      this.selectedSession = session;
+      this.showBookingModal = true;
+      this.loadingModal = false;
+      this.modalError = '';
+      this.modalSuccess = '';
+      this.userCanBook = false;
+      return;
+    }
+
+  // Si está completa y no está reservado => lista de espera
+  if (confirmedCount >= (session.capacity || 0)) {
       this.handleWaitingList(session);
       return;
     }
 
-    this.selectedSession = session;
+  this.selectedSession = session;
     this.loadingModal = true;
     this.showBookingModal = true;
     this.modalError = '';
@@ -251,6 +278,18 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
+  // Contador robusto de confirmados, evitando depender de available_spots
+  private getConfirmedCount(session: ClassSession): number {
+    if (typeof session.confirmed_bookings_count === 'number') return session.confirmed_bookings_count;
+    // As a weak fallback, infer from available_spots only if present and numeric.
+    if (typeof session.available_spots === 'number' && typeof session.capacity === 'number') {
+      return Math.max(0, session.capacity - session.available_spots);
+    }
+    // Last resort: derive from bookings array (may be RLS-limited in some envs)
+    const confirmed = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED').length || 0;
+    return confirmed;
+  }
+
   // FUNCIÓN CORREGIDA - Confirmar reserva
   confirmBooking() {
     if (!this.selectedSession || !this.userNumericId) {
@@ -275,19 +314,69 @@ export class CalendarComponent implements OnInit, OnDestroy {
           console.log('✅ Reserva creada:', result);
           this.modalSuccess = 'Reserva confirmada exitosamente';
           this.loadingModal = false;
+          // Forzar modo cancelación en el mismo modal inmediatamente
+          if (this.selectedSession) {
+            this.selectedSession.is_self_booked = true;
+            this.selectedSession.self_booking_id = result.booking_id || this.selectedSession.self_booking_id || 0;
+            // Si la API devolvió el deadline, úsalo; si no, recarga eventos (lo recalcula en BD)
+            if (!this.selectedSession.self_cancellation_time) {
+              // Recalcular al recargar eventos; mientras, deshabilitar cancel si no hay dato
+              // but we call loadEvents right away
+            }
+          }
           
           // Recargar eventos para mostrar la nueva reserva
           this.loadEvents();
           
-          // Cerrar modal después de 2 segundos
-          setTimeout(() => {
-            this.closeBookingModal();
-          }, 2000);
+          // No cerrar el modal: transformar a estado de cancelación
         },
         error: (error) => {
           console.error('❌ Error creando reserva:', error);
           this.loadingModal = false;
-          this.modalError = error.message || 'Error al crear la reserva';
+          const msg = (error?.message || '').toString();
+          // Si la clase está completa, pasar a modo lista de espera
+          if (msg.toLowerCase().includes('completa')) {
+            this.modalError = '';
+            if (this.selectedSession) {
+              this.handleWaitingList(this.selectedSession);
+            }
+          } else {
+            this.modalError = msg || 'Error al crear la reserva';
+          }
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  // ¿Puede cancelar su reserva según la hora límite?
+  canCancelSelectedBooking(): boolean {
+    if (!this.selectedSession || !this.selectedSession.is_self_booked) return false;
+    const cutoff = this.selectedSession.self_cancellation_time ? new Date(this.selectedSession.self_cancellation_time).getTime() : 0;
+    return Date.now() <= cutoff;
+  }
+
+  // Cancelar la reserva propia
+  cancelOwnBooking() {
+    if (!this.selectedSession || !this.userNumericId || !this.selectedSession.self_booking_id) return;
+    if (!this.canCancelSelectedBooking()) {
+      this.modalError = 'No se puede cancelar: fuera de plazo (menos de 12 horas).';
+      return;
+    }
+    this.loadingModal = true;
+    this.modalError = '';
+    const bookingId = this.selectedSession.self_booking_id;
+    const sub = this.classSessionsService.cancelBooking(bookingId, this.userNumericId)
+      .subscribe({
+        next: () => {
+          this.modalSuccess = 'Reserva cancelada correctamente';
+          this.loadingModal = false;
+          // Recargar eventos para reflejar plazas
+          this.loadEvents();
+          setTimeout(() => this.closeBookingModal(), 2000);
+        },
+        error: (err) => {
+          this.loadingModal = false;
+          this.modalError = err.message || 'Error al cancelar la reserva';
         }
       });
     this.subscriptions.push(sub);
@@ -349,6 +438,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
         }
       });
     this.subscriptions.push(sub3);
+  }
+
+  // ¿Está llena la sesión seleccionada?
+  isSelectedSessionFull(): boolean {
+  if (!this.selectedSession) return false;
+  return this.getConfirmedCount(this.selectedSession) >= (this.selectedSession.capacity || 0);
   }
 
   // Método para unirse a la lista de espera

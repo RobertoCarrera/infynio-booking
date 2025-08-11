@@ -20,6 +20,12 @@ export interface ClassSession {
   class_type_description?: string;
   class_type_duration?: number;
   bookings?: Booking[];
+  // Enhanced fields from get_sessions_for_calendar
+  confirmed_bookings_count?: number;
+  available_spots?: number;
+  is_self_booked?: boolean;
+  self_booking_id?: number | null;
+  self_cancellation_time?: string | null;
 }
 
 export interface Booking {
@@ -115,21 +121,127 @@ export class ClassSessionsService {
       }
     }
 
+  const rows = data || [];
+
+    // Obtener nombres/duración de tipos de clase para etiquetar eventos en UI de usuario
+    const typeIds = Array.from(new Set(rows.map((r: any) => r.class_type_id).filter((v: any) => v != null)));
+    let typesMap = new Map<number, { name: string; description: string | null; duration_minutes: number | null }>();
+    if (typeIds.length > 0) {
+      const { data: typesData } = await this.supabaseService.supabase
+        .from('class_types')
+        .select('id, name, description, duration_minutes')
+        .in('id', typeIds as any);
+      (typesData || []).forEach((t: any) => typesMap.set(t.id, { name: t.name, description: t.description, duration_minutes: t.duration_minutes }));
+    }
+
+    // Intentar enriquecer con info del usuario actual (self booked) si está autenticado
+    let currentUserNumericId: number | null = null;
+    try {
+      const { data: authUser } = await this.supabaseService.supabase.auth.getUser();
+      const uid = authUser?.user?.id;
+      if (uid) {
+        const { data: urow } = await this.supabaseService.supabase
+          .from('users')
+          .select('id, auth_user_id')
+          .eq('auth_user_id', uid)
+          .single();
+        currentUserNumericId = urow?.id ?? null;
+      }
+    } catch (_) {
+      currentUserNumericId = null;
+    }
+
+    let selfBookingsMap = new Map<number, { id: number; cancellation_time: string | null }>();
+    if (currentUserNumericId) {
+      // Obtener reservas confirmadas del usuario en las sesiones listadas
+      const sessionIds = rows.map((r: any) => r.id);
+      if (sessionIds.length > 0) {
+        const { data: selfBookings } = await this.supabaseService.supabase
+          .from('bookings')
+          .select('id, class_session_id, cancellation_time, status')
+          .in('class_session_id', sessionIds as any)
+          .eq('user_id', currentUserNumericId)
+          .eq('status', 'CONFIRMED');
+        (selfBookings || []).forEach((b: any) => selfBookingsMap.set(b.class_session_id, { id: b.id, cancellation_time: b.cancellation_time }));
+      }
+    }
+
+  // Prefer counts from elevated RPC; avoid re-counting via bookings (RLS may hide rows)
+  const sessionIds = rows.map((r: any) => r.id);
+  const confirmedCountsMap = new Map<number, number>();
+
     // Transformar los datos para que coincidan con la interfaz ClassSession
-    return (data || []).map((session: any) => ({
-      id: session.id,
-      class_type_id: session.class_type_id,
-      capacity: session.capacity,
-      schedule_date: session.schedule_date,
-      schedule_time: session.schedule_time,
-      bookings: Array(session.confirmed_bookings_count).fill({
-        id: 0,
-        user_id: 0,
-        class_session_id: session.id,
-        booking_date_time: '',
-        cancellation_time: '',
-        status: 'CONFIRMED'
-      }) // Array simulado para mantener compatibilidad
+    return rows.map((session: any) => {
+      const t = typesMap.get(session.class_type_id);
+      const selfB = selfBookingsMap.get(session.id);
+      const confirmedCount = typeof session.confirmed_bookings_count === 'number'
+        ? session.confirmed_bookings_count
+        : 0;
+      const available = Math.max(0, (session.capacity || 0) - confirmedCount);
+      return {
+        id: session.id,
+        class_type_id: session.class_type_id,
+        capacity: session.capacity,
+        schedule_date: session.schedule_date,
+        schedule_time: session.schedule_time,
+        class_type_name: t?.name,
+        class_type_description: t?.description || undefined,
+        class_type_duration: t?.duration_minutes || undefined,
+        confirmed_bookings_count: confirmedCount,
+        available_spots: available,
+        // Enriquecido: marcar si el usuario actual ya está reservado
+        is_self_booked: !!selfB,
+        self_booking_id: selfB?.id ?? null,
+        self_cancellation_time: selfB?.cancellation_time ?? null,
+        // Back-compat: create synthetic bookings to keep existing consumers working
+        bookings: Array(session.confirmed_bookings_count).fill({
+          id: 0,
+          user_id: 0,
+          class_session_id: session.id,
+          booking_date_time: '',
+          cancellation_time: '',
+          status: 'CONFIRMED'
+        })
+      } as ClassSession;
+    });
+  }
+
+  /**
+   * Obtiene sesiones optimizadas para el calendario del usuario logado,
+   * incluyendo contadores, si el propio usuario está reservado y lista de asistentes
+   */
+  getSessionsForCalendar(userId: number, startDate?: string, endDate?: string): Observable<ClassSession[]> {
+    return from(this.fetchSessionsForCalendar(userId, startDate, endDate));
+  }
+
+  private async fetchSessionsForCalendar(userId: number, startDate?: string, endDate?: string): Promise<ClassSession[]> {
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('get_sessions_for_calendar', {
+        p_start_date: startDate || null,
+        p_end_date: endDate || null,
+        p_user_id: userId
+      });
+
+    if (error) {
+      console.error('Error fetching sessions for calendar:', error);
+      // Fallback: usar getSessionsWithBookingCounts sin datos de self ni asistentes
+      return this.fetchSessionsWithBookingCounts(startDate, endDate);
+    }
+
+    return (data || []).map((s: any) => ({
+      id: s.id,
+      class_type_id: s.class_type_id,
+      capacity: s.capacity,
+      schedule_date: s.schedule_date,
+      schedule_time: s.schedule_time,
+      class_type_name: s.class_type_name,
+      class_type_description: s.class_type_description,
+      class_type_duration: s.class_type_duration,
+      confirmed_bookings_count: s.confirmed_bookings_count,
+      available_spots: s.available_spots,
+      is_self_booked: s.is_self_booked,
+      self_booking_id: s.self_booking_id,
+      self_cancellation_time: s.self_cancellation_time
     }));
   }
 
@@ -275,7 +387,10 @@ export class ClassSessionsService {
    * Verifica si una sesión tiene espacios disponibles
    */
   isSessionAvailable(session: ClassSession): boolean {
-  const confirmedBookings = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED') || [];
+    if (typeof session.available_spots === 'number') {
+      return session.available_spots > 0;
+    }
+    const confirmedBookings = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED') || [];
     return confirmedBookings.length < session.capacity;
   }
 
@@ -283,7 +398,10 @@ export class ClassSessionsService {
    * Obtiene el número de espacios disponibles en una sesión
    */
   getAvailableSpots(session: ClassSession): number {
-  const confirmedBookings = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED') || [];
+    if (typeof session.available_spots === 'number') {
+      return Math.max(0, session.available_spots);
+    }
+    const confirmedBookings = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED') || [];
     return Math.max(0, session.capacity - confirmedBookings.length);
   }
 

@@ -193,13 +193,13 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   private loadSessionsData(sessions: ClassSession[]) {
     this.events = sessions.map(session => {
       const bookingCount = session.bookings ? session.bookings.length : 0;
-      const className = this.getClassTypeName(session.class_type_id);
+  const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
       
       return {
         id: session.id.toString(),
         title: `${session.schedule_time} • ${className} • (${bookingCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
-        end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
+  end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
         backgroundColor: this.getClassTypeColor(session.class_type_id),
         borderColor: this.getClassTypeColor(session.class_type_id),
         textColor: '#ffffff',
@@ -1480,7 +1480,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
       console.log('Resultado de la actualización:', result);
 
-      if (result && result.length > 0) {
+      const ok = (Array.isArray(result) && result.length > 0)
+        || (!!result && (result.success === true || typeof result === 'object'));
+      if (ok) {
         console.log('Sesión actualizada exitosamente en BD');
         
         // Actualizar notificación de éxito
@@ -1496,7 +1498,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         // Forzar detección de cambios suave
         this.cdr.detectChanges();
         
-      } else {
+  } else {
         throw new Error('La actualización no devolvió datos válidos');
       }
 

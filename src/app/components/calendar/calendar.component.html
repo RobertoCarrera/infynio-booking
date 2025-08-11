@@ -95,6 +95,15 @@
                     <span>{{ selectedSession.class_type_duration || 50 }} min</span>
                   </div>
                 </div>
+                <!-- Deadline exacto para cancelar, si aplica -->
+                <div class="row mt-2" *ngIf="selectedSession.is_self_booked && selectedSession.self_cancellation_time">
+                  <div class="col-12">
+                    <strong>Límite para cancelar:</strong><br>
+                    <span>
+                      {{ selectedSession.self_cancellation_time | date:'EEEE, d \'de\' MMMM, HH:mm':'es-ES' }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -120,13 +129,16 @@
           </div>
 
           <!-- Estado: Lista de espera -->
-          <div *ngIf="!userCanBook && !modalError && !modalSuccess && selectedSession">
+          <div *ngIf="!modalError && !modalSuccess && selectedSession && !selectedSession.is_self_booked && isSelectedSessionFull()">
             
             <!-- Usuario NO está en lista de espera -->
             <div *ngIf="!isInWaitingList">
-              <div class="alert alert-warning" role="alert">
+              <div class="alert alert-warning d-flex align-items-center justify-content-between" role="alert">
                 <i class="fas fa-users me-2"></i>
-                Esta clase está completa, pero puedes unirte a la lista de espera.
+                <span>Esta clase está completa, pero puedes unirte a la lista de espera.</span>
+                <button type="button" class="btn btn-sm btn-warning ms-3" (click)="joinWaitingList()">
+                  <i class="fas fa-user-plus me-1"></i> Unirme ahora
+                </button>
               </div>
               
               <div class="waiting-list-info" *ngIf="waitingListCount > 0">
@@ -171,8 +183,23 @@
           Cancelar
         </button>
 
-        <!-- Botón Reservar (solo si puede reservar) -->
-        <button *ngIf="userCanBook && !modalError && !modalSuccess"
+        <!-- Botón Cancelar reserva (si ya está reservado) -->
+        <button *ngIf="selectedSession?.is_self_booked && !modalError"
+    type="button"
+    class="btn btn-danger"
+    [disabled]="!canCancelSelectedBooking()"
+    (click)="cancelOwnBooking()">
+    <i class="fas fa-times me-2"></i>
+    Cancelar Reserva
+  </button>
+
+        <!-- Aviso de que no se puede cancelar si pasó el tiempo -->
+        <div *ngIf="selectedSession?.is_self_booked && !canCancelSelectedBooking() && !modalError" class="text-muted small">
+          Ya no se puede cancelar la reserva: han pasado las 12 horas previas al inicio.
+        </div>
+
+  <!-- Botón Reservar (solo si puede reservar y no está ya reservado) -->
+        <button *ngIf="!selectedSession?.is_self_booked && userCanBook && !modalError"
                 type="button" 
                 class="btn btn-success"
                 (click)="reserveClass()">
@@ -180,14 +207,14 @@
           Confirmar Reserva
         </button>
 
-        <!-- Botón Unirse a Lista de Espera -->
-        <button *ngIf="!userCanBook && !isInWaitingList && !modalError && !modalSuccess"
-                type="button" 
-                class="btn btn-warning"
-                (click)="joinWaitingList()">
-          <i class="fas fa-clock me-2"></i>
-          Unirse a Lista de Espera
-        </button>
+  <!-- Botón Unirse a Lista de Espera (footer, backup) -->
+  <button *ngIf="selectedSession && !selectedSession.is_self_booked && isSelectedSessionFull() && !isInWaitingList && !modalError"
+    type="button" 
+    class="btn btn-warning"
+    (click)="joinWaitingList()">
+    <i class="fas fa-clock me-2"></i>
+    Unirse a Lista de Espera
+  </button>
 
         <!-- Botón Salir de Lista de Espera -->
         <button *ngIf="isInWaitingList && !modalError && !modalSuccess"

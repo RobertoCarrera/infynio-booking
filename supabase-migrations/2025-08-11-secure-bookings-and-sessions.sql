@@ -35,7 +35,6 @@ set search_path = public
 as $$
 declare
   v_capacity int;
-  v_current_bookings int;
   v_booking_id int;
   v_up_id int;
   v_classes_remaining int;
@@ -46,10 +45,27 @@ declare
   v_is_personal boolean;
   v_sched_date date;
   v_sched_time time;
+  v_caller_uid uuid;
+  v_caller_id int;
+  v_caller_role int;
+  v_is_admin boolean;
+  v_current_bookings int;
   v_cancel_deadline timestamptz;
 begin
   perform pg_advisory_xact_lock(p_class_session_id);
 
+  -- Identify caller and whether admin (role_id = 1)
+  select auth.uid() into v_caller_uid;
+  select u.id, coalesce(u.role_id, 0) into v_caller_id, v_caller_role from users u where u.auth_user_id = v_caller_uid;
+  v_is_admin := (v_caller_role = 1);
+
+  -- Only allow non-admins to book for themselves
+  if not v_is_admin and (v_caller_id is distinct from p_user_id) then
+    return query select false, null::int, 'No autorizado';
+    return;
+  end if;
+
+  -- Load session and class type info
   select cs.capacity, cs.schedule_date, cs.schedule_time, ct.id, ct.name
     into v_capacity, v_sched_date, v_sched_time, v_class_type_id, v_class_type_name
   from class_sessions cs
@@ -63,26 +79,26 @@ begin
 
   v_is_personal := (v_class_type_name = 'Personalizada');
 
+  -- Prevent duplicate confirmed booking
   if exists (
     select 1 from bookings
-    where user_id = p_user_id
-      and class_session_id = p_class_session_id
-      and upper(status) = 'CONFIRMED'
+    where user_id = p_user_id and class_session_id = p_class_session_id and upper(status) = 'CONFIRMED'
   ) then
     return query select false, null::int, 'Usuario ya inscrito en esta clase';
     return;
   end if;
 
+  -- Capacity check
   select count(*) into v_current_bookings
   from bookings
-  where class_session_id = p_class_session_id
-    and upper(status) = 'CONFIRMED';
+  where class_session_id = p_class_session_id and upper(status) = 'CONFIRMED';
 
   if v_current_bookings >= v_capacity then
     return query select false, null::int, 'La clase está completa';
     return;
   end if;
 
+  -- Find a compatible active package with remaining classes
   select up.id, up.current_classes_remaining, up.classes_used_this_month
     into v_up_id, v_classes_remaining, v_classes_used
   from user_packages up
@@ -103,6 +119,7 @@ begin
     return;
   end if;
 
+  -- Compute cancellation deadline (12h before session start)
   v_cancel_deadline := (v_sched_date::timestamp + v_sched_time) - interval '12 hours';
 
   begin

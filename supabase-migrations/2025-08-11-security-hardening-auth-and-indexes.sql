@@ -191,6 +191,7 @@ begin
   select u.id, coalesce(u.role_id, 0) into v_caller_id, v_caller_role from users u where u.auth_user_id = v_caller_uid;
   v_is_admin := (v_caller_role = 1);
 
+  -- Only allow non-admins to cancel their own bookings; admins can cancel anyone's
   if not v_is_admin and (v_caller_id is distinct from p_user_id) then
     return json_build_object('success', false, 'error', 'No autorizado');
   end if;
@@ -208,7 +209,8 @@ begin
     return json_build_object('success', false, 'error', 'Reserva no encontrada o ya cancelada');
   end if;
 
-  if v_booking.cancellation_time is not null and now() > v_booking.cancellation_time then
+  -- Enforce 12h cutoff ONLY for non-admins; admins bypass this restriction
+  if not v_is_admin and v_booking.cancellation_time is not null and now() > v_booking.cancellation_time then
     return json_build_object('success', false, 'error', 'No se puede cancelar: fuera de plazo');
   end if;
 
