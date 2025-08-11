@@ -37,6 +37,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   searchTerm = '';
   selectedUserToAdd: any = null;
   showAddUserSection = false;
+  attendeesLoading = false;
   
   // Add package modal
   showAddPackageModal = false;
@@ -60,6 +61,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   // Calendar state preservation
   currentCalendarDate: Date | null = null;
   currentCalendarView: string | null = null;
+  // Freeze updates while modal is open to avoid jumping back to 'Hoy'
+  private freezeCalendarUpdates = false;
+  private pendingEvents: any[] | null = null;
   
   private subscriptions: Subscription[] = [];
 
@@ -130,6 +134,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   loadData() {
     this.loading = true;
+  // Preservar estado actual antes de recargar datos
+  this.saveCalendarState();
     
     // Cargar tipos de clase, sesiones y paquetes en paralelo
     const classTypes$ = this.classTypesService.getAll();
@@ -149,6 +155,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         this.loadSessionsData(sessions);
         this.loading = false;
         this.cdr.detectChanges();
+  // Restaurar estado después de cargar
+  this.restoreCalendarState();
       },
       error: (err: any) => {
         console.error('Error loading data:', err);
@@ -171,6 +179,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     if (!hasEvents) {
       this.loading = true;
     }
+  // Preservar estado actual antes de recargar sesiones
+  this.saveCalendarState();
     
     // Usar la función optimizada que cuenta las reservas confirmadas
     const startDate = new Date().toISOString().split('T')[0]; // Fecha actual
@@ -181,6 +191,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         this.loadSessionsData(sessions);
         this.loading = false;
         this.cdr.detectChanges();
+  // Restaurar estado tras la actualización
+  this.restoreCalendarState();
       },
       error: (err: any) => {
         console.error('Error loading sessions:', err);
@@ -211,11 +223,28 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         }
       };
     });
-    
-    this.calendarOptions = {
-      ...this.calendarOptions,
-      events: this.events
-    };
+  // Actualizar eventos sin perder la vista/fecha actual (o encolarlos si está congelado)
+  this.setEventsPreservingOrQueue(this.events);
+  }
+
+  // Actualiza los eventos en el calendario preservando la vista (semana/día) y la fecha actual
+  private applyEventsPreservingView(events: any[]) {
+    try {
+      const api = this.calendarComponent?.getApi?.();
+      if (api) {
+        const currentDate = api.getDate();
+        api.removeAllEvents();
+        for (const ev of events) api.addEvent(ev);
+  // Restaurar inmediatamente la fecha
+  if (currentDate) api.gotoDate(currentDate);
+        this.cdr.detectChanges();
+        return;
+      }
+    } catch (e) {
+      console.warn('Fallo al aplicar eventos vía API, usando fallback de options:', e);
+    }
+    // Fallback: actualizar options (puede provocar scroll a hoy en algunos casos)
+    this.calendarOptions = { ...this.calendarOptions, events: [...events] };
   }
 
   onDateSelect(selectInfo: DateSelectArg) {
@@ -231,6 +260,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   onEventClick(clickInfo: EventClickArg) {
     // Abrir modal de gestión de asistentes en lugar de editar sesión
     const session = clickInfo.event.extendedProps['session'] as ClassSession;
+  // Guardar estado antes de abrir el modal para evitar saltos de vista
+  this.saveCalendarState();
+  // Congelar actualizaciones del calendario mientras el modal esté abierto
+  this.freezeCalendarUpdates = true;
     this.openAttendeesModal(session);
   }
 
@@ -392,8 +425,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             }
           };
           this.events = [...this.events, event];
-          this.calendarOptions = { ...this.calendarOptions, events: [...this.events] };
-          this.cdr.detectChanges();
+          this.applyEventsPreservingView(this.events);
         } else {
           // Fallback: recargar sesiones para incluir la nueva
           this.loadSessions();
@@ -448,8 +480,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
               }
             };
             this.events = [...this.events, event];
-            this.calendarOptions = { ...this.calendarOptions, events: [...this.events] };
-            this.cdr.detectChanges();
+            this.applyEventsPreservingView(this.events);
           }
 
           createdCount++;
@@ -534,8 +565,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         const before = this.events.length;
         this.events = this.events.filter(e => e.id !== String(removedId));
         if (this.events.length !== before) {
-          this.calendarOptions = { ...this.calendarOptions, events: [...this.events] };
-          this.cdr.detectChanges();
+          this.applyEventsPreservingView(this.events);
         } else {
           this.loadSessions();
         }
@@ -742,13 +772,33 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   // ==============================================
+  // CONTROL DE ACTUALIZACIONES (FREEZE/QUEUE)
+  // ==============================================
+
+  private setEventsPreservingOrQueue(events: any[]) {
+    if (this.freezeCalendarUpdates) {
+      this.pendingEvents = [...events];
+      return;
+    }
+    this.applyEventsPreservingView(events);
+  }
+
+  private applyPendingIfAny() {
+    if (this.pendingEvents) {
+      const toApply = [...this.pendingEvents];
+      this.pendingEvents = null;
+      this.applyEventsPreservingView(toApply);
+    }
+  }
+
+  // ==============================================
   // GESTIÓN DE ASISTENTES
   // ==============================================
 
   async openAttendeesModal(session: ClassSession) {
     this.selectedSession = session;
     this.showAttendeesModal = true;
-    this.loading = true;
+  this.attendeesLoading = true;
     this.clearMessages();
     
     try {
@@ -760,7 +810,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       console.error('Error loading attendees:', error);
       this.error = 'Error al cargar los asistentes';
     } finally {
-      this.loading = false;
+      this.attendeesLoading = false;
+      // Mantener calendario congelado mientras el modal esté visible
     }
   }
 
@@ -1047,6 +1098,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     this.searchTerm = '';
     this.showAddUserSection = false;
     this.clearMessages();
+  // Descongelar y aplicar actualizaciones pendientes preservando la vista actual
+  this.freezeCalendarUpdates = false;
+  this.applyPendingIfAny();
   }
 
   // ==============================================
@@ -1505,15 +1559,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         // Actualizar notificación de éxito
         this.showToastNotification('Evento movido exitosamente', 'success');
         
-        // NO recargar todo el calendario - mantener la vista actual
-        // Solo actualizar las opciones si es necesario
-        this.calendarOptions = {
-          ...this.calendarOptions,
-          events: [...this.events]
-        };
-        
-        // Forzar detección de cambios suave
-        this.cdr.detectChanges();
+  // NO recargar todo el calendario - mantener la vista actual
+  // Actualizar usando API para preservar vista/fecha
+  this.applyEventsPreservingView(this.events);
         
   } else {
         throw new Error('La actualización no devolvió datos válidos');
@@ -1560,13 +1608,22 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       this.events[eventIndex].title = `${session.schedule_time} • ${classTypeName} • (${capacity})`;
       this.events[eventIndex].extendedProps.bookings = bookingCount;
       
-      // Actualizar las opciones del calendario para reflejar los cambios
-      this.calendarOptions = {
-        ...this.calendarOptions,
-        events: [...this.events]
-      };
-      
-      this.cdr.detectChanges();
+      // Actualizar solo ese evento a través de la API para evitar recarga completa
+      try {
+        const api = this.calendarComponent?.getApi?.();
+        if (api) {
+          const fcEvent = api.getEventById(sessionId.toString());
+          if (fcEvent) {
+            fcEvent.setProp('title', this.events[eventIndex].title);
+          } else {
+            this.applyEventsPreservingView(this.events);
+          }
+        } else {
+          this.applyEventsPreservingView(this.events);
+        }
+      } catch {
+        this.applyEventsPreservingView(this.events);
+      }
     }
   }
 }
