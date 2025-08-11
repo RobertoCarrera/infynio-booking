@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Procesando autenticación</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    pre { text-align: left; background: #f5f5f5; padding: 10px; border-radius: 5px; max-width: 800px; margin: 20px auto; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Procesando tu solicitud</h1>
+  <div class="loader"></div>
+  <p id="status">Analizando parámetros...</p>
+  
+  <pre id="debug"></pre>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const debugElement = document.getElementById('debug');
+      const statusElement = document.getElementById('status');
+      
+      function log(message) {
+        try { console.log(message); } catch(_) {}
+        if (debugElement) debugElement.textContent += message + '\n';
+      }
+      
+      log('URL completa: ' + window.location.href);
+      log('Search params: ' + window.location.search);
+      log('Hash: ' + window.location.hash);
+      
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const searchParams = new URLSearchParams(window.location.search);
+      
+      log('\nParámetros en el hash:');
+      for (const [key, value] of hashParams.entries()) {
+        log(`${key}: ${String(value).substring(0, 20)}...`);
+      }
+      
+      log('\nParámetros en search:');
+      for (const [key, value] of searchParams.entries()) {
+        log(`${key}: ${String(value).substring(0, 20)}...`);
+      }
+      
+      const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+      const type = hashParams.get('type') || searchParams.get('type');
+      const token = searchParams.get('token');
+      const code = searchParams.get('code');
+      
+      // Build redirect to reset-password route unguarded
+      let redirectUrl;
+      if (window.location.hostname === 'localhost') {
+        redirectUrl = 'http://localhost:4200/reset-password';
+      } else {
+        redirectUrl = `${window.location.protocol}//${window.location.host}/reset-password`;
+      }
+      
+      const params = new URLSearchParams();
+      if (accessToken) params.set('access_token', accessToken);
+      if (refreshToken) params.set('refresh_token', refreshToken);
+      if (type) params.set('type', type);
+      if (!type && (code || token)) params.set('type', 'recovery');
+      if (token) params.set('token', token);
+      if (code) params.set('code', code);
+      
+      const finalUrl = params.toString() ? `${redirectUrl}?${params.toString()}` : redirectUrl;
+      log('\nRedirigiendo a: ' + finalUrl);
+      statusElement.textContent = 'Redirigiendo a la aplicación...';
+      
+      // Short delay to avoid race with SPA boot
+      setTimeout(() => { window.location.replace(finalUrl); }, 500);
+    });
+  </script>
+</body>
+</html>

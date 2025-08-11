@@ -148,10 +148,8 @@ export class SupabaseService {
   }
 
   async getAllUsers(): Promise<any> {
-    // Obtener TODOS los usuarios (incluye huérfanos para poder limpiarlos)
-    return await this.supabase
-      .from('users')
-      .select('*');
+  // Obtener TODOS los usuarios (incluye activos e inactivos)
+  return await this.supabase.from('users').select('*');
   }
 
   async getValidUsers(): Promise<any> {
@@ -244,74 +242,8 @@ export class SupabaseService {
   }
 
   async deleteUser(userId: number): Promise<any> {
-    try {
-      console.log('🔄 Deleting user with ID:', userId);
-      
-      // Obtener información del usuario antes de eliminarlo
-      const { data: userData, error: fetchError } = await this.supabase
-        .from('users')
-        .select('auth_user_id, email, name, surname')
-        .eq('id', userId)
-        .single();
-        
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      // PASO 1: Eliminar TODOS los user_packages del usuario primero (CASCADE manual)
-      console.log('🗑️ Deleting user packages for user:', userId);
-      const { error: packagesError } = await this.supabase
-        .from('user_packages')
-        .delete()
-        .eq('user_id', userId);
-      
-      if (packagesError) {
-        console.warn('⚠️ Error deleting user packages:', packagesError);
-      } else {
-        console.log('✅ User packages deleted successfully');
-      }
-
-      // PASO 2: Si tiene auth_user_id, intentar eliminar del auth system
-      if (userData.auth_user_id) {
-        try {
-          const { data: session } = await this.supabase.auth.getSession();
-          if (session.session) {
-            const { data: authData, error: authError } = await this.supabase.functions.invoke('delete-user', {
-              body: { auth_user_id: userData.auth_user_id },
-              headers: {
-                Authorization: `Bearer ${session.session.access_token}`,
-              },
-            });
-            if (authError) {
-              console.warn('⚠️ Could not delete from auth system via Edge Function:', authError);
-            } else {
-              console.log('✅ User deleted from auth system via Edge Function');
-            }
-          }
-        } catch (authError: any) {
-          console.warn('⚠️ Could not delete from auth system:', authError);
-        }
-      }
-
-      // PASO 3: Finalmente, eliminar físicamente el usuario de public.users
-      console.log('🗑️ Deleting user from public.users table');
-      const { error: deleteError } = await this.supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-
-      return {
-        success: true,
-        message: `Usuario ${userData.email || 'Usuario'} eliminado completamente del sistema (incluyendo paquetes).`
-      };
-    } catch (error: any) {
-      console.error('❌ Error in deleteUser:', error);
-      throw new Error(`Error al eliminar usuario: ${error.message}`);
-    }
+  // Deprecated: physical deletion disabled in favor of deactivation
+  throw new Error('Eliminar usuarios está deshabilitado. Usa desactivar/activar con motivo.');
   }
 
   /**
@@ -369,6 +301,47 @@ export class SupabaseService {
       console.error('❌ Error in deleteOrphanedUser:', error);
       throw new Error(`Error al eliminar usuario huérfano: ${error.message}`);
     }
+  }
+
+  // New: deactivation/reactivation flows
+  async deactivateUser(userId: number, reason: string): Promise<{ success: boolean; message: string }> {
+    const trimmed = (reason || '').trim();
+    if (!trimmed) {
+      throw new Error('Debes indicar un motivo para desactivar.');
+    }
+    const { data, error } = await this.supabase.rpc('admin_deactivate_user', {
+      p_user_id: userId,
+      p_reason: trimmed,
+    });
+    if (error || data?.success === false) {
+      const msg = error?.message || data?.message || 'No se pudo desactivar al usuario';
+      throw new Error(msg);
+    }
+    return { success: true, message: data?.message || 'Usuario desactivado' };
+  }
+
+  async reactivateUser(userId: number, reason: string): Promise<{ success: boolean; message: string }> {
+    const trimmed = (reason || '').trim();
+    if (!trimmed) {
+      throw new Error('Debes indicar un motivo para reactivar.');
+    }
+    const { data, error } = await this.supabase.rpc('admin_reactivate_user', {
+      p_user_id: userId,
+      p_reason: trimmed,
+    });
+    if (error || data?.success === false) {
+      const msg = error?.message || data?.message || 'No se pudo reactivar al usuario';
+      throw new Error(msg);
+    }
+    return { success: true, message: data?.message || 'Usuario reactivado' };
+  }
+
+  async getDeactivatedUsers(): Promise<any> {
+    return await this.supabase
+      .from('users')
+      .select('*')
+      .eq('is_active', false)
+      .order('deactivated_at', { ascending: false });
   }
 
   /**

@@ -17,13 +17,21 @@ export class UsersListComponent implements OnInit {
   filterText: string = '';
   selectedUser: User | null = null;
   showEditModal = false;
+  showDeactivated = false;
 
   constructor(private supabase: SupabaseService) {}
 
   ngOnInit() {
-    this.supabase.getAllUsers()
+    this.loadUsers();
+  }
+
+  async loadUsers() {
+    this.loading = true;
+    const loader = this.showDeactivated ? this.supabase.getDeactivatedUsers() : this.supabase.getAllUsers();
+    loader
       .then(result => {
-        this.users = result.data || [];
+        const data = result.data || [];
+        this.users = data;
         this.loading = false;
       })
       .catch(() => {
@@ -71,29 +79,32 @@ export class UsersListComponent implements OnInit {
       });
   }
 
-  deleteUser(user: User) {
-    // Confirmación antes de borrar
-    const confirmMessage = `¿Estás seguro de que quieres eliminar al usuario "${user.email}"?\n\nEsta acción no se puede deshacer.`;
-    
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    console.log('🔄 Deleting user:', user.email);
-    
-    this.supabase.deleteUser(user.id!)
-      .then((result) => {
-        console.log('✅ User deleted:', result);
-        
-        // Remover el usuario de la lista local
-        this.users = this.users.filter(u => u.id !== user.id);
-        
-        // Mostrar mensaje de éxito (podrías usar un toast o alert)
-        alert(result.message);
+  deactivateUser(user: User) {
+    const reason = prompt(`Motivo para desactivar a ${user.email}:`);
+    if (!reason) return;
+    this.supabase.deactivateUser(user.id!, reason)
+      .then((res) => {
+        alert(res.message);
+        // Remove from active list or refresh deactivated view
+        this.loadUsers();
       })
       .catch((error) => {
-        console.error('❌ Error deleting user:', error);
-        alert(`Error al eliminar usuario: ${error.message}`);
+        console.error('❌ Error deactivating user:', error);
+        alert(`Error al desactivar: ${error.message}`);
+      });
+  }
+
+  reactivateUser(user: User) {
+    const reason = prompt(`Motivo para reactivar a ${user.email}:`);
+    if (!reason) return;
+    this.supabase.reactivateUser(user.id!, reason)
+      .then((res) => {
+        alert(res.message);
+        this.loadUsers();
+      })
+      .catch((error) => {
+        console.error('❌ Error reactivating user:', error);
+        alert(`Error al reactivar: ${error.message}`);
       });
   }
 }

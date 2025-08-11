@@ -8,4 +8,9 @@ export interface User {
   telephone?: string;
   role_id?: number;
   role?: string; // Si quieres acceder al nombre del rol directamente
+  is_active?: boolean;
+  deactivated_at?: string | Date | null;
+  reactivated_at?: string | Date | null;
+  last_deactivation_reason?: string | null;
+  last_reactivation_reason?: string | null;
 }

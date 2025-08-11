@@ -362,11 +362,39 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     };
 
     const sub = this.classSessionsService.createSession(newSession).subscribe({
-      next: () => {
-  this.successMessage = 'Sesión creada correctamente';
-  this.closeModal();
-  // Fallback: recargar sesiones para incluir la nueva
-  this.loadSessions();
+      next: (created: any) => {
+        this.successMessage = 'Sesión creada correctamente';
+        this.closeModal();
+        // Añadir el evento al calendario sin recargar todo
+        const createdSession = Array.isArray(created) ? created[0] : created;
+        if (createdSession && createdSession.id) {
+          const bookingCount = 0;
+          const classTypeId = createdSession.class_type_id;
+          const className = this.getClassTypeName(classTypeId);
+          const start = `${createdSession.schedule_date}T${createdSession.schedule_time}`;
+          const end = this.calculateEndTime(createdSession.schedule_date, createdSession.schedule_time, classTypeId);
+          const color = this.getClassTypeColor(classTypeId);
+          const event = {
+            id: String(createdSession.id),
+            title: `${createdSession.schedule_time} • ${className} • (${bookingCount}/${createdSession.capacity})`,
+            start,
+            end,
+            backgroundColor: color,
+            borderColor: color,
+            textColor: '#ffffff',
+            extendedProps: {
+              session: createdSession,
+              capacity: createdSession.capacity,
+              bookings: bookingCount
+            }
+          };
+          this.events = [...this.events, event];
+          this.calendarOptions = { ...this.calendarOptions, events: [...this.events] };
+          this.cdr.detectChanges();
+        } else {
+          // Fallback: recargar sesiones para incluir la nueva
+          this.loadSessions();
+        }
         this.loading = false;
       },
       error: (err: any) => {
@@ -389,15 +417,42 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Crear todas las sesiones en secuencia
-    sessions.forEach((session, index) => {
-      const sub = this.classSessionsService.createSession(session).subscribe({
-        next: () => {
+    // Crear todas las sesiones en secuencia e ir agregándolas al calendario sin reload
+    sessions.forEach((sessionReq, index) => {
+      const sub = this.classSessionsService.createSession(sessionReq).subscribe({
+        next: (created: any) => {
+          // Añadir el evento recién creado de inmediato
+          const createdSession = Array.isArray(created) ? created[0] : created;
+          if (createdSession && createdSession.id) {
+            const bookingCount = 0;
+            const classTypeId = createdSession.class_type_id;
+            const className = this.getClassTypeName(classTypeId);
+            const start = `${createdSession.schedule_date}T${createdSession.schedule_time}`;
+            const end = this.calculateEndTime(createdSession.schedule_date, createdSession.schedule_time, classTypeId);
+            const color = this.getClassTypeColor(classTypeId);
+            const event = {
+              id: String(createdSession.id),
+              title: `${createdSession.schedule_time} • ${className} • (${bookingCount}/${createdSession.capacity})`,
+              start,
+              end,
+              backgroundColor: color,
+              borderColor: color,
+              textColor: '#ffffff',
+              extendedProps: {
+                session: createdSession,
+                capacity: createdSession.capacity,
+                bookings: bookingCount
+              }
+            };
+            this.events = [...this.events, event];
+            this.calendarOptions = { ...this.calendarOptions, events: [...this.events] };
+            this.cdr.detectChanges();
+          }
+
           createdCount++;
           if (createdCount === totalSessions) {
             this.successMessage = `${createdCount} sesiones recurrentes creadas correctamente`;
             this.closeModal();
-            this.loadSessions();
             this.loading = false;
           }
         },
@@ -406,7 +461,6 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           createdCount++;
           if (createdCount === totalSessions) {
             this.error = `Se crearon ${createdCount - 1} sesiones. Algunas no se pudieron crear.`;
-            this.loadSessions();
             this.loading = false;
           }
         }
@@ -732,6 +786,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     // Actualizar también la sesión seleccionada con el conteo real
     if (this.selectedSession) {
       this.selectedSession.bookings = this.sessionAttendees;
+      // Refrescar contador del evento en el calendario
+      this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
     }
   }
 
@@ -1214,7 +1270,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     }
 
     // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
-    const newBooking: Booking = {
+    const newBooking: Booking & { users?: { name: string; surname: string; email: string } } = {
       id: Date.now(), // ID temporal
       user_id: user.id,
       class_session_id: this.selectedSession.id,
@@ -1225,19 +1281,25 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         name: user.name,
         surname: user.surname,
         email: user.email
+      },
+      // Duplicamos en 'users' para coincidir con la forma del join de Supabase y evitar UI nulls
+      users: {
+        name: user.name,
+        surname: user.surname,
+        email: user.email
       }
     };
-    
+
     // Agregar a la lista local inmediatamente
     this.sessionAttendees.push(newBooking);
 
     this.successMessage = `${user.name} añadido correctamente a la clase`;
-    
-    // Recargar asistentes desde la BD para confirmar
+
+    // Actualizar contador del evento inmediatamente (sin recargar todo el calendario)
+    this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+
+    // Recargar asistentes desde la BD para confirmar (sin recargar todo el calendario)
     await this.loadSessionAttendees(this.selectedSession.id);
-    
-    // Recargar eventos del calendario INMEDIATAMENTE
-    this.loadSessions();
   }
 
   private async addAttendeeWithPackageFallback(user: any) {
@@ -1296,7 +1358,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     }
 
     // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
-    const newBooking: Booking = {
+    const newBooking: Booking & { users?: { name: string; surname: string; email: string } } = {
       id: Date.now(), // ID temporal
       user_id: user.id,
       class_session_id: this.selectedSession.id,
@@ -1307,19 +1369,24 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         name: user.name,
         surname: user.surname,
         email: user.email
+      },
+      users: {
+        name: user.name,
+        surname: user.surname,
+        email: user.email
       }
     };
-    
+
     // Agregar a la lista local inmediatamente
     this.sessionAttendees.push(newBooking);
 
     this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
-    
-    // Recargar asistentes desde la BD para confirmar
+
+    // Actualizar contador del evento inmediatamente
+    this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+
+    // Recargar asistentes desde la BD para confirmar (sin recargar todo el calendario)
     await this.loadSessionAttendees(this.selectedSession.id);
-    
-    // Recargar eventos del calendario INMEDIATAMENTE
-    this.loadSessions();
     
     // Resetear búsqueda
     this.searchTerm = '';

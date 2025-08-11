@@ -189,12 +189,12 @@ export class ClassSessionsService {
   }
 
   private async performCreateBooking(bookingRequest: CreateBookingRequest): Promise<any> {
-    // Usar la nueva función que maneja todo el proceso de forma segura
+    // Usar la función atómica validada en BD. Ignoramos class_type del request para compatibilidad
     const { data, error } = await this.supabaseService.supabase
-      .rpc('create_booking_from_package', {
+      .rpc('create_booking_with_validations', {
         p_user_id: bookingRequest.user_id,
         p_class_session_id: bookingRequest.class_session_id,
-        p_class_type: bookingRequest.class_type
+        p_booking_date_time: new Date().toISOString()
       });
 
     if (error) {
@@ -202,12 +202,13 @@ export class ClassSessionsService {
       throw new Error(error.message || 'Error creando la reserva');
     }
 
-    // La función retorna un JSON con success/error
-    if (!data.success) {
-      throw new Error(data.error);
+    // Supabase devuelve rows para RETURNS TABLE
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || row.success !== true) {
+      throw new Error(row?.message || 'No se pudo crear la reserva');
     }
 
-    return data;
+    return row;
   }
 
   /**
@@ -218,76 +219,22 @@ export class ClassSessionsService {
   }
 
   private async performCancelBooking(bookingId: number, userId: number): Promise<any> {
-    // MÉTODO DIRECTO: Cancelar la reserva y devolver el bono manualmente
-    
-    // 1. Primero, obtener la información de la reserva
-    const { data: bookingData, error: bookingError } = await this.supabaseService.supabase
-      .from('bookings')
-      .select(`
-        *,
-        users (name, surname)
-      `)
-      .eq('id', bookingId)
-      .eq('user_id', userId)
-      .eq('status', 'CONFIRMED')
-      .single();
+    // Usar función atómica en BD
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('cancel_booking_with_refund', {
+        p_booking_id: bookingId,
+        p_user_id: userId
+      });
 
-    if (bookingError || !bookingData) {
-      console.error('Booking not found:', { bookingId, userId, error: bookingError });
-      throw new Error('Reserva no encontrada o ya cancelada');
+    if (error) {
+      throw new Error(error.message || 'Error al cancelar la reserva');
     }
 
-    // 2. Cancelar la reserva
-    const { error: cancelError } = await this.supabaseService.supabase
-      .from('bookings')
-      .update({
-        status: 'CANCELLED',
-        cancellation_time: new Date().toISOString()
-      })
-      .eq('id', bookingId);
-
-    if (cancelError) {
-      throw new Error(`Error cancelando reserva: ${cancelError.message}`);
+    if (!data || data.success !== true) {
+      throw new Error(data?.error || 'No se pudo cancelar la reserva');
     }
 
-    // 3. Devolver el bono al usuario (solo si era de un paquete)
-    if (bookingData.is_from_package) {
-      // Buscar el paquete activo más reciente del usuario
-      const { data: userPackages, error: packageError } = await this.supabaseService.supabase
-        .from('user_packages')
-        .select('*')
-        .eq('user_id', userId)
-        .in('status', ['active', 'expired'])
-        .order('purchase_date', { ascending: false })
-        .limit(1);
-
-      if (!packageError && userPackages && userPackages.length > 0) {
-        const userPackage = userPackages[0];
-        
-        // Actualizar el paquete: devolver una clase
-        const newClassesRemaining = userPackage.current_classes_remaining + 1;
-        const newClassesUsed = Math.max(0, userPackage.classes_used_this_month - 1);
-        const newStatus = newClassesRemaining > 0 ? 'active' : userPackage.status;
-
-        const { error: updateError } = await this.supabaseService.supabase
-          .from('user_packages')
-          .update({
-            current_classes_remaining: newClassesRemaining,
-            classes_used_this_month: newClassesUsed,
-            status: newStatus
-          })
-          .eq('id', userPackage.id);
-
-        if (updateError) {
-          console.warn('Warning: No se pudo actualizar el paquete:', updateError);
-        }
-      }
-    }
-
-    return {
-      success: true,
-      message: 'Reserva cancelada correctamente'
-    };
+    return data;
   }
 
   /**
@@ -442,6 +389,26 @@ export class ClassSessionsService {
   }
 
   private async performUpdateSession(sessionId: number, sessionData: Partial<ClassSession>): Promise<any> {
+    const hasDate = Object.prototype.hasOwnProperty.call(sessionData, 'schedule_date');
+    const hasTime = Object.prototype.hasOwnProperty.call(sessionData, 'schedule_time');
+    const hasOther = Object.keys(sessionData).some(k => !['schedule_date', 'schedule_time'].includes(k));
+
+    // Si solo cambiamos fecha/hora, usar RPC para recalcular cancellation_time
+    if ((hasDate || hasTime) && !hasOther) {
+      const { data, error } = await this.supabaseService.supabase
+        .rpc('update_session_time', {
+          p_session_id: sessionId,
+          p_schedule_date: (sessionData as any).schedule_date,
+          p_schedule_time: (sessionData as any).schedule_time
+        });
+      if (error) {
+        console.error('Error update_session_time:', error);
+        throw error;
+      }
+      return data;
+    }
+
+    // Si hay otros cambios (capacidad/tipo), actualizar tabla y, si hay fecha/hora presentes, llamar RPC adicionalmente
     const { data, error } = await this.supabaseService.supabase
       .from('class_sessions')
       .update(sessionData)
@@ -451,6 +418,20 @@ export class ClassSessionsService {
       console.error('Error actualizando sesión:', error);
       throw error;
     }
+
+    if (hasDate || hasTime) {
+      // Reforzar recálculo de cancellation_time
+      const { error: rpcErr } = await this.supabaseService.supabase
+        .rpc('update_session_time', {
+          p_session_id: sessionId,
+          p_schedule_date: (sessionData as any).schedule_date,
+          p_schedule_time: (sessionData as any).schedule_time
+        });
+      if (rpcErr) {
+        console.warn('Warning: fallo en update_session_time tras update directo:', rpcErr);
+      }
+    }
+
     return data;
   }
 
