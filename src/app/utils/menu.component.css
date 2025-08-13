@@ -1,3 +1,44 @@
 #logo{
     max-height: 50px;
 }
+
+/* New menu background */
+.menu-navbar {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%); /* slate to gray */
+}
+
+/* Custom mobile toggler with better contrast on dark bg */
+.custom-toggler {
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #A3E635; /* lime-400 */
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+.custom-toggler:focus { box-shadow: 0 0 0 2px rgba(163, 230, 53, 0.25); }
+.custom-toggler .toggle-icon { font-size: 1.35rem; transition: transform 220ms ease, color 220ms ease; }
+.custom-toggler:hover .toggle-icon { transform: scale(1.05); color: #C7F464; }
+
+/* Animated collapse */
+.navbar-collapse.animated {
+    transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, max-height 260ms ease, padding 200ms ease;
+    will-change: transform, opacity, max-height;
+}
+
+@media (max-width: 991.98px) {
+        .navbar-collapse.animated {
+            transform: translateY(-6px);
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .navbar-collapse.animated.show {
+            transform: translateY(0);
+            opacity: 1;
+            max-height: 420px; /* enough for menu items */
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+}

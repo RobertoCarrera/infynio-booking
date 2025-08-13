@@ -482,7 +482,7 @@ export class ResetPasswordComponent implements OnInit {
     
     if (this.isBrowser) {
       setTimeout(() => {
-        this.router.navigate(['/login']);
+        this.router.navigate(['/calendario']);
       }, 3000);
     }
   }
@@ -557,7 +557,7 @@ export class ResetPasswordComponent implements OnInit {
     
     if (this.isBrowser) {
       setTimeout(() => {
-        this.router.navigate(['/login']);
+        this.router.navigate(['/calendario']);
       }, 5000);
     }
   }

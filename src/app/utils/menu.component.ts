@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../services/supabase.service';
 import { AuthService } from '../services/auth.service';
@@ -16,9 +16,10 @@ import { distinctUntilChanged, switchMap } from 'rxjs/operators';
 export class MenuComponent implements OnInit, OnDestroy {
   isAdmin = false;
   isLoggedIn = false;
+  isMenuOpen = false;
   private subscriptions: Subscription[] = [];
 
-  constructor(private supabase: SupabaseService, private auth: AuthService) {}
+  constructor(private supabase: SupabaseService, private auth: AuthService, private router: Router) {}
 
   ngOnInit() {
     // Primer observable: estado de autenticación del usuario
@@ -26,10 +27,15 @@ export class MenuComponent implements OnInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(user => {
       this.isLoggedIn = !!user;
+      // Al cambiar a loggeado, aseguramos el menú cerrado
+      if (this.isLoggedIn) {
+        this.closeMenu();
+      }
       
       // Si no hay usuario, resetear isAdmin inmediatamente
       if (!user) {
         this.isAdmin = false;
+        this.closeMenu();
       }
     });
 
@@ -51,6 +57,14 @@ export class MenuComponent implements OnInit, OnDestroy {
     });
 
     this.subscriptions.push(userSubscription, roleSubscription);
+
+    // Cerrar menú en cualquier navegación (evita que quede abierto al entrar en calendario)
+    const navSub = this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        this.closeMenu();
+      }
+    });
+    this.subscriptions.push(navSub);
   }
 
   ngOnDestroy() {
@@ -62,12 +76,22 @@ export class MenuComponent implements OnInit, OnDestroy {
       // Asegurar que los valores se reseteen inmediatamente
       this.isLoggedIn = false;
       this.isAdmin = false;
+      this.closeMenu();
     });
   }
 
-  closeMenu() {
+  toggleMenu() {
+    this.isMenuOpen = !this.isMenuOpen;
     const navCollapse = document.getElementById('navbarNav');
-    if (navCollapse && navCollapse.classList.contains('show')) {
+    if (navCollapse) {
+      navCollapse.classList.toggle('show', this.isMenuOpen);
+    }
+  }
+
+  closeMenu() {
+    this.isMenuOpen = false;
+    const navCollapse = document.getElementById('navbarNav');
+    if (navCollapse) {
       navCollapse.classList.remove('show');
     }
   }

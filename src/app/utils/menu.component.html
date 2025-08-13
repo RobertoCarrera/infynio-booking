@@ -1,10 +1,10 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark ps-3 pe-3">
+<nav class="navbar navbar-expand-lg navbar-dark menu-navbar ps-3 pe-3" *ngIf="isLoggedIn">
   <div class="container-fluid">
     <img src="https://mars-studio.es/wp-content/uploads/2025/04/logo_marron-100x100.png" alt="" id="logo">
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
+    <button class="navbar-toggler custom-toggler" type="button" (click)="toggleMenu()" [attr.aria-expanded]="isMenuOpen" aria-label="Toggle navigation">
+      <i class="bi toggle-icon" [ngClass]="isMenuOpen ? 'bi-filter-right' : 'bi-list'"></i>
     </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
+    <div class="collapse navbar-collapse animated" id="navbarNav" [class.show]="isMenuOpen">
       <ul class="navbar-nav text-end">
         <ng-container *ngIf="isLoggedIn">
           <li class="nav-item">
