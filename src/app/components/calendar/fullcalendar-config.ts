@@ -10,7 +10,7 @@ const startOfWeek = new Date(today);
 startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Lunes de la semana actual
 startOfWeek.setHours(0,0,0,0);
 
-const isMobile = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
 
 // Función para formatear fechas personalizadas
 const formatDayHeader = (date: Date): string => {
@@ -37,7 +37,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
     ? {
         left: 'prev,next today',
         center: 'title',
-  right: 'timeGridDay,timeGridThreeDay'
+  right: 'timeGridDay,timeGridWeek'
       }
     : {
         left: 'prev,next today',

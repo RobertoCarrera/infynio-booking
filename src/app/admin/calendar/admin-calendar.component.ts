@@ -91,8 +91,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       activation_date: ['']
     });
 
-    // Configuración del calendario adaptada para admin
-    this.calendarOptions = {
+  // Configuración del calendario adaptada para admin
+  const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+  this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       selectable: true,
       selectMirror: true,
@@ -110,11 +111,17 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       eventDisplay: 'block',
       displayEventTime: false, // Deshabilitar el formato automático de tiempo
       eventContent: this.renderEventContent.bind(this), // Usar renderizado personalizado
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,timeGridDay'
-      },
+      headerToolbar: isMobile
+        ? {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'timeGridDay,timeGridWeek'
+          }
+        : {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+          },
       buttonText: {
         today: 'Hoy',
         month: 'Mes',
