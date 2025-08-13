@@ -971,8 +971,14 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       }
 
       // Verificar si el usuario tiene bono para este tipo de clase
-      const classTypeName = this.getClassTypeName(this.selectedSession.class_type_id);
-      const hasPackage = await this.checkUserHasPackage(user.id, this.selectedSession.class_type_id);
+    const classTypeName = this.getClassTypeName(this.selectedSession.class_type_id);
+    // Verificar usando servicio que conoce los mapeos (2<->9 y 4<->22) y personales
+    const isPersonal = [4, 22, 23].includes(this.selectedSession.class_type_id);
+      const hasPackage = await new Promise<boolean>((resolve) => {
+        const sub = this.carteraService
+      .tieneClasesDisponibles(user.id, this.selectedSession!.class_type_id, isPersonal)
+          .subscribe({ next: (ok) => { resolve(ok); sub.unsubscribe(); }, error: () => { resolve(false); sub.unsubscribe(); } });
+      });
 
       if (!hasPackage) {
         // Mostrar opción para añadir bono
@@ -1066,30 +1072,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
-  async checkUserHasPackage(userId: number, classTypeId: number): Promise<boolean> {
-    try {
-      const { data, error } = await this.supabaseService.supabase
-        .from('user_packages')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .gt('current_classes_remaining', 0);
-
-      if (error || !data) return false;
-
-      // Verificar si tiene paquetes compatibles con el tipo de clase
-      const hasCompatiblePackage = data.some(userPkg => {
-        // Aquí deberíamos verificar si el paquete es compatible
-        // Por ahora asumimos que cualquier paquete activo sirve
-        return true;
-      });
-
-      return hasCompatiblePackage;
-    } catch (error) {
-      console.error('Error checking user package:', error);
-      return false;
-    }
-  }
+  // Se elimina checkUserHasPackage: la verificación se centraliza en carteraClasesService
 
   toggleAddUserSection() {
     this.showAddUserSection = !this.showAddUserSection;

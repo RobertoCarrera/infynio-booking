@@ -128,8 +128,8 @@
             </div>
           </div>
 
-          <!-- Estado: Lista de espera -->
-          <div *ngIf="!modalError && !modalSuccess && selectedSession && !selectedSession.is_self_booked && isSelectedSessionFull()">
+          <!-- Estado: Lista de espera (no mostrar en personalizadas ni si ya está reservado) -->
+          <div *ngIf="!modalError && !modalSuccess && selectedSession && !selectedSession.is_self_booked && isSelectedSessionFull() && !isSelectedSessionPersonal()">
             
             <!-- Usuario NO está en lista de espera -->
             <div *ngIf="!isInWaitingList">
@@ -208,7 +208,7 @@
         </button>
 
   <!-- Botón Unirse a Lista de Espera (footer, backup) -->
-  <button *ngIf="selectedSession && !selectedSession.is_self_booked && isSelectedSessionFull() && !isInWaitingList && !modalError"
+  <button *ngIf="selectedSession && !selectedSession.is_self_booked && isSelectedSessionFull() && !isInWaitingList && !modalError && !isSelectedSessionPersonal()"
     type="button" 
     class="btn btn-warning"
     (click)="joinWaitingList()">

@@ -22,27 +22,30 @@ export class CarteraClasesService {
   /**
    * MAPA DE CONVERSIÓN CORREGIDO - class_type números a strings
    */
-  private mapClassTypeToString(classTypeId: number): 'MAT_FUNCIONAL' | 'REFORMER' | 'PERSONALIZADA' | 'FUNCIONAL' | 'BARRE' {
-    const typeMap: { [key: number]: 'MAT_FUNCIONAL' | 'REFORMER' | 'PERSONALIZADA' | 'FUNCIONAL' | 'BARRE' } = {
-      1: 'BARRE',           // Barre
-      2: 'MAT_FUNCIONAL',   // Mat  
-      3: 'REFORMER',        // Reformer
-      4: 'PERSONALIZADA',   // Personalizada
-      9: 'FUNCIONAL'        // Funcional
-    };
-    return typeMap[classTypeId] || 'MAT_FUNCIONAL';
+  private mapClassTypeToString(classTypeId: number): 'MAT_FUNCIONAL' | 'REFORMER' {
+    // Grouping contract for UI: only MAT_FUNCIONAL vs REFORMER; personalization handled by is_personal flag
+    switch (classTypeId) {
+      case 3: // Reformer
+      case 23: // Reformer Personalizada
+        return 'REFORMER';
+      case 1: // Barre
+      case 2: // Mat
+      case 4: // Mat Personalizada
+      case 9: // Funcional
+      case 22: // Funcional Personalizada
+      default:
+        return 'MAT_FUNCIONAL';
+    }
   }
 
   /**
    * CONVERSIÓN INVERSA - strings a números
    */
   private mapStringToClassType(classType: string): number {
+    // Keep legacy mapping; only two groups are expected by UI. Default to MAT (2).
     const typeMap: { [key: string]: number } = {
-      'BARRE': 1,
       'MAT_FUNCIONAL': 2,
-      'REFORMER': 3,
-      'PERSONALIZADA': 4,
-      'FUNCIONAL': 9
+      'REFORMER': 3
     };
     return typeMap[classType] || 2;
   }
@@ -269,41 +272,87 @@ export class CarteraClasesService {
    * FUNCIÓN CORREGIDA - Verifica si el usuario tiene clases disponibles de un tipo específico
    */
   tieneClasesDisponibles(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<boolean> {
-  
-  return from(
-    this.supabaseService.supabase
-      .from('user_packages')
-      .select(`
-        current_classes_remaining,
-        packages!inner (
-          class_type,
-          is_personal
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .gt('current_classes_remaining', 0)
-  ).pipe(
-    map(response => {
-      if (response.error) {
-        console.error('❌ Error verificando clases disponibles:', response.error);
+    return from((async () => {
+      const acceptableTypes = (() => {
+        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 4 || classTypeId === 22) return [4, 22];
+        if (classTypeId === 23) return [23];
+        if (classTypeId === 3) return [3];
+        return [classTypeId];
+      })();
+      // Intento 1: usar mapeo explícito
+      const mapped = await this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          id,
+          current_classes_remaining,
+          status,
+          packages!inner (
+            id,
+            is_personal,
+            class_type,
+            package_allowed_class_types!inner ( class_type_id )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      if (!mapped.error) {
+        const rows = mapped.data || [];
+        const acceptableTypeLegacy = (classTypeId === 9) ? 2 : classTypeId; // keep legacy for 2<->9 only
+        return rows.some((row: any) => {
+          const pkg = row.packages;
+          if (!pkg) return false;
+          const personalMatch = pkg.is_personal === isPersonal;
+          const mapping = (pkg.package_allowed_class_types || []) as Array<{ class_type_id: number }>;
+          const mappedMatch = mapping.some(m => acceptableTypes.includes(m.class_type_id) || m.class_type_id === acceptableTypeLegacy);
+          const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
+          return personalMatch && (mappedMatch || directMatch);
+        });
+      }
+
+      console.warn('⚠️ Fallback disponibilidad (sin mapeo por RLS?):', mapped.error);
+
+      // Intento 2 (fallback): usar solamente el class_type del paquete
+  const acceptableType = (classTypeId === 9) ? 2 : classTypeId; // legacy single-type fallback
+      const fallback = await this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          current_classes_remaining,
+          packages!inner (
+            class_type,
+            is_personal
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      if (fallback.error) {
+        console.error('❌ Error verificando clases disponibles (fallback):', fallback.error);
         return false;
       }
-      
-      
-      const hasAvailableClasses = (response.data || []).some(item => {
-        const packageData = item.packages as any;
-        const typeMatch = packageData.class_type === classTypeId;
-        const personalMatch = packageData.is_personal === isPersonal;
-        const match = typeMatch && personalMatch;
-        
-        return match;
+
+      const rows = fallback.data || [];
+      // Expand fallback synonyms to cover legacy-tagged packages when RLS hides mapping
+      const fallbackTypes = (() => {
+        if (classTypeId === 23) return [23, 3]; // Reformer Personal puede venir como 3 en datos antiguos
+        if (classTypeId === 4 || classTypeId === 22) return [4, 22, 2, 9]; // Personal Mat/Funcional puede venir como 2/9
+        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 3) return [3];
+        return acceptableTypes;
+      })();
+      return rows.some((row: any) => {
+        const pkg = row.packages;
+        if (!pkg) return false;
+        const personalMatch = pkg.is_personal === isPersonal;
+        // fallback: allow synonyms per group
+        const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
+        return personalMatch && typeMatch;
       });
-      
-      return hasAvailableClasses;
-    })
-  );
-}
+    })());
+  }
 
   /**
    * Obtiene el resumen de clases disponibles por tipo

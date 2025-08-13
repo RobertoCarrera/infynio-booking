@@ -221,8 +221,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-  // Si está completa y no está reservado => lista de espera
-  if (confirmedCount >= (session.capacity || 0)) {
+  // Si está completa y no está reservado => lista de espera (excepto personalizadas)
+  const isPersonalClass = [4, 22, 23].includes(session.class_type_id);
+  if (confirmedCount >= (session.capacity || 0) && !isPersonalClass && !session.is_self_booked) {
       this.handleWaitingList(session);
       return;
     }
@@ -245,8 +246,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const classTypeId = session.class_type_id; // Usar el ID numérico
-    const isPersonal = session.class_type_name?.toLowerCase().includes('personalizada') || false;
+  const classTypeId = session.class_type_id; // Usar el ID numérico
+  // Detectar personal por IDs conocidos (4, 22, 23) en lugar del nombre
+  const isPersonal = [4, 22, 23].includes(classTypeId);
 
     console.log('🔍 Verificando disponibilidad:', {
       userId: this.userNumericId,
@@ -351,7 +353,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // ¿Puede cancelar su reserva según la hora límite?
   canCancelSelectedBooking(): boolean {
     if (!this.selectedSession || !this.selectedSession.is_self_booked) return false;
-    const cutoff = this.selectedSession.self_cancellation_time ? new Date(this.selectedSession.self_cancellation_time).getTime() : 0;
+    // Si no hay self_cancellation_time, calcular 12h antes localmente como respaldo
+    let cutoff = 0;
+    if (this.selectedSession.self_cancellation_time) {
+      cutoff = new Date(this.selectedSession.self_cancellation_time).getTime();
+    } else if (this.selectedSession.schedule_date && this.selectedSession.schedule_time) {
+      const start = new Date(`${this.selectedSession.schedule_date}T${this.selectedSession.schedule_time}`);
+      cutoff = start.getTime() - 12 * 60 * 60 * 1000;
+    }
     return Date.now() <= cutoff;
   }
 
@@ -370,9 +379,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
         next: () => {
           this.modalSuccess = 'Reserva cancelada correctamente';
           this.loadingModal = false;
+          // Refrescar estado local inmediatamente: ya no está reservado
+          if (this.selectedSession) {
+            this.selectedSession.is_self_booked = false;
+            this.selectedSession.self_booking_id = null;
+            this.selectedSession.self_cancellation_time = null;
+          }
+          // Permitir reservar de nuevo (bono devuelto en backend)
+          this.userCanBook = true;
           // Recargar eventos para reflejar plazas
           this.loadEvents();
-          setTimeout(() => this.closeBookingModal(), 2000);
+          // No cerrar automáticamente: dejar que el usuario decida
         },
         error: (err) => {
           this.loadingModal = false;
@@ -443,7 +460,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // ¿Está llena la sesión seleccionada?
   isSelectedSessionFull(): boolean {
   if (!this.selectedSession) return false;
+  // Si ya estoy reservado, no considerar "llena" para efectos de UI (oculta lista de espera)
+  if (this.selectedSession.is_self_booked) return false;
   return this.getConfirmedCount(this.selectedSession) >= (this.selectedSession.capacity || 0);
+  }
+
+  // ¿Es personalizada la sesión seleccionada?
+  isSelectedSessionPersonal(): boolean {
+    return !!this.selectedSession && [4, 22, 23].includes(this.selectedSession.class_type_id);
   }
 
   // Método para unirse a la lista de espera
