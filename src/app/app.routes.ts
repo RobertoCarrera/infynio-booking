@@ -1,16 +1,19 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './guards/auth.guard';
 import { AdminGuard } from './guards/admin.guard';
+import { NoAuthGuard } from './guards/no-auth.guard';
+import { RootRedirectGuard } from './guards/root-redirect.guard';
 
 export const routes: Routes = [
   {
-    path: '',
-    redirectTo: '/calendario',
-    pathMatch: 'full'
+  path: '',
+  canActivate: [RootRedirectGuard],
+  children: []
   },
   {
     path: 'login',
-    loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent)
+  loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent),
+  canActivate: [NoAuthGuard]
   },
   {
     path: 'forgot-password',
@@ -46,8 +49,8 @@ export const routes: Routes = [
     canActivate: [AuthGuard, AdminGuard]
   },
   {
-    path: '**',
-    redirectTo: '/login',
-    pathMatch: 'full'
+  path: '**',
+  canActivate: [RootRedirectGuard],
+  children: []
   }
 ];
