@@ -41,6 +41,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   waitingListCount = 0;
   
   private subscriptions: Subscription[] = [];
+  private isAdmin = false;
+  private eventsLoaded = false;
+
+  // Cached range for data loading and validRange
+  private rangeStartDate: string | null = null;
+  private rangeEndDate: string | null = null;
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -79,7 +85,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
                 this.currentUserId = data.auth_user_id;
                 this.userNumericId = data.id;
                 console.log('Current user UUID:', this.currentUserId, 'Numeric ID:', this.userNumericId);
-                this.loadEvents();
+                // Obtener rol y luego cargar eventos con el rango adecuado
+                const roleSub = this.supabaseService.getCurrentUserRole().subscribe(role => {
+                  this.isAdmin = (role === 'admin');
+                  this.computeDateRange();
+                  this.applyValidRangeOption();
+                  this.loadEvents();
+                });
+                this.subscriptions.push(roleSub);
               }
             });
         }
@@ -93,8 +106,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   loadEvents() {
     if (!this.userNumericId) return;
-    const startDate = new Date().toISOString().split('T')[0];
-    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Usar rango calculado (usuarios) o amplio (admins)
+    const startDate = this.rangeStartDate || new Date().toISOString().split('T')[0];
+    const endDate = this.rangeEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, startDate, endDate).subscribe({
       next: (sessions) => {
         this.events = this.transformSessionsToEvents(sessions);
@@ -115,6 +129,49 @@ export class CalendarComponent implements OnInit, OnDestroy {
       }
     });
     this.subscriptions.push(sub);
+  }
+
+  private computeDateRange() {
+    if (this.isAdmin) {
+      // Admin sin límites: rango amplio (1 año hacia adelante)
+      this.rangeStartDate = new Date().toISOString().split('T')[0];
+      this.rangeEndDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return;
+    }
+    const now = new Date();
+    // Inicio: lunes de la semana actual (España)
+    const day = now.getDay(); // 0-Domingo ... 6-Sábado
+    const diffToMonday = (day + 6) % 7; // convierte lunes=0
+    const start = new Date(now);
+    start.setDate(now.getDate() - diffToMonday);
+    start.setHours(0, 0, 0, 0);
+    // Fin: último día del mes siguiente
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    end.setHours(23, 59, 59, 999);
+    this.rangeStartDate = start.toISOString().split('T')[0];
+    this.rangeEndDate = end.toISOString().split('T')[0];
+  }
+
+  private applyValidRangeOption() {
+    if (this.isAdmin) {
+      // Admin: sin validRange
+      this.calendarOptions = {
+        ...this.calendarOptions,
+        validRange: undefined
+      };
+      return;
+    }
+    // Usuarios: limitar navegación al rango calculado
+    const start = this.rangeStartDate!;
+    // validRange.end es exclusivo; sumar un día para permitir el último día completo
+    const endDateObj = new Date(this.rangeEndDate!);
+    const endPlusOne = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate() + 1)
+      .toISOString()
+      .split('T')[0];
+    this.calendarOptions = {
+      ...this.calendarOptions,
+      validRange: { start, end: endPlusOne }
+    };
   }
 
   private transformSessionsToEvents(sessions: ClassSession[]): any[] {
