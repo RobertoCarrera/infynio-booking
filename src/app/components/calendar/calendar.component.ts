@@ -345,7 +345,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   private transformSessionsToEvents(sessions: ClassSession[]): any[] {
-    return sessions.map(session => {
+    try {
+      const safeSessions = (sessions || []).filter((session: any) => session && session.id != null && session.schedule_date && session.schedule_time);
+      return safeSessions.map(session => {
     const colors = this.classSessionsService.getEventColors(session);
     const availableSpots = this.classSessionsService.getAvailableSpots(session);
   const confirmedCount = this.getConfirmedCount(session);
@@ -370,7 +372,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
           `class-type-${session.class_type_name?.toLowerCase().replace(/\s+/g, '-')}`
         ]
       };
-    });
+      });
+    } catch (e) {
+      console.error('[calendar] transformSessionsToEvents error', e);
+      return [];
+    }
   }
 
   private extractClassTypes(sessions: ClassSession[]) {
@@ -397,10 +403,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   private updateCalendarEvents() {
     const filteredTypes = this.filteredClassTypes();
-    const filteredEvents = this.events.filter(event => 
-      filteredTypes.has(event.extendedProps.session.class_type_name)
-    );
-    
+    const filteredEvents = (this.events || [])
+      .filter(Boolean)
+      .filter(event => event?.extendedProps?.session?.class_type_name && filteredTypes.has(event.extendedProps.session.class_type_name));
     this.calendarOptions = {
       ...this.calendarOptions,
       events: filteredEvents
@@ -426,6 +431,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   onEventClick(eventInfo: any) {
     console.log('🔄 Event clicked:', eventInfo.event);
     
+  // Validar estructura antes de acceder
+  if (!eventInfo || !eventInfo.event || !eventInfo.event.extendedProps || !eventInfo.event.extendedProps.session) {
+      console.warn('[calendar] Click en evento sin sesión asociada, ignorando');
+      return;
+    }
   // Siempre obtener la versión más reciente del objeto sesión del evento
   const session = eventInfo.event.extendedProps.session as ClassSession;
     const confirmedCount = this.getConfirmedCount(session);

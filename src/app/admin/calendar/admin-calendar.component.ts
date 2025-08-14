@@ -65,14 +65,6 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   private freezeCalendarUpdates = false;
   private pendingEvents: any[] | null = null;
   
-  // Lazy-load state (admin)
-  private cacheByDate = new Map<string, ClassSession[]>();
-  private fetchedWindows: Array<{ start: string; end: string }> = [];
-  private lastVisibleStart: string | null = null;
-  private lastVisibleEnd: string | null = null;
-  // Guard to avoid recursive datesSet when we programmatically change date/view
-  private suppressDatesSet = false;
-  
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -111,9 +103,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       eventDrop: this.onEventDrop.bind(this),
       eventResizableFromStart: false, // Deshabilitar redimensionado desde el inicio
       eventDurationEditable: false, // Deshabilitar edición de duración
-  events: this.events,
-  // Lazy-load hook
-  datesSet: this.onDatesSet.bind(this),
+  // Simple event source: fetch exactly the visible range
+  events: (info: any, success: any, failure: any) => this.fetchEventsForRange(info, success, failure),
       height: 'calc(100vh - 100px)', // Usar altura optimizada
       dayMaxEvents: false,
       moreLinkClick: 'popover',
@@ -167,9 +158,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         this.packagesDisponibles = packages;
         this.loading = false;
         this.cdr.detectChanges();
-        // Intentar un primer fetch basado en el rango visible actual
-        setTimeout(() => this.maybeFetchInitialRange(), 0);
-        // Restaurar estado después de cargar
+  // FullCalendar event source will fetch automatically; just restore view state
         this.restoreCalendarState();
       },
       error: (err: any) => {
@@ -186,35 +175,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     // Los tipos de clase se cargan dinámicamente desde la BD
   }
 
-  loadSessions() {
-    // No mostrar loading si ya tenemos eventos (actualización en background)
-    const hasEvents = this.events && this.events.length > 0;
-    if (!hasEvents) {
-      this.loading = true;
-    }
-  // Preservar estado actual antes de recargar sesiones
-  this.saveCalendarState();
-    
-    // Usar la función optimizada que cuenta las reservas confirmadas
-    const startDate = new Date().toISOString().split('T')[0]; // Fecha actual
-    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 1 año hacia adelante
-    
-    const sub = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate).subscribe({
-      next: (sessions: ClassSession[]) => {
-        this.loadSessionsData(sessions);
-        this.loading = false;
-        this.cdr.detectChanges();
-  // Restaurar estado tras la actualización
-  this.restoreCalendarState();
-      },
-      error: (err: any) => {
-        console.error('Error loading sessions:', err);
-        this.showToastNotification('Error al cargar las sesiones', 'error');
-        this.loading = false;
-      }
-    });
-    this.subscriptions.push(sub);
-  }
+  // loadSessions ya no usa lazy-load; FullCalendar event source gestiona las cargas por rango
 
   private loadSessionsData(sessions: ClassSession[]) {
     this.events = sessions.map(session => {
@@ -245,142 +206,67 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     try {
       const api = this.calendarComponent?.getApi?.();
       if (api) {
-        api.removeAllEvents();
-        for (const ev of events) api.addEvent(ev);
+    // Con event source simple, siempre refetch
+    api.refetchEvents();
         this.cdr.detectChanges();
         return;
       }
     } catch (e) {
       console.warn('Fallo al aplicar eventos vía API, usando fallback de options:', e);
     }
-    // Fallback: actualizar options (puede provocar scroll a hoy en algunos casos)
+    // Fallback: actualizar options con los eventos
     this.calendarOptions = { ...this.calendarOptions, events: [...events] };
   }
 
-  // ==============================================
-  // LAZY-LOAD IMPLEMENTATION (ADMIN)
-  // ==============================================
-
-  private onDatesSet(arg: any) {
-    if (this.suppressDatesSet) return;
-    // Calcular rango visible inclusivo (end - 1 día)
-    const startStr = this.formatDate(new Date(arg.start));
-    const endDate = new Date(arg.end);
-    endDate.setDate(endDate.getDate() - 1);
-    const endStr = this.formatDate(endDate);
-    this.lastVisibleStart = startStr;
-    this.lastVisibleEnd = endStr;
-    this.fetchAndRenderRange(startStr, endStr);
-  }
-
-  private maybeFetchInitialRange() {
-    const api = this.calendarComponent?.getApi?.();
-    if (!api) return;
-    const view: any = api.view;
-    if (!view) return;
-    const s = this.formatDate(new Date(view.currentStart));
-    const eDate = new Date(view.currentEnd);
-    eDate.setDate(eDate.getDate() - 1);
-    const e = this.formatDate(eDate);
-    this.lastVisibleStart = s;
-    this.lastVisibleEnd = e;
-    this.fetchAndRenderRange(s, e, true);
-  }
-
-  private sessionsInRange(start: string, end: string): ClassSession[] {
-    const out: ClassSession[] = [];
-    const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
-    for (const [dateStr, sessions] of this.cacheByDate.entries()) {
-      const d = new Date(dateStr).getTime();
-      if (d >= s && d <= e) out.push(...sessions);
-    }
-    return out.sort((a, b) => (
-      a.schedule_date.localeCompare(b.schedule_date) || a.schedule_time.localeCompare(b.schedule_time)
-    ));
-  }
-
-  private isRangeFetched(start: string, end: string): boolean {
-    const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
-    return this.fetchedWindows.some(w => new Date(w.start).getTime() <= s && new Date(w.end).getTime() >= e);
-  }
-
-  private markRangeFetched(start: string, end: string) {
-    const newS = new Date(start).getTime();
-    const newE = new Date(end).getTime();
-    const kept: Array<{ start: string; end: string }> = [];
-    let mergedStart = start;
-    let mergedEnd = end;
-    for (const w of this.fetchedWindows) {
-      const ws = new Date(w.start).getTime();
-      const we = new Date(w.end).getTime();
-      const overlaps = !(we < newS || ws > newE);
-      if (overlaps) {
-        if (ws < new Date(mergedStart).getTime()) mergedStart = w.start;
-        if (we > new Date(mergedEnd).getTime()) mergedEnd = w.end;
-      } else {
-        kept.push(w);
-      }
-    }
-    kept.push({ start: mergedStart, end: mergedEnd });
-    this.fetchedWindows = kept;
-  }
-
-  private addToCache(sessions: ClassSession[]) {
-    for (const s of sessions) {
-      const key = s.schedule_date;
-      const arr = this.cacheByDate.get(key) || [];
-      const idx = arr.findIndex(x => x.id === s.id);
-      if (idx >= 0) arr[idx] = s; else arr.push(s);
-      this.cacheByDate.set(key, arr);
-    }
-  }
-
-  private fetchAndRenderRange(start: string, end: string, force = false) {
-    // No dupliques lo ya cargado
-    const needFetch = force || !this.isRangeFetched(start, end);
-    const renderFromCache = () => {
-      const sessions = this.sessionsInRange(start, end);
-      this.loadSessionsData(sessions);
-    };
-    if (!needFetch) {
-      renderFromCache();
-      return;
-    }
-    const sub = this.classSessionsService.getSessionsWithBookingCounts(start, end).subscribe({
-      next: (sessions) => {
-        this.addToCache(sessions);
-        this.markRangeFetched(start, end);
-        renderFromCache();
-        // Prefetch siguiente ventana del mismo tamaño
+  // Event source function for FullCalendar
+  private fetchEventsForRange(info: { startStr: string; endStr: string }, success: (evs: any[]) => void, failure: (err: any) => void) {
+    try { console.debug('[admin] source: range load', info); } catch {}
+    // FullCalendar end is exclusive; restar 1 día para inclusivo
+    const startDate = this.formatDate(new Date(info.startStr));
+    const endExcl = new Date(info.endStr);
+    endExcl.setDate(endExcl.getDate() - 1);
+    const endDate = this.formatDate(endExcl);
+    const sub = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate).subscribe({
+      next: (sessions: ClassSession[]) => {
         try {
-          const sDate = new Date(start);
-          const eDate = new Date(end);
-          const days = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1);
-          const nextStart = new Date(eDate);
-          nextStart.setDate(eDate.getDate() + 1);
-          const nextEnd = new Date(nextStart);
-          nextEnd.setDate(nextStart.getDate() + days - 1);
-          const ns = this.formatDate(nextStart);
-          const ne = this.formatDate(nextEnd);
-          if (!this.isRangeFetched(ns, ne)) {
-            this.classSessionsService.getSessionsWithBookingCounts(ns, ne).subscribe({
-              next: (nextSessions) => {
-                this.addToCache(nextSessions);
-                this.markRangeFetched(ns, ne);
-              },
-              error: () => { /* silencioso */ }
-            });
-          }
-        } catch {}
+          const safeSessions = (sessions || []).filter((s: any) => s && s.id != null && s.schedule_date && s.schedule_time);
+          const events = safeSessions.map(session => {
+            const bookingCount = typeof session.confirmed_bookings_count === 'number'
+              ? session.confirmed_bookings_count
+              : (session.bookings ? session.bookings.length : 0);
+            const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
+            return {
+              id: String(session.id),
+              title: `${session.schedule_time} • ${className} • (${bookingCount}/${session.capacity})`,
+              start: `${session.schedule_date}T${session.schedule_time}`,
+              end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
+              backgroundColor: this.getClassTypeColor(session.class_type_id),
+              borderColor: this.getClassTypeColor(session.class_type_id),
+              textColor: '#ffffff',
+              extendedProps: {
+                session: session,
+                capacity: session.capacity,
+                bookings: bookingCount
+              }
+            };
+          });
+          this.events = events; // snapshot para helpers locales
+          success(events);
+        } catch (mapErr) {
+          console.error('[admin] event mapping error', mapErr);
+          // Ensure FullCalendar stops its loading spinner
+          try { success([]); } catch { try { failure(mapErr); } catch {} }
+        }
       },
-      error: (err) => {
-        console.error('Error lazy-loading admin sessions:', err);
+      error: (err: any) => {
+        console.error('[admin] source error', err);
+        // Ensure FullCalendar stops its loading spinner
+        try { failure(err); } catch { try { success([]); } catch {} }
       }
     });
     this.subscriptions.push(sub);
   }
+  // Lazy-loading eliminado: sin caché local ni ventanas prefetch
 
   // Formatea fecha local a YYYY-MM-DD sin efectos de zona horaria
   private formatDate(d: Date): string {
@@ -402,7 +288,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   onEventClick(clickInfo: EventClickArg) {
     // Abrir modal de gestión de asistentes en lugar de editar sesión
-    const session = clickInfo.event.extendedProps['session'] as ClassSession;
+    const session = clickInfo?.event?.extendedProps?.['session'] as ClassSession | undefined;
+    if (!session) {
+      console.warn('[admin] Click en evento sin sesión asociada. Ignorado.');
+      return;
+    }
   // Guardar estado antes de abrir el modal para evitar saltos de vista
   this.saveCalendarState();
   // Congelar actualizaciones del calendario mientras el modal esté abierto
@@ -487,9 +377,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     this.clearMessages();
 
     const formData = this.sessionForm.value;
-    
+
     if (this.isEditing && this.selectedSession) {
-      // Actualizar sesión existente (las sesiones recurrentes no se pueden editar para mantener integridad)
+      // Actualizar sesión existente
       const updateData = {
         class_type_id: formData.class_type_id,
         schedule_date: formData.schedule_date,
@@ -500,9 +390,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       const sub = this.classSessionsService.updateSession(this.selectedSession.id, updateData).subscribe({
         next: () => {
           this.successMessage = 'Sesión actualizada correctamente';
+          // Capturar ID antes de cerrar modal para evitar null access
+          const updatedId = this.selectedSession!.id;
           this.closeModal();
           // Refrescar solo el evento afectado en el calendario
-          const updatedId = this.selectedSession!.id;
           const idx = this.events.findIndex(e => e.id === String(updatedId));
           if (idx !== -1) {
             const s = { ...this.events[idx].extendedProps.session, ...updateData };
@@ -510,9 +401,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             const currentBookings = this.events[idx].extendedProps.bookings ?? 0;
             this.updateCalendarEventCounts(updatedId, currentBookings);
           } else {
-            // Si no está cargado, como fallback recargar sesiones
-            this.loadSessions();
+            // Si no está cargado, refrescar sólo el rango visible
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
           }
+          // Refrescar eventos para garantizar consistencia inmediata
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
           this.loading = false;
         },
         error: (err: any) => {
@@ -522,13 +415,14 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         }
       });
       this.subscriptions.push(sub);
+      return;
+    }
+
+    // Crear nueva sesión (o varias si es recurrente)
+    if (formData.recurring) {
+      this.createRecurringSessions(formData);
     } else {
-      // Crear nueva sesión o sesiones recurrentes
-      if (formData.recurring) {
-        this.createRecurringSessions(formData);
-      } else {
-        this.createSingleSession(formData);
-      }
+      this.createSingleSession(formData);
     }
   }
 
@@ -569,9 +463,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           };
           this.events = [...this.events, event];
           this.applyEventsPreservingView(this.events);
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
         } else {
           // Fallback: recargar sesiones para incluir la nueva
-          this.loadSessions();
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
         }
         this.loading = false;
       },
@@ -624,12 +520,16 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             };
             this.events = [...this.events, event];
             this.applyEventsPreservingView(this.events);
+            // Refrescar eventos del calendario
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
           }
 
           createdCount++;
           if (createdCount === totalSessions) {
             this.successMessage = `${createdCount} sesiones recurrentes creadas correctamente`;
             this.closeModal();
+            // Refrescar eventos para evitar inconsistencias
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
             this.loading = false;
           }
         },
@@ -638,6 +538,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           createdCount++;
           if (createdCount === totalSessions) {
             this.error = `Se crearon ${createdCount - 1} sesiones. Algunas no se pudieron crear.`;
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
             this.loading = false;
           }
         }
@@ -703,18 +604,26 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   const toRemoveId = this.selectedSession.id;
   const sub = this.classSessionsService.deleteSession(toRemoveId).subscribe({
       next: () => {
-        this.successMessage = 'Sesión eliminada correctamente';
-    this.closeModal();
-        // Quitar el evento del calendario local si existe
-    const removedId = toRemoveId;
-        const before = this.events.length;
-        this.events = this.events.filter(e => e.id !== String(removedId));
-        if (this.events.length !== before) {
-          this.applyEventsPreservingView(this.events);
-        } else {
-          this.loadSessions();
-        }
+        // Apagar spinner inmediatamente para evitar quedarse colgado si hay errores posteriores
         this.loading = false;
+        try {
+          this.successMessage = 'Sesión eliminada correctamente';
+          this.closeModal();
+          // Quitar el evento del calendario local si existe
+          const removedId = toRemoveId;
+          // Remover del FullCalendar primero para evitar refs obsoletas
+          try {
+            const api = this.calendarComponent?.getApi?.();
+            const fcEvent = api?.getEventById(String(removedId));
+            if (fcEvent) fcEvent.remove();
+          } catch {}
+          // Mantener snapshot local coherente
+          this.events = (this.events || []).filter(e => e && e.id !== String(removedId));
+          // Refresca la ventana actual para garantizar consistencia inmediata
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+        } catch (innerErr) {
+          console.warn('Post-delete UI update failed (ignorable):', innerErr);
+        }
       },
       error: (err: any) => {
         console.error('Error deleting session:', err);
@@ -896,18 +805,12 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           const calendarApi = this.calendarComponent.getApi();
           
           // Restaurar la vista si es diferente a la actual
-          this.suppressDatesSet = true;
-          try {
-            if (this.currentCalendarView && calendarApi.view.type !== this.currentCalendarView) {
-              calendarApi.changeView(this.currentCalendarView);
-            }
-            // Restaurar la fecha (verificar que no sea null)
-            if (this.currentCalendarDate) {
-              calendarApi.gotoDate(this.currentCalendarDate);
-            }
-          } finally {
-            // Rehabilitar datesSet tras restaurar
-            this.suppressDatesSet = false;
+          if (this.currentCalendarView && calendarApi.view.type !== this.currentCalendarView) {
+            calendarApi.changeView(this.currentCalendarView);
+          }
+          // Restaurar la fecha (verificar que no sea null)
+          if (this.currentCalendarDate) {
+            calendarApi.gotoDate(this.currentCalendarDate);
           }
           
           console.log('Estado del calendario restaurado:', {
@@ -1041,7 +944,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.loading = true;
+  this.loading = true;
+  // Capture session id upfront to avoid null access if modal closes
+  const sessionId = this.selectedSession?.id ?? booking.class_session_id;
     try {
       // Cancelar la reserva: si el usuario es admin, forzar cancelación sin restricciones
       let result: any;
@@ -1065,7 +970,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       this.sessionAttendees = this.sessionAttendees.filter(attendee => attendee.id !== booking.id);
       
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
-      this.updateCalendarEventCounts(this.selectedSession!.id, this.sessionAttendees.length);
+      if (sessionId != null) {
+        this.updateCalendarEventCounts(sessionId, this.sessionAttendees.length);
+      }
       // Incrementar available_spots si lo tenemos en selectedSession
       if (this.selectedSession && typeof this.selectedSession.available_spots === 'number') {
         this.selectedSession.available_spots = Math.max(0, (this.selectedSession.available_spots || 0) + 1);
@@ -1073,7 +980,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       
       // Recargar asistentes desde la BD de forma asíncrona para confirmar
       setTimeout(async () => {
-        await this.loadSessionAttendees(this.selectedSession!.id);
+        if (sessionId != null) {
+          await this.loadSessionAttendees(sessionId);
+        }
       }, 100);
       
     } catch (error: any) {
@@ -1090,12 +999,15 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     try {
+      // Capture session context upfront
+      const sessionId = this.selectedSession.id;
+      const classTypeIdCtx = this.selectedSession.class_type_id;
       // VERIFICAR PRIMERO: No permitir duplicados
       const { data: existingBooking, error: checkError } = await this.supabaseService.supabase
         .from('bookings')
         .select('id')
         .eq('user_id', user.id)
-        .eq('class_session_id', this.selectedSession.id)
+  .eq('class_session_id', sessionId)
         .eq('status', 'CONFIRMED')
         .maybeSingle();
 
@@ -1113,7 +1025,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       const { data: currentBookingsData, error: countError } = await this.supabaseService.supabase
         .from('bookings')
         .select('id', { count: 'exact' })
-        .eq('class_session_id', this.selectedSession.id)
+  .eq('class_session_id', sessionId)
         .eq('status', 'CONFIRMED');
 
       if (countError) {
@@ -1128,12 +1040,12 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       }
 
       // Verificar si el usuario tiene bono para este tipo de clase
-    const classTypeName = this.getClassTypeName(this.selectedSession.class_type_id);
+  const classTypeName = this.getClassTypeName(classTypeIdCtx);
     // Verificar usando servicio que conoce los mapeos (2<->9 y 4<->22) y personales
     const isPersonal = [4, 22, 23].includes(this.selectedSession.class_type_id);
       const hasPackage = await new Promise<boolean>((resolve) => {
         const sub = this.carteraService
-      .tieneClasesDisponibles(user.id, this.selectedSession!.class_type_id, isPersonal)
+  .tieneClasesDisponibles(user.id, classTypeIdCtx, isPersonal)
           .subscribe({ next: (ok) => { resolve(ok); sub.unsubscribe(); }, error: () => { resolve(false); sub.unsubscribe(); } });
       });
 
@@ -1158,7 +1070,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       const { data: result, error: functionError } = await this.supabaseService.supabase
         .rpc('create_booking_with_validations', {
           p_user_id: user.id,
-          p_class_session_id: this.selectedSession.id,
+          p_class_session_id: sessionId,
           p_booking_date_time: new Date().toISOString()
         });
 
@@ -1316,11 +1228,12 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     if (!this.selectedSession) return;
 
     try {
+    const sessionId = this.selectedSession.id;
       // MÉTODO MEJORADO: Usar función SQL atómica para validaciones
       const { data: result, error: functionError } = await this.supabaseService.supabase
         .rpc('create_booking_with_validations', {
           p_user_id: user.id,
-          p_class_session_id: this.selectedSession.id,
+      p_class_session_id: sessionId,
           p_booking_date_time: new Date().toISOString()
         });
 
@@ -1369,18 +1282,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
       
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
-      this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+      this.updateCalendarEventCounts(sessionId, this.sessionAttendees.length);
       
       // Recargar asistentes desde la BD de forma asíncrona para confirmar
       setTimeout(async () => {
-        if (this.selectedSession) {
-          await this.loadSessionAttendees(this.selectedSession.id);
+        if (sessionId != null) {
+          await this.loadSessionAttendees(sessionId);
         }
       }, 100);
       
-      // Resetear búsqueda
-      this.searchTerm = '';
-      this.showAddUserSection = false;
+  // Resetear búsqueda
+  this.searchTerm = '';
+  this.showAddUserSection = false;
       
     } catch (error: any) {
       console.error('Error adding attendee with package:', error);
@@ -1632,9 +1545,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       // Guardar estado del calendario ANTES de cualquier operación
       this.saveCalendarState();
 
-      // Obtener datos del evento original
-      const originalEvent = this.events.find(event => event.id === sessionId.toString());
-      if (!originalEvent) {
+  // Obtener datos del evento original
+  const originalEvent = this.events.find(event => event.id === sessionId.toString());
+  if (!originalEvent || !originalEvent?.extendedProps?.session) {
         console.error('No se encontró el evento original');
         dropInfo.revert();
         return;
@@ -1663,8 +1576,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       console.log('Nueva hora formateada:', formattedTime);
 
       // Actualizar el evento local INMEDIATAMENTE para UI responsive
-      const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
-      if (eventIndex !== -1) {
+  const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
+  if (eventIndex !== -1 && this.events[eventIndex]?.extendedProps?.session) {
   // Actualizar todas las propiedades del evento
   this.events[eventIndex].start = dropInfo.event.start;
   // Recalcular end según duración de la clase tras el cambio
@@ -1709,6 +1622,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   // NO recargar todo el calendario - mantener la vista actual
   // Actualizar usando API para preservar vista/fecha
   this.applyEventsPreservingView(this.events);
+  try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+  // Lazy-load eliminado
         
   } else {
         throw new Error('La actualización no devolvió datos válidos');
@@ -1724,8 +1639,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       
       // Revertir cambios locales en el modelo
       try {
-        const eventIndex = this.events.findIndex(e => e.id === dropInfo.event.id);
-        if (eventIndex !== -1) {
+  const eventIndex = this.events.findIndex(e => e.id === dropInfo.event.id);
+  if (eventIndex !== -1 && this.events[eventIndex]?.extendedProps?.session) {
           // Restaurar fecha/hora originales en el modelo
           this.events[eventIndex].extendedProps.session.schedule_date = originalDateStr;
           this.events[eventIndex].extendedProps.session.schedule_time = originalTimeStr;
@@ -1747,13 +1662,20 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     // Encontrar y actualizar el evento en el calendario local
     const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
     if (eventIndex !== -1) {
-      const session = this.events[eventIndex].extendedProps.session;
+      const session = this.events[eventIndex]?.extendedProps?.session;
+      if (!session) {
+        // Si no hay sesión asociada, hacer un refetch seguro y salir
+        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+        return;
+      }
       const classTypeName = this.getClassTypeName(session.class_type_id);
       const capacity = `${bookingCount}/${session.capacity}`;
       
       // Actualizar el título del evento con formato simple
       this.events[eventIndex].title = `${session.schedule_time} • ${classTypeName} • (${capacity})`;
-      this.events[eventIndex].extendedProps.bookings = bookingCount;
+      if (this.events[eventIndex].extendedProps) {
+        this.events[eventIndex].extendedProps.bookings = bookingCount;
+      }
       
       // Actualizar solo ese evento a través de la API para evitar recarga completa
       try {

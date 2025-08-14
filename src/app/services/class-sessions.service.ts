@@ -121,10 +121,11 @@ export class ClassSessionsService {
       }
     }
 
-  const rows = data || [];
+  // Sanitize rows early to avoid null dereferences downstream
+  const rows: any[] = (data || []).filter((r: any) => r && r.id != null);
 
     // Obtener nombres/duración de tipos de clase para etiquetar eventos en UI de usuario
-    const typeIds = Array.from(new Set(rows.map((r: any) => r.class_type_id).filter((v: any) => v != null)));
+  const typeIds = Array.from(new Set(rows.map((r: any) => r.class_type_id).filter((v: any) => v != null)));
     let typesMap = new Map<number, { name: string; description: string | null; duration_minutes: number | null }>();
     if (typeIds.length > 0) {
       const { data: typesData } = await this.supabaseService.supabase
@@ -154,7 +155,7 @@ export class ClassSessionsService {
     let selfBookingsMap = new Map<number, { id: number; cancellation_time: string | null }>();
     if (currentUserNumericId) {
       // Obtener reservas confirmadas del usuario en las sesiones listadas
-      const sessionIds = rows.map((r: any) => r.id);
+  const sessionIds = rows.map((r: any) => r.id);
       if (sessionIds.length > 0) {
         const { data: selfBookings } = await this.supabaseService.supabase
           .from('bookings')
@@ -171,7 +172,7 @@ export class ClassSessionsService {
   const confirmedCountsMap = new Map<number, number>();
 
     // Transformar los datos para que coincidan con la interfaz ClassSession
-    return rows.map((session: any) => {
+  return (rows || []).filter((session: any) => session && session.id != null).map((session: any) => {
       const t = typesMap.get(session.class_type_id);
       const selfB = selfBookingsMap.get(session.id);
       const confirmedCount = typeof session.confirmed_bookings_count === 'number'
