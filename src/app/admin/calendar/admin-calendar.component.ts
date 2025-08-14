@@ -699,12 +699,14 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     }
 
     this.loading = true;
-    const sub = this.classSessionsService.deleteSession(this.selectedSession.id).subscribe({
+  // Capturar ID antes de cerrar el modal para evitar null access
+  const toRemoveId = this.selectedSession.id;
+  const sub = this.classSessionsService.deleteSession(toRemoveId).subscribe({
       next: () => {
         this.successMessage = 'Sesión eliminada correctamente';
-        this.closeModal();
+    this.closeModal();
         // Quitar el evento del calendario local si existe
-        const removedId = this.selectedSession!.id;
+    const removedId = toRemoveId;
         const before = this.events.length;
         this.events = this.events.filter(e => e.id !== String(removedId));
         if (this.events.length !== before) {
@@ -1041,8 +1043,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     try {
-      // Cancelar la reserva usando el método mejorado
-  const result = await firstValueFrom(this.classSessionsService.cancelBooking(booking.id, booking.user_id));
+      // Cancelar la reserva: si el usuario es admin, forzar cancelación sin restricciones
+      let result: any;
+      try {
+        // Intento 1: usar endpoint de admin que ignora límites
+        const { data, error } = await this.supabaseService.supabase
+          .rpc('admin_cancel_booking_force', { p_booking_id: booking.id });
+        if (error) throw error;
+        result = data;
+      } catch (e) {
+        // Fallback: método estándar con validaciones por si el RPC no está desplegado todavía
+        result = await firstValueFrom(this.classSessionsService.cancelBooking(booking.id, booking.user_id));
+      }
       
       console.log('Resultado de cancelación:', result);
       
@@ -1054,6 +1066,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
       this.updateCalendarEventCounts(this.selectedSession!.id, this.sessionAttendees.length);
+      // Incrementar available_spots si lo tenemos en selectedSession
+      if (this.selectedSession && typeof this.selectedSession.available_spots === 'number') {
+        this.selectedSession.available_spots = Math.max(0, (this.selectedSession.available_spots || 0) + 1);
+      }
       
       // Recargar asistentes desde la BD de forma asíncrona para confirmar
       setTimeout(async () => {
