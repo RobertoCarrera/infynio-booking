@@ -65,6 +65,14 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   private freezeCalendarUpdates = false;
   private pendingEvents: any[] | null = null;
   
+  // Lazy-load state (admin)
+  private cacheByDate = new Map<string, ClassSession[]>();
+  private fetchedWindows: Array<{ start: string; end: string }> = [];
+  private lastVisibleStart: string | null = null;
+  private lastVisibleEnd: string | null = null;
+  // Guard to avoid recursive datesSet when we programmatically change date/view
+  private suppressDatesSet = false;
+  
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -103,7 +111,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       eventDrop: this.onEventDrop.bind(this),
       eventResizableFromStart: false, // Deshabilitar redimensionado desde el inicio
       eventDurationEditable: false, // Deshabilitar edición de duración
-      events: this.events,
+  events: this.events,
+  // Lazy-load hook
+  datesSet: this.onDatesSet.bind(this),
       height: 'calc(100vh - 100px)', // Usar altura optimizada
       dayMaxEvents: false,
       moreLinkClick: 'popover',
@@ -132,7 +142,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.loadData();
+  this.loadData();
   }
 
   ngOnDestroy() {
@@ -144,26 +154,23 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   // Preservar estado actual antes de recargar datos
   this.saveCalendarState();
     
-    // Cargar tipos de clase, sesiones y paquetes en paralelo
+    // Cargar tipos de clase y paquetes; las sesiones se cargan por lazy-load
     const classTypes$ = this.classTypesService.getAll();
-    const startDate = new Date().toISOString().split('T')[0];
-    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const sessions$ = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate);
     const packages$ = this.carteraService.getPackages();
-    
+
     const sub = forkJoin({
       classTypes: classTypes$,
-      sessions: sessions$,
       packages: packages$
     }).subscribe({
-      next: ({ classTypes, sessions, packages }) => {
+      next: ({ classTypes, packages }) => {
         this.classTypes = classTypes;
         this.packagesDisponibles = packages;
-        this.loadSessionsData(sessions);
         this.loading = false;
         this.cdr.detectChanges();
-  // Restaurar estado después de cargar
-  this.restoreCalendarState();
+        // Intentar un primer fetch basado en el rango visible actual
+        setTimeout(() => this.maybeFetchInitialRange(), 0);
+        // Restaurar estado después de cargar
+        this.restoreCalendarState();
       },
       error: (err: any) => {
         console.error('Error loading data:', err);
@@ -171,7 +178,6 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-    
     this.subscriptions.push(sub);
   }
 
@@ -239,11 +245,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     try {
       const api = this.calendarComponent?.getApi?.();
       if (api) {
-        const currentDate = api.getDate();
         api.removeAllEvents();
         for (const ev of events) api.addEvent(ev);
-  // Restaurar inmediatamente la fecha
-  if (currentDate) api.gotoDate(currentDate);
         this.cdr.detectChanges();
         return;
       }
@@ -252,6 +255,139 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     }
     // Fallback: actualizar options (puede provocar scroll a hoy en algunos casos)
     this.calendarOptions = { ...this.calendarOptions, events: [...events] };
+  }
+
+  // ==============================================
+  // LAZY-LOAD IMPLEMENTATION (ADMIN)
+  // ==============================================
+
+  private onDatesSet(arg: any) {
+    if (this.suppressDatesSet) return;
+    // Calcular rango visible inclusivo (end - 1 día)
+    const startStr = this.formatDate(new Date(arg.start));
+    const endDate = new Date(arg.end);
+    endDate.setDate(endDate.getDate() - 1);
+    const endStr = this.formatDate(endDate);
+    this.lastVisibleStart = startStr;
+    this.lastVisibleEnd = endStr;
+    this.fetchAndRenderRange(startStr, endStr);
+  }
+
+  private maybeFetchInitialRange() {
+    const api = this.calendarComponent?.getApi?.();
+    if (!api) return;
+    const view: any = api.view;
+    if (!view) return;
+    const s = this.formatDate(new Date(view.currentStart));
+    const eDate = new Date(view.currentEnd);
+    eDate.setDate(eDate.getDate() - 1);
+    const e = this.formatDate(eDate);
+    this.lastVisibleStart = s;
+    this.lastVisibleEnd = e;
+    this.fetchAndRenderRange(s, e, true);
+  }
+
+  private sessionsInRange(start: string, end: string): ClassSession[] {
+    const out: ClassSession[] = [];
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    for (const [dateStr, sessions] of this.cacheByDate.entries()) {
+      const d = new Date(dateStr).getTime();
+      if (d >= s && d <= e) out.push(...sessions);
+    }
+    return out.sort((a, b) => (
+      a.schedule_date.localeCompare(b.schedule_date) || a.schedule_time.localeCompare(b.schedule_time)
+    ));
+  }
+
+  private isRangeFetched(start: string, end: string): boolean {
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    return this.fetchedWindows.some(w => new Date(w.start).getTime() <= s && new Date(w.end).getTime() >= e);
+  }
+
+  private markRangeFetched(start: string, end: string) {
+    const newS = new Date(start).getTime();
+    const newE = new Date(end).getTime();
+    const kept: Array<{ start: string; end: string }> = [];
+    let mergedStart = start;
+    let mergedEnd = end;
+    for (const w of this.fetchedWindows) {
+      const ws = new Date(w.start).getTime();
+      const we = new Date(w.end).getTime();
+      const overlaps = !(we < newS || ws > newE);
+      if (overlaps) {
+        if (ws < new Date(mergedStart).getTime()) mergedStart = w.start;
+        if (we > new Date(mergedEnd).getTime()) mergedEnd = w.end;
+      } else {
+        kept.push(w);
+      }
+    }
+    kept.push({ start: mergedStart, end: mergedEnd });
+    this.fetchedWindows = kept;
+  }
+
+  private addToCache(sessions: ClassSession[]) {
+    for (const s of sessions) {
+      const key = s.schedule_date;
+      const arr = this.cacheByDate.get(key) || [];
+      const idx = arr.findIndex(x => x.id === s.id);
+      if (idx >= 0) arr[idx] = s; else arr.push(s);
+      this.cacheByDate.set(key, arr);
+    }
+  }
+
+  private fetchAndRenderRange(start: string, end: string, force = false) {
+    // No dupliques lo ya cargado
+    const needFetch = force || !this.isRangeFetched(start, end);
+    const renderFromCache = () => {
+      const sessions = this.sessionsInRange(start, end);
+      this.loadSessionsData(sessions);
+    };
+    if (!needFetch) {
+      renderFromCache();
+      return;
+    }
+    const sub = this.classSessionsService.getSessionsWithBookingCounts(start, end).subscribe({
+      next: (sessions) => {
+        this.addToCache(sessions);
+        this.markRangeFetched(start, end);
+        renderFromCache();
+        // Prefetch siguiente ventana del mismo tamaño
+        try {
+          const sDate = new Date(start);
+          const eDate = new Date(end);
+          const days = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1);
+          const nextStart = new Date(eDate);
+          nextStart.setDate(eDate.getDate() + 1);
+          const nextEnd = new Date(nextStart);
+          nextEnd.setDate(nextStart.getDate() + days - 1);
+          const ns = this.formatDate(nextStart);
+          const ne = this.formatDate(nextEnd);
+          if (!this.isRangeFetched(ns, ne)) {
+            this.classSessionsService.getSessionsWithBookingCounts(ns, ne).subscribe({
+              next: (nextSessions) => {
+                this.addToCache(nextSessions);
+                this.markRangeFetched(ns, ne);
+              },
+              error: () => { /* silencioso */ }
+            });
+          }
+        } catch {}
+      },
+      error: (err) => {
+        console.error('Error lazy-loading admin sessions:', err);
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  // Formatea fecha local a YYYY-MM-DD sin efectos de zona horaria
+  private formatDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   onDateSelect(selectInfo: DateSelectArg) {
@@ -758,13 +894,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           const calendarApi = this.calendarComponent.getApi();
           
           // Restaurar la vista si es diferente a la actual
-          if (this.currentCalendarView && calendarApi.view.type !== this.currentCalendarView) {
-            calendarApi.changeView(this.currentCalendarView);
-          }
-          
-          // Restaurar la fecha (verificar que no sea null)
-          if (this.currentCalendarDate) {
-            calendarApi.gotoDate(this.currentCalendarDate);
+          this.suppressDatesSet = true;
+          try {
+            if (this.currentCalendarView && calendarApi.view.type !== this.currentCalendarView) {
+              calendarApi.changeView(this.currentCalendarView);
+            }
+            // Restaurar la fecha (verificar que no sea null)
+            if (this.currentCalendarDate) {
+              calendarApi.gotoDate(this.currentCalendarDate);
+            }
+          } finally {
+            // Rehabilitar datesSet tras restaurar
+            this.suppressDatesSet = false;
           }
           
           console.log('Estado del calendario restaurado:', {
