@@ -1,0 +1,43 @@
+{
+  "name": "Mars Studio",
+  "short_name": "Mars",
+  "description": "Reserva tus clases en Mars Studio",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8B5E3B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "192x192",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "512x512",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://mars-studio.es/wp-content/uploads/2025/04/logo_marron.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://mars-studio.es/wp-content/uploads/2025/04/logo_marron.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://mars-studio.es/wp-content/uploads/2025/04/logo_marron.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

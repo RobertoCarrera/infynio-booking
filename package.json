@@ -53,6 +53,7 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "supabase": "^2.33.7",
-    "typescript": "~5.7.2"
+    "typescript": "~5.7.2",
+    "workbox-build": "^7.3.0"
   }
 }
