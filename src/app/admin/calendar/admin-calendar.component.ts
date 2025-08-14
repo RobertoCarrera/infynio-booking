@@ -64,12 +64,24 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   bulkDone = 0;
   bulkErrors = 0;
   bulkStartedAt: number | null = null;
+  // Sync with calendar rendering so progress doesn't hit 100% too early
+  private calendarIsLoading = false;
+  private awaitingBulkSync = false;
+  // Render tick state (lightweight animation until eventsSet)
+  private _renderTickStart: number | null = null;
+  private _renderTickElapsed: number = 0;
+  private renderTick: any = null;
+  // Fake smooth progress animation (preferred UX)
+  private fakeProgress = 0; // 0..100 displayed
+  private fakeTimer: any = null;
   get bulkPercent(): number {
-    if (!this.bulkActive || this.bulkTotal === 0) return 0;
-    return Math.min(100, Math.round((this.bulkDone / this.bulkTotal) * 100));
+    if (!this.bulkActive) return 0;
+    return Math.round(Math.max(0, Math.min(100, this.fakeProgress)));
   }
   dismissBulkProgress() {
     this.bulkActive = false;
+  this.stopRenderPhaseTimer();
+    this.stopFakeProgress();
   }
   
   // Calendar state preservation
@@ -119,6 +131,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       eventDurationEditable: false, // Deshabilitar edición de duración
   // Simple event source: fetch exactly the visible range
   events: (info: any, success: any, failure: any) => this.fetchEventsForRange(info, success, failure),
+      loading: (isLoading: boolean) => this.onCalendarLoading(isLoading),
+      eventsSet: (_events: any[]) => this.onEventsSet(_events),
       height: 'calc(100vh - 100px)', // Usar altura optimizada
       dayMaxEvents: false,
       moreLinkClick: 'popover',
@@ -152,6 +166,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
+  this.stopRenderPhaseTimer();
+  this.stopFakeProgress();
   }
 
   loadData() {
@@ -510,6 +526,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     this.bulkDone = 0;
     this.bulkErrors = 0;
     this.bulkStartedAt = Date.now();
+  this.fakeProgress = 0;
+  this.startFakeProgress();
     // No bloquear la UI global
     this.loading = false;
 
@@ -547,8 +565,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           this.bulkDone = createdCount;
           if (createdCount === totalSessions) {
             this.successMessage = `${createdCount} sesiones recurrentes creadas correctamente`;
+            // Trigger a final refetch and wait for eventsSet to finish before closing
+            this.awaitingBulkSync = true;
             try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-            setTimeout(() => { this.bulkActive = false; }, 1200);
           }
         },
         error: (err: any) => {
@@ -558,8 +577,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           this.bulkErrors++;
           if (createdCount === totalSessions) {
             this.error = `Se crearon ${totalSessions - this.bulkErrors} sesiones. ${this.bulkErrors} fallaron.`;
+            // Synchronize with calendar rendering
+            this.awaitingBulkSync = true;
             try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-            setTimeout(() => { this.bulkActive = false; }, 2000);
           }
         }
       });
@@ -805,6 +825,76 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   // Acción auxiliar para el botón de refresco en progreso bulk
   refetchCalendarSafely() {
     try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+  }
+
+  // FullCalendar lifecycle hooks to sync bulk progress with visual rendering
+  private onCalendarLoading(isLoading: boolean) {
+    this.calendarIsLoading = isLoading;
+  }
+
+  private onEventsSet(_events: any[]) {
+    if (this.awaitingBulkSync) {
+      // Calendar has applied events after our final refetch
+      this.awaitingBulkSync = false;
+      // Ensure 100% is visible briefly before dismissing
+  this.bulkDone = this.bulkTotal;
+  this.fakeProgress = 100;
+      this.stopRenderPhaseTimer();
+  this.stopFakeProgress();
+      setTimeout(() => {
+        this.bulkActive = false;
+      }, 1000);
+    }
+  }
+
+  // Two-phase render progress management
+  private beginRenderPhase() {
+    this.awaitingBulkSync = true;
+    // start a short timer to animate the render phase until eventsSet fires
+    this.stopRenderPhaseTimer();
+    this._renderTickStart = Date.now();
+    this._renderTickElapsed = 0;
+    this.renderTick = setInterval(() => {
+      this._renderTickElapsed = Date.now() - (this._renderTickStart as number);
+      try { this.cdr.detectChanges(); } catch {}
+    }, 100);
+  }
+
+  private stopRenderPhaseTimer() {
+    if (this.renderTick) {
+      clearInterval(this.renderTick);
+      this.renderTick = null as any;
+    }
+  }
+
+  // Fake progress controls
+  private startFakeProgress() {
+    this.stopFakeProgress();
+    // Initialize fake progress near the start
+    if (this.fakeProgress < 2) this.fakeProgress = 2;
+    this.fakeTimer = setInterval(() => this.tickFakeProgress(), 120);
+  }
+
+  private stopFakeProgress() {
+    if (this.fakeTimer) {
+      clearInterval(this.fakeTimer);
+      this.fakeTimer = null;
+    }
+  }
+
+  private tickFakeProgress() {
+    if (!this.bulkActive) return;
+    // Dynamic cap: ramp from ~55% to ~90% as creations progress; in render phase, cap is 99%
+    const createdRatio = this.bulkTotal > 0 ? (this.bulkDone / this.bulkTotal) : 0;
+    const baseCap = 55; // starting cap
+    const dynamicCap = baseCap + Math.min(40, Math.round(createdRatio * 35)); // up to ~90
+    const targetCap = (this.awaitingBulkSync || this.calendarIsLoading) ? 99 : dynamicCap;
+    // Ease towards target cap
+    const dist = targetCap - this.fakeProgress;
+    if (dist <= 0.1) return; // close enough to cap; wait for next state change
+    const step = Math.max(0.3, dist * 0.05); // smaller steps near cap
+    this.fakeProgress = Math.min(targetCap, this.fakeProgress + step);
+    try { this.cdr.detectChanges(); } catch {}
   }
 
   // ==============================================
