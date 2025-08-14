@@ -161,8 +161,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private computeDateRange() {
     if (this.isAdmin) {
       // Admin sin límites: rango amplio (1 año hacia adelante)
-      this.rangeStartDate = new Date().toISOString().split('T')[0];
-      this.rangeEndDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      this.rangeStartDate = this.formatDate(new Date());
+      this.rangeEndDate = this.formatDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
       return;
     }
     const now = new Date();
@@ -175,18 +175,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Fin: último día del mes siguiente
     const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
     end.setHours(23, 59, 59, 999);
-    this.rangeStartDate = start.toISOString().split('T')[0];
-    this.rangeEndDate = end.toISOString().split('T')[0];
+    this.rangeStartDate = this.formatDate(start);
+    this.rangeEndDate = this.formatDate(end);
   }
 
   // FullCalendar datesSet callback
   private onDatesSet(arg: any) {
     if (this.isAdmin) return; // admins unaffected
-    const startStr = (arg.startStr || '').slice(0, 10);
+  // Usar fechas locales para evitar saltos por zona horaria
+  const startStr = this.formatDate(new Date(arg.start));
     // arg.endStr is exclusive in FullCalendar; subtract one day for inclusive logic
     let endDate = new Date(arg.end);
     endDate.setDate(endDate.getDate() - 1);
-    const endStr = endDate.toISOString().split('T')[0];
+  const endStr = this.formatDate(endDate);
     this.lastVisibleStart = startStr;
     this.lastVisibleEnd = endStr;
     this.fetchAndRenderRange(startStr, endStr);
@@ -246,8 +247,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
     for (const s of sessions) {
       const key = s.schedule_date;
       const arr = this.cacheByDate.get(key) || [];
-      // Avoid duplicates by id
-      if (!arr.some(x => x.id === s.id)) arr.push(s);
+      // Replace by id to ensure latest data (counts/self flags) are reflected
+      const idx = arr.findIndex(x => x.id === s.id);
+      if (idx >= 0) {
+        arr[idx] = s;
+      } else {
+        arr.push(s);
+      }
       this.cacheByDate.set(key, arr);
     }
   }
@@ -279,8 +285,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
           nextStartDate.setDate(endDate.getDate() + 1);
           const nextEndDate = new Date(nextStartDate);
           nextEndDate.setDate(nextStartDate.getDate() + 6);
-          const ns = nextStartDate.toISOString().split('T')[0];
-          const ne = nextEndDate.toISOString().split('T')[0];
+          const ns = this.formatDate(nextStartDate);
+          const ne = this.formatDate(nextEndDate);
           const { start: pStart, end: pEnd } = this.clipToValidRange(ns, ne);
           if (!this.isRangeFetched(pStart, pEnd)) {
             this.classSessionsService.getSessionsForCalendar(this.userNumericId!, pStart, pEnd).subscribe({
@@ -307,6 +313,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
       }
     });
     this.subscriptions.push(sub);
+  }
+
+  // Formatea fecha local a YYYY-MM-DD sin cambios por zona horaria
+  private formatDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
   private applyValidRangeOption() {
     if (this.isAdmin) {
