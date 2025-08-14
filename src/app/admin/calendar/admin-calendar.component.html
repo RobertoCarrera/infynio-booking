@@ -214,6 +214,35 @@
 <!-- Modal backdrop -->
 <div class="modal-backdrop fade show" *ngIf="showModal"></div>
 
+<!-- Floating bulk progress (non-blocking) -->
+<div *ngIf="bulkActive" class="bulk-progress-container">
+  <div class="bulk-progress-card">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>Creando sesiones...</strong>
+      <button type="button" class="btn-close" (click)="dismissBulkProgress()" title="Ocultar"></button>
+    </div>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="bulkPercent">
+      <div class="progress-bar progress-bar-striped progress-bar-animated" [style.width.%]="bulkPercent">
+        {{ bulkPercent }}%
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-2 small text-muted">
+      <span>{{ bulkDone }}/{{ bulkTotal }} creadas</span>
+      <span *ngIf="bulkErrors > 0" class="text-danger">{{ bulkErrors }} errores</span>
+    </div>
+  </div>
+  <div class="bulk-progress-hint">Puedes seguir navegando y creando cosas mientras tanto.</div>
+  <div class="bulk-progress-actions">
+    <button class="btn btn-sm btn-outline-light" (click)="refetchCalendarSafely()">Refrescar ahora</button>
+  </div>
+  <div class="bulk-progress-spinner">
+    <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+  </div>
+  <i class="fa fa-calendar-plus bulk-progress-icon"></i>
+  <div class="bulk-progress-percent">{{ bulkPercent }}%</div>
+  <div class="bulk-progress-count">{{ bulkDone }}/{{ bulkTotal }}</div>
+</div>
+
 <!-- Modal de Gestión de Asistentes -->
 <div class="modal fade" 
      [class.show]="showAttendeesModal" 

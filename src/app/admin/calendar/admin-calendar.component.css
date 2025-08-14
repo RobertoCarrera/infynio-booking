@@ -389,6 +389,55 @@
   border-color: #667eea;
 }
 
+/* Floating bulk progress widget */
+.bulk-progress-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1070;
+  background: rgba(33, 37, 41, 0.92);
+  color: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  min-width: 280px;
+}
+
+.bulk-progress-card {
+  background: transparent;
+}
+
+.bulk-progress-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.bulk-progress-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bulk-progress-spinner {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+}
+
+.bulk-progress-icon {
+  position: absolute;
+  left: -10px;
+  top: -10px;
+  color: rgba(255,255,255,0.3);
+}
+
+.bulk-progress-percent, .bulk-progress-count {
+  position: absolute;
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+}
+
 /* Configuración de recurrencia */
 .recurring-config {
   background-color: #f8f9fa;

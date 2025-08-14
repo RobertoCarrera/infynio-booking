@@ -58,6 +58,20 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   toastMessage = '';
   toastType: 'success' | 'error' = 'success';
   
+  // Background progress for bulk (recurring) creation
+  bulkActive = false;
+  bulkTotal = 0;
+  bulkDone = 0;
+  bulkErrors = 0;
+  bulkStartedAt: number | null = null;
+  get bulkPercent(): number {
+    if (!this.bulkActive || this.bulkTotal === 0) return 0;
+    return Math.min(100, Math.round((this.bulkDone / this.bulkTotal) * 100));
+  }
+  dismissBulkProgress() {
+    this.bulkActive = false;
+  }
+  
   // Calendar state preservation
   currentCalendarDate: Date | null = null;
   currentCalendarView: string | null = null;
@@ -463,12 +477,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           };
           this.events = [...this.events, event];
           this.applyEventsPreservingView(this.events);
-          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-        } else {
-          // Fallback: recargar sesiones para incluir la nueva
-          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
         }
+        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
         this.loading = false;
       },
       error: (err: any) => {
@@ -483,7 +493,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   private createRecurringSessions(formData: any) {
     const sessions = this.generateRecurringSessions(formData);
     let createdCount = 0;
-    let totalSessions = sessions.length;
+    const totalSessions = sessions.length;
 
     if (totalSessions === 0) {
       this.error = 'No se pudieron generar sesiones con los parámetros especificados';
@@ -491,11 +501,22 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Crear todas las sesiones en secuencia e ir agregándolas al calendario sin reload
+    // Poner en background: cerrar modal y mostrar progreso no bloqueante
+    this.showModal = false;
+    this.isEditing = false;
+    this.clearMessages();
+    this.bulkActive = true;
+    this.bulkTotal = totalSessions;
+    this.bulkDone = 0;
+    this.bulkErrors = 0;
+    this.bulkStartedAt = Date.now();
+    // No bloquear la UI global
+    this.loading = false;
+
+    // Crear todas las sesiones y agregar al calendario sin recargar todo
     sessions.forEach((sessionReq, index) => {
       const sub = this.classSessionsService.createSession(sessionReq).subscribe({
         next: (created: any) => {
-          // Añadir el evento recién creado de inmediato
           const createdSession = Array.isArray(created) ? created[0] : created;
           if (createdSession && createdSession.id) {
             const bookingCount = 0;
@@ -520,26 +541,25 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             };
             this.events = [...this.events, event];
             this.applyEventsPreservingView(this.events);
-            // Refrescar eventos del calendario
-            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
           }
 
           createdCount++;
+          this.bulkDone = createdCount;
           if (createdCount === totalSessions) {
             this.successMessage = `${createdCount} sesiones recurrentes creadas correctamente`;
-            this.closeModal();
-            // Refrescar eventos para evitar inconsistencias
             try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-            this.loading = false;
+            setTimeout(() => { this.bulkActive = false; }, 1200);
           }
         },
         error: (err: any) => {
           console.error(`Error creating session ${index + 1}:`, err);
           createdCount++;
+          this.bulkDone = createdCount;
+          this.bulkErrors++;
           if (createdCount === totalSessions) {
-            this.error = `Se crearon ${createdCount - 1} sesiones. Algunas no se pudieron crear.`;
+            this.error = `Se crearon ${totalSessions - this.bulkErrors} sesiones. ${this.bulkErrors} fallaron.`;
             try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-            this.loading = false;
+            setTimeout(() => { this.bulkActive = false; }, 2000);
           }
         }
       });
@@ -780,6 +800,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.toastMessage = '';
     }, 300); // Esperar a que termine la animación
+  }
+
+  // Acción auxiliar para el botón de refresco en progreso bulk
+  refetchCalendarSafely() {
+    try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
   }
 
   // ==============================================
