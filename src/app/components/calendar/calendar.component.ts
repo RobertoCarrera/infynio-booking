@@ -47,6 +47,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // Cached range for data loading and validRange
   private rangeStartDate: string | null = null;
   private rangeEndDate: string | null = null;
+  // Lazy-load helpers
+  private cacheByDate = new Map<string, ClassSession[]>();
+  private fetchedWindows: Array<{ start: string; end: string }>=[]; // inclusive dates (YYYY-MM-DD)
+  private lastVisibleStart: string | null = null;
+  private lastVisibleEnd: string | null = null;
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -58,7 +63,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       eventClick: this.onEventClick.bind(this),
-      events: this.events
+  datesSet: this.onDatesSet.bind(this),
+  events: this.events
     };
   }
 
@@ -106,29 +112,50 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   loadEvents() {
     if (!this.userNumericId) return;
-    // Usar rango calculado (usuarios) o amplio (admins)
-    const startDate = this.rangeStartDate || new Date().toISOString().split('T')[0];
-    const endDate = this.rangeEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, startDate, endDate).subscribe({
-      next: (sessions) => {
-        this.events = this.transformSessionsToEvents(sessions);
-        this.extractClassTypes(sessions);
-        this.updateCalendarEvents();
-      },
-      error: (error) => {
-        console.warn('Fallo get_sessions_for_calendar, fallback a contadores:', error);
-        const sub2 = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate).subscribe({
-          next: (sessions) => {
-            this.events = this.transformSessionsToEvents(sessions);
-            this.extractClassTypes(sessions);
-            this.updateCalendarEvents();
-          },
-          error: (err2) => console.error('Error loading events (fallback):', err2)
-        });
-        this.subscriptions.push(sub2);
-      }
-    });
-    this.subscriptions.push(sub);
+    if (this.isAdmin) {
+      // Admin: keep wide fetch once
+      const startDate = this.rangeStartDate || new Date().toISOString().split('T')[0];
+      const endDate = this.rangeEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, startDate, endDate).subscribe({
+        next: (sessions) => {
+          this.events = this.transformSessionsToEvents(sessions);
+          this.extractClassTypes(sessions);
+          this.updateCalendarEvents();
+        },
+        error: (error) => {
+          console.warn('Fallo get_sessions_for_calendar, fallback a contadores:', error);
+          const sub2 = this.classSessionsService.getSessionsWithBookingCounts(startDate, endDate).subscribe({
+            next: (sessions) => {
+              this.events = this.transformSessionsToEvents(sessions);
+              this.extractClassTypes(sessions);
+              this.updateCalendarEvents();
+            },
+            error: (err2) => console.error('Error loading events (fallback):', err2)
+          });
+          this.subscriptions.push(sub2);
+        }
+      });
+      this.subscriptions.push(sub);
+      return;
+    }
+
+    // Users: lazy load for current view range (or default to this week)
+    let start = this.lastVisibleStart;
+    let end = this.lastVisibleEnd;
+    if (!start || !end) {
+      const now = new Date();
+      const day = now.getDay();
+      const diffToMonday = (day + 6) % 7;
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - diffToMonday);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      start = weekStart.toISOString().split('T')[0];
+      end = weekEnd.toISOString().split('T')[0];
+    }
+    this.fetchAndRenderRange(start, end, true);
   }
 
   private computeDateRange() {
@@ -152,6 +179,135 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.rangeEndDate = end.toISOString().split('T')[0];
   }
 
+  // FullCalendar datesSet callback
+  private onDatesSet(arg: any) {
+    if (this.isAdmin) return; // admins unaffected
+    const startStr = (arg.startStr || '').slice(0, 10);
+    // arg.endStr is exclusive in FullCalendar; subtract one day for inclusive logic
+    let endDate = new Date(arg.end);
+    endDate.setDate(endDate.getDate() - 1);
+    const endStr = endDate.toISOString().split('T')[0];
+    this.lastVisibleStart = startStr;
+    this.lastVisibleEnd = endStr;
+    this.fetchAndRenderRange(startStr, endStr);
+  }
+
+  private clipToValidRange(start: string, end: string): { start: string; end: string } {
+    const s = new Date(start);
+    const e = new Date(end);
+    const vrStart = new Date(this.rangeStartDate!);
+    const vrEnd = new Date(this.rangeEndDate!);
+    const clipStart = s < vrStart ? this.rangeStartDate! : start;
+    const clipEnd = e > vrEnd ? this.rangeEndDate! : end;
+    return { start: clipStart, end: clipEnd };
+  }
+
+  private isRangeFetched(start: string, end: string): boolean {
+    // Simple check: if there exists a fetched window that fully covers [start,end]
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    return this.fetchedWindows.some(w => new Date(w.start).getTime() <= s && new Date(w.end).getTime() >= e);
+  }
+
+  private markRangeFetched(start: string, end: string) {
+    // Merge with overlapping windows to avoid fragmentation
+    const newS = new Date(start).getTime();
+    const newE = new Date(end).getTime();
+    const kept: Array<{ start: string; end: string }> = [];
+    let mergedStart = start;
+    let mergedEnd = end;
+    for (const w of this.fetchedWindows) {
+      const ws = new Date(w.start).getTime();
+      const we = new Date(w.end).getTime();
+      const overlaps = !(we < newS || ws > newE);
+      if (overlaps) {
+        if (ws < new Date(mergedStart).getTime()) mergedStart = w.start;
+        if (we > new Date(mergedEnd).getTime()) mergedEnd = w.end;
+      } else {
+        kept.push(w);
+      }
+    }
+    kept.push({ start: mergedStart, end: mergedEnd });
+    this.fetchedWindows = kept;
+  }
+
+  private sessionsInRange(start: string, end: string): ClassSession[] {
+    const out: ClassSession[] = [];
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    for (const [dateStr, sessions] of this.cacheByDate.entries()) {
+      const d = new Date(dateStr).getTime();
+      if (d >= s && d <= e) out.push(...sessions);
+    }
+    return out;
+  }
+
+  private addToCache(sessions: ClassSession[]) {
+    for (const s of sessions) {
+      const key = s.schedule_date;
+      const arr = this.cacheByDate.get(key) || [];
+      // Avoid duplicates by id
+      if (!arr.some(x => x.id === s.id)) arr.push(s);
+      this.cacheByDate.set(key, arr);
+    }
+  }
+
+  private fetchAndRenderRange(start: string, end: string, force = false) {
+    if (!this.userNumericId) return;
+    // Clip to allowed validRange
+    const { start: clipStart, end: clipEnd } = this.clipToValidRange(start, end);
+    const needFetch = force || !this.isRangeFetched(clipStart, clipEnd);
+    const renderFromCache = () => {
+      const sessions = this.sessionsInRange(clipStart, clipEnd);
+      this.events = this.transformSessionsToEvents(sessions);
+      this.extractClassTypes(sessions);
+      this.updateCalendarEvents();
+    };
+    if (!needFetch) {
+      renderFromCache();
+      return;
+    }
+    const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, clipStart, clipEnd).subscribe({
+      next: (sessions) => {
+        this.addToCache(sessions);
+        this.markRangeFetched(clipStart, clipEnd);
+        renderFromCache();
+        // Prefetch next week to make navigation snappy
+        try {
+          const endDate = new Date(clipEnd);
+          const nextStartDate = new Date(endDate);
+          nextStartDate.setDate(endDate.getDate() + 1);
+          const nextEndDate = new Date(nextStartDate);
+          nextEndDate.setDate(nextStartDate.getDate() + 6);
+          const ns = nextStartDate.toISOString().split('T')[0];
+          const ne = nextEndDate.toISOString().split('T')[0];
+          const { start: pStart, end: pEnd } = this.clipToValidRange(ns, ne);
+          if (!this.isRangeFetched(pStart, pEnd)) {
+            this.classSessionsService.getSessionsForCalendar(this.userNumericId!, pStart, pEnd).subscribe({
+              next: (nextSessions) => {
+                this.addToCache(nextSessions);
+                this.markRangeFetched(pStart, pEnd);
+              },
+              error: () => { /* silent prefetch failure */ }
+            });
+          }
+        } catch {}
+      },
+      error: (error) => {
+        console.warn('Fallo get_sessions_for_calendar, fallback a contadores:', error);
+        const sub2 = this.classSessionsService.getSessionsWithBookingCounts(clipStart, clipEnd).subscribe({
+          next: (sessions2) => {
+            this.addToCache(sessions2);
+            this.markRangeFetched(clipStart, clipEnd);
+            renderFromCache();
+          },
+          error: (err2) => console.error('Error loading events (fallback):', err2)
+        });
+        this.subscriptions.push(sub2);
+      }
+    });
+    this.subscriptions.push(sub);
+  }
   private applyValidRangeOption() {
     if (this.isAdmin) {
       // Admin: sin validRange
