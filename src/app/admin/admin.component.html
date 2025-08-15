@@ -1,40 +1,6 @@
 <div class="admin-container">
   <div class="container-fluid">
-    <!-- Navigation tabs -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <nav class="nav nav-pills nav-justified">
-          <a class="nav-link" 
-             [class.active]="activeTab === 'users'"
-             routerLink="/admin/users"
-             (click)="activeTab = 'users'">
-            <i class="fas fa-users me-2"></i>
-            Gestión de Usuarios
-          </a>
-          <a class="nav-link" 
-             [class.active]="activeTab === 'invite'"
-             routerLink="/admin/invite"
-             (click)="activeTab = 'invite'">
-            <i class="fas fa-user-plus me-2"></i>
-            Invitar Usuarios
-          </a>
-          <a class="nav-link" 
-             [class.active]="activeTab === 'cartera'"
-             routerLink="/admin/cartera"
-             (click)="activeTab = 'cartera'">
-            <i class="fas fa-ticket-alt me-2"></i>
-            Cartera de Clases
-          </a>
-          <a class="nav-link" 
-             [class.active]="activeTab === 'calendar'"
-             routerLink="/admin/calendar"
-             (click)="activeTab = 'calendar'">
-            <i class="fas fa-calendar-alt me-2"></i>
-            📅 Calendario Admin
-          </a>
-        </nav>
-      </div>
-    </div>
+  <!-- Navigation tabs removed for maximum calendar space -->
 
     <!-- Content area -->
     <div class="row">

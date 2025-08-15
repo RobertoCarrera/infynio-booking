@@ -6,23 +6,20 @@
     </button>
     <div class="collapse navbar-collapse animated" id="navbarNav" [class.show]="isMenuOpen">
       <ul class="navbar-nav text-end">
-        <ng-container *ngIf="isLoggedIn">
+        <ng-container *ngIf="isLoggedIn && isAdmin">
           <li class="nav-item">
-            <a routerLink="/calendario" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Calendario</a>
+            <a routerLink="/admin/users" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Usuarios</a>
           </li>
           <li class="nav-item">
-            <a routerLink="/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Mi Cartera</a>
+            <a routerLink="/admin/invite" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Invitar</a>
           </li>
-          <!-- <li class="nav-item">
-            <a routerLink="/clases" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
-          </li> -->
-          <li class="nav-item" *ngIf="isAdmin">
-            <a routerLink="/admin" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Admin</a>
+          <li class="nav-item">
+            <a routerLink="/admin/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Bonos</a>
           </li>
-          <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
-            <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active" (click)="closeMenu()">Mi Perfil</a>
+          <li class="nav-item">
+            <a routerLink="/admin/calendar" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
           </li>
-          <li *ngIf="isLoggedIn" class="nav-item d-xxl-none">
+          <li class="nav-item d-xxl-none">
             <a (click)="logout(); closeMenu()" class="nav-link text-danger" style="cursor: pointer;">Cerrar Sesión</a>
           </li>
         </ng-container>
