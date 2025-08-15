@@ -1,15 +1,9 @@
 <div class="admin-calendar-container">
-  <!-- Header -->
-  <div class="calendar-header">
-    <h2>
-      <i class="fas fa-calendar-alt me-2"></i>
-      Gestión de Horarios - Vista Calendario
-    </h2>
-    <button class="btn btn-primary" (click)="openCreateModal()">
-      <i class="fas fa-plus me-2"></i>
-      Nueva Sesión
-    </button>
-  </div>
+  <!-- Floating 'Nueva Sesión' button at bottom right -->
+  <button class="btn btn-primary floating-create-session" (click)="openCreateModal()">
+    <i class="bi bi-plus"></i>
+    <span class="d-none d-md-inline ms-2">Nueva Sesión</span>
+  </button>
 
   <!-- Messages -->
   <div *ngIf="error" class="alert alert-danger alert-dismissible fade show">
@@ -37,20 +31,6 @@
       <full-calendar #calendar [options]="calendarOptions" style="flex:1 1 auto; min-height:100%; height:100%; width:100%;"></full-calendar>
     </div>
   </div>
-
-  <!-- Instructions -->
-  <div class="instructions mt-3">
-    <div class="alert alert-info">
-      <h6><i class="fas fa-info-circle me-2"></i>Instrucciones:</h6>
-      <ul class="mb-0">
-        <li><strong>Crear sesión:</strong> Haz clic en el botón "Nueva Sesión" o en una fecha/hora libre del calendario</li>
-        <li><strong>Gestionar asistentes:</strong> Haz clic en una sesión existente para ver y gestionar los asistentes</li>
-        <li><strong>Añadir/Eliminar usuarios:</strong> Usa el modal de asistentes para gestionar quién está en cada clase</li>
-        <li><strong>Navegación:</strong> Usa los botones de la barra superior para cambiar vista</li>
-      </ul>
-    </div>
-  </div>
-</div>
 
 <!-- Modal para crear/editar sesión -->
 <div class="modal fade" [class.show]="showModal" [style.display]="showModal ? 'block' : 'none'" *ngIf="showModal">
@@ -571,6 +551,43 @@
 </div>
 
 <!-- Toast Notification -->
+<style>
+  .floating-create-session {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1050;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    border-radius: 50px;
+    padding: 0.75em 1.5em;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    transition: box-shadow 0.2s;
+  }
+  .floating-create-session i {
+    font-size: 1.5em;
+    margin-right: 0;
+  }
+  @media (max-width: 767.98px) {
+    .floating-create-session {
+      padding: 0.75em 1em;
+      font-size: 1.3em;
+      border-radius: 50%;
+      width: 56px;
+      height: 56px;
+      justify-content: center;
+    }
+    .floating-create-session span {
+      display: none !important;
+    }
+    .floating-create-session i {
+      margin-right: 0;
+      font-size: 2em;
+    }
+  }
+</style>
 <div class="toast-container" [class.show]="showToast">
   <div class="toast" [class.toast-success]="toastType === 'success'" [class.toast-error]="toastType === 'error'">
     <div class="toast-content">
