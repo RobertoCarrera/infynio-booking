@@ -127,20 +127,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       eventClick: this.onEventClick.bind(this),
       editable: true,
       eventDrop: this.onEventDrop.bind(this),
-      eventResizableFromStart: false, // Deshabilitar redimensionado desde el inicio
-      eventDurationEditable: false, // Deshabilitar edición de duración
-  // Simple event source: fetch exactly the visible range
-  events: (info: any, success: any, failure: any) => this.fetchEventsForRange(info, success, failure),
+      eventResizableFromStart: false,
+      eventDurationEditable: false,
+      events: (info: any, success: any, failure: any) => this.fetchEventsForRange(info, success, failure),
       loading: (isLoading: boolean) => this.onCalendarLoading(isLoading),
       eventsSet: (_events: any[]) => this.onEventsSet(_events),
-      height: 'calc(100vh - 100px)', // Usar altura optimizada
+      height: 'calc(100vh - 100px)',
       dayMaxEvents: false,
       moreLinkClick: 'popover',
-      // Configuración para mostrar el título completo personalizado
       eventDisplay: 'block',
-      displayEventTime: false, // Deshabilitar el formato automático de tiempo
-      eventContent: this.renderEventContent.bind(this), // Usar renderizado personalizado
-      headerToolbar: isMobile
+      displayEventTime: false,
+      eventContent: this.renderEventContent.bind(this),
+      headerToolbar: (isMobile || window.innerWidth <= 1024)
         ? {
             left: 'prev,next today',
             center: 'title',
@@ -151,12 +149,15 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
           },
+      initialView: (isMobile || window.innerWidth <= 1024) ? 'timeGridDay' : 'timeGridWeek',
       buttonText: {
         today: 'Hoy',
         month: 'Mes',
         week: 'Semana',
         día: 'Día'
-      }
+      },
+      // Forzar selección en móvil para admin
+      selectAllow: () => true
     };
   }
 

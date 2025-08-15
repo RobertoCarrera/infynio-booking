@@ -1,3 +1,14 @@
+/* Forzar interacción en el calendario de admin */
+.admin-calendar-active .fc,
+.admin-calendar-active .fc-view-harness,
+.admin-calendar-active .fc-daygrid,
+.admin-calendar-active .fc-scrollgrid,
+.admin-calendar-active .fc-daygrid-body,
+.admin-calendar-active .fc-daygrid-week,
+.admin-calendar-active .fc-daygrid-day-frame {
+  pointer-events: auto !important;
+  user-select: auto !important;
+}
 .fc-event {
   border: 2px solid rgba(0, 0, 0, 0.3) !important;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;

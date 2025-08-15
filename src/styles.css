@@ -1,3 +1,16 @@
+/* Forzar interacción en el calendario de admin, anulando cualquier estilo global */
+.admin-calendar-active .fc,
+.admin-calendar-active .fc-view-harness,
+.admin-calendar-active .fc-daygrid,
+.admin-calendar-active .fc-scrollgrid,
+.admin-calendar-active .fc-daygrid-body,
+.admin-calendar-active .fc-daygrid-week,
+.admin-calendar-active .fc-daygrid-day-frame,
+.admin-calendar-active .fc-timegrid-slots,
+.admin-calendar-active .fc-timegrid-slot {
+  pointer-events: auto !important;
+  user-select: auto !important;
+}
 /* You can add global styles to this file, and also import other style files */
 @import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
 @import "../node_modules/angular-calendar/css/angular-calendar.css";

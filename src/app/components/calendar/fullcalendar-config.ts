@@ -70,11 +70,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
     { daysOfWeek: [1,2,3,4,5], startTime: '08:00', endTime: '13:00' },
     { daysOfWeek: [1,2,3,4,5], startTime: '16:00', endTime: '20:00' }
   ],
-  selectable: false,
-  selectMirror: false,
-  selectOverlap: false,
-  // Desactivamos cualquier selección de celdas
-  // Eliminamos el handler de dateClick para que no cambie la vista al hacer click en el fondo
+  // Selección habilitada en el calendario de admin (configurada en el componente)
   events: [], // Aquí puedes cargar tus reservas
   height: '100%',
   expandRows: true,

@@ -1,3 +1,15 @@
+/* Solo para el calendario de usuarios, no admin */
+.user-calendar .fc {
+  user-select: none;
+}
+.user-calendar .fc-view-harness,
+.user-calendar .fc-daygrid,
+.user-calendar .fc-scrollgrid,
+.user-calendar .fc-daygrid-body,
+.user-calendar .fc-daygrid-week,
+.user-calendar .fc-daygrid-day-frame {
+  pointer-events: none;
+}
 /* 🎨 CALENDARIO SÚPER CHULO - VERSIÓN OPTIMIZADA */
 
 /* === ESTRUCTURA BASE === */
@@ -137,7 +149,7 @@
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  user-select: none;
+  /* user-select: none;  -- REMOVE for admin calendar, keep for user calendar only */
   position: relative;
   overflow: hidden;
   font-weight: 600;
@@ -536,7 +548,7 @@
   transform: rotate(45deg);
   transition: all 0.5s ease;
   opacity: 0;
-  pointer-events: none;
+  /* pointer-events: none;  -- REMOVE for admin calendar, keep for user calendar only */
 }
 
 .class-filters:hover::after, .modal-content:hover::after {
