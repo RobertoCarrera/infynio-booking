@@ -210,13 +210,14 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   private loadSessionsData(sessions: ClassSession[]) {
     this.events = sessions.map(session => {
       const bookingCount = session.bookings ? session.bookings.length : 0;
-  const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
-      
+      const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
+      // Format time as HH:mm and use line breaks for separation
+      const time = session.schedule_time?.slice(0,5) || '';
       return {
         id: session.id.toString(),
-        title: `${session.schedule_time} • ${className} • (${bookingCount}/${session.capacity})`,
+        title: `${time}\n${className}\n(${bookingCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
-  end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
+        end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
         backgroundColor: this.getClassTypeColor(session.class_type_id),
         borderColor: this.getClassTypeColor(session.class_type_id),
         textColor: '#ffffff',
@@ -265,9 +266,11 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
               ? session.confirmed_bookings_count
               : (session.bookings ? session.bookings.length : 0);
             const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
+            // Format time as HH:mm and use line breaks for separation
+            const time = session.schedule_time?.slice(0,5) || '';
             return {
               id: String(session.id),
-              title: `${session.schedule_time} • ${className} • (${bookingCount}/${session.capacity})`,
+              title: `${time}\n${className}\n(${bookingCount}/${session.capacity})`,
               start: `${session.schedule_date}T${session.schedule_time}`,
               end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
               backgroundColor: this.getClassTypeColor(session.class_type_id),

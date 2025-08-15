@@ -52,7 +52,10 @@
             <h6 class="mb-1">Sesión Actual:</h6>
             <p class="mb-0">
               <strong>{{ getClassTypeName(selectedSession.class_type_id) }}</strong><br>
-              <small>{{ selectedSession.schedule_date }} a las {{ selectedSession.schedule_time }}</small>
+              <small>
+                {{ selectedSession.schedule_date }}<br>
+                {{ selectedSession.schedule_time | date:'HH:mm' }}
+              </small>
             </p>
           </div>
 
@@ -266,10 +269,9 @@
                   <div class="col-md-3">
                     <strong>Fecha:</strong><br>
                     <span>{{ selectedSession.schedule_date | date:'dd/MM/yyyy' }}</span>
-                  </div>
-                  <div class="col-md-3">
+                    <br>
                     <strong>Hora:</strong><br>
-                    <span>{{ selectedSession.schedule_time }}</span>
+                    <span>{{ selectedSession.schedule_time | date:'HH:mm' }}</span>
                   </div>
                   <div class="col-md-3">
                     <strong>Capacidad:</strong><br>
