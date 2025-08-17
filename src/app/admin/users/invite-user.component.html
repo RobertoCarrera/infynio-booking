@@ -7,8 +7,8 @@
                 <label class="form-label">Email del usuario:</label>
                 <input type="email" [(ngModel)]="email" class="form-control" required placeholder="usuario@ejemplo.com">
             </div>
-            
-            <div class="d-flex gap-2 w-100">
+
+            <div class="d-flex gap-2 w-100 flex-wrap">
                 <button 
                     type="button" 
                     [disabled]="!email" 
@@ -30,11 +30,12 @@
             
             <small class="text-muted mt-2">
                 Envía una invitación por email al usuario para que pueda registrarse en la plataforma.
+                Si el usuario ya existía o el enlace caducó/lo "quemó" un escáner, te mostraremos un enlace de recuperación para enviar manualmente.
             </small>
         </div>
         
         <!-- Mensajes de éxito y error -->
-        <div class="col-12 mt-3" *ngIf="message || error">
+        <div class="col-12 mt-3" *ngIf="message || error || recoveryLink">
             <div *ngIf="message" class="alert alert-success" role="alert">
                 <strong>✅ Éxito:</strong> {{ message }}
             </div>
@@ -46,6 +47,54 @@
                     class="btn btn-sm btn-outline-secondary mt-2">
                     Mostrar opción alternativa
                 </button>
+            </div>
+            
+            <div *ngIf="recoveryLink" class="alert alert-warning" role="alert">
+                <strong>⚠️ Usuario ya existente o invitado:</strong> Puedes enviar este enlace de recuperación para que complete el acceso y, al ser su primera vez, vaya al formulario de datos.
+                <div class="input-group mt-2">
+                    <input type="text" class="form-control" [value]="recoveryLink" readonly>
+                    <button type="button" class="btn btn-outline-secondary" (click)="copyRecoveryLink()">
+                        Copiar enlace
+                    </button>
+                </div>
+                <small class="text-muted">El enlace dirige a <code>/reset-password?invitation=1</code> para activar el flujo de alta inicial.</small>
+            </div>
+        </div>
+        <div class="container-fluid mt-4" *ngIf="pending?.length">
+            <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Invitaciones pendientes <small class="text-muted">({{ filtered.length }}/{{ pending.length }})</small></h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <input class="form-control form-control-sm" style="max-width: 240px" placeholder="Filtrar por email" [(ngModel)]="filter" (ngModelChange)="applyFilter()">
+                    <button class="btn btn-outline-secondary btn-sm" (click)="filter=''; applyFilter()" [disabled]="!filter">Limpiar</button>
+                    <button class="btn btn-link" (click)="loadPending()">Actualizar</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Creado</th>
+                            <th style="width: 1%" class="text-nowrap">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let u of filtered">
+                            <td>{{ u.email }}</td>
+                            <td>{{ u.created_at | date:'short' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" (click)="resendFor(u.email)">
+                                        Reenviar
+                                    </button>
+                                    <button class="btn btn-outline-danger" (click)="cancelFor(u.email, u.id)">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

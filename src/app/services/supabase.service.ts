@@ -87,8 +87,13 @@ export class SupabaseService {
       if (!session) {
         throw new Error('No hay sesión activa');
       }
+      // Build redirectTo with onboarding flag so the app shows first-time form
+  const origin = window.location.origin;
+  const redirect = new URL('/auth-redirect.html', origin);
+  // Señal de onboarding
+  redirect.searchParams.set('type', 'invite');
       const { data, error } = await this.supabase.functions.invoke('invite-user', {
-        body: { email },
+        body: { email, redirectTo: redirect.toString() },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -104,7 +109,10 @@ export class SupabaseService {
       }
       return {
         data: data.data,
-        message: data.message || `Invitación enviada exitosamente a ${email}.`
+        message: data.message || `Invitación enviada exitosamente a ${email}.`,
+        status: data.status,
+        recovery_link: data.recovery_link || undefined,
+        note: data.note || undefined,
       };
     } catch (error: any) {
       let errorMessage = error.message;
@@ -118,6 +126,65 @@ export class SupabaseService {
       }
       throw new Error(`Error al enviar invitación: ${errorMessage}`);
     }
+  }
+
+  async resendRecovery(email: string): Promise<{ message: string; recovery_link?: string }> {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+  const origin = window.location.origin;
+  const redirect = new URL('/auth-redirect.html', origin);
+  redirect.searchParams.set('type', 'invite');
+    const { data, error } = await this.supabase.functions.invoke('invite-user', {
+      body: { action: 'resend', email, redirectTo: redirect.toString() },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) {
+      const msg = this.extractFunctionsError(error);
+      throw new Error(msg);
+    }
+    if (data?.error) throw new Error(data.error);
+    return { message: data?.message || 'Enlace generado', recovery_link: data?.recovery_link };
+  }
+
+  async cancelInvitation(email: string, authUserId?: string): Promise<{ message: string }> {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+    const { data, error } = await this.supabase.functions.invoke('invite-user', {
+      body: { action: 'cancel', email, auth_user_id: authUserId },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) {
+      const msg = this.extractFunctionsError(error);
+      throw new Error(msg);
+    }
+    if (data?.error) throw new Error(data.error);
+    return { message: data?.message || 'Invitación cancelada' };
+  }
+
+  async listPendingInvites(): Promise<Array<{ id: string; email: string; created_at?: string }>> {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+    const { data, error } = await this.supabase.functions.invoke('invite-user', {
+      body: { action: 'list_pending' },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) {
+      const msg = this.extractFunctionsError(error);
+      throw new Error(msg);
+    }
+    if (data?.error) throw new Error(data.error);
+    return (data?.pending || []) as Array<{ id: string; email: string; created_at?: string }>;
+  }
+
+  private extractFunctionsError(error: any): string {
+    try {
+      const raw = error?.context?.body;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return parsed?.error || parsed?.message || error.message || 'Error en función';
+      }
+    } catch {}
+    return error?.message || 'Error en función';
   }
 
   async createUserDirectly(email: string): Promise<any> {

@@ -88,7 +88,7 @@ export class AuthService {
   }
 
 resetPassword(email: string, redirectUrl?: string): Observable<any> {
-  const actualRedirectUrl = redirectUrl || `${window.location.origin}/assets/auth-redirect.html`;
+  const actualRedirectUrl = redirectUrl || `${window.location.origin}/auth-redirect.html`;
   
   return from(this.supabaseService.supabase.auth.resetPasswordForEmail(email, { 
     redirectTo: actualRedirectUrl 

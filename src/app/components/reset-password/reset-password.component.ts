@@ -482,7 +482,13 @@ export class ResetPasswordComponent implements OnInit {
     
     if (this.isBrowser) {
       setTimeout(() => {
-        this.router.navigate(['/calendario']);
+        if (this.isNewUserInvite) {
+          // Primer login: dirigir a /login para que inicie sesión ya con contraseña creada
+          this.router.navigate(['/login']);
+        } else {
+          // Recuperación: enviar al calendario directamente si ya está autenticado
+          this.router.navigate(['/calendario']);
+        }
       }, 3000);
     }
   }

@@ -36,13 +36,13 @@ function pickRedirectUrl(origin: string | null): string | undefined {
   const envRedirect = Deno.env.get("INVITE_REDIRECT_TO");
   if (envRedirect) return envRedirect;
   // Then prefer the caller origin if allowed
-  if (isAllowedOrigin(origin) && origin) return `${origin}/reset-password`;
+  if (isAllowedOrigin(origin) && origin) return `${origin}/auth-redirect.html`;
   // Fallback to first allowed origin
   const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  if (allowedOrigins.length > 0) return `${allowedOrigins[0]}/reset-password`;
+  if (allowedOrigins.length > 0) return `${allowedOrigins[0]}/auth-redirect.html`;
   return undefined;
 }
 
@@ -118,18 +118,234 @@ serve(async (req: Request) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const email = (body?.email || "").toString().trim();
-    const redirectTo = (body?.redirectTo || pickRedirectUrl(origin)) as string | undefined;
+  const body = await req.json().catch(() => ({}));
+  const action = (body?.action || 'invite').toString();
+  const email = (body?.email || "").toString().trim();
+  const authUserId = (body?.auth_user_id || "").toString().trim();
+  const redirectToRaw = (body?.redirectTo || pickRedirectUrl(origin)) as string | undefined;
 
-    if (!isValidEmail(email)) {
+  // Force redirect to auth-redirect.html and set type=invite so the SPA can capture tokens and detect onboarding
+  const redirectTo = (() => {
+    if (!redirectToRaw) return redirectToRaw;
+    try {
+      const u = new URL(redirectToRaw);
+      // Always enforce auth-redirect.html path
+      u.pathname = '/auth-redirect.html';
+      u.searchParams.set('type', 'invite');
+      return u.toString();
+    } catch {
+      return redirectToRaw;
+    }
+  })();
+
+    // Validate email only for actions that need it
+  const needsEmail = action === 'invite' || action === 'resend' || (action === 'cancel' && !authUserId);
+  if (needsEmail && !isValidEmail(email)) {
       return new Response(JSON.stringify({ error: "Valid email is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Try to invite; handle rate-limit and already-invited/exists cases
+    // Helper to generate a recovery link
+    const genRecovery = async () => {
+      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo },
+      } as any);
+      return { linkData, linkErr };
+    };
+
+  if (action === 'resend') {
+      const { linkData, linkErr } = await genRecovery();
+      return new Response(
+        JSON.stringify({
+          status: 'resent',
+          message: `Generado enlace de recuperación para ${email}.`,
+          recovery_link: linkData?.action_link || null,
+          note: linkErr ? `No se pudo generar recovery link: ${linkErr.message}` : undefined,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+  if (action === 'cancel') {
+      // Try to find an auth user by email and delete if not confirmed
+      try {
+    let targetEmail = email;
+    let targetAuthId: string | null = null;
+    let deletedAuth = false;
+        if (authUserId) {
+          const { data: userById, error: getErr } = await supabaseAdmin.auth.admin.getUserById(authUserId as any);
+          if (getErr) {
+            // If not found by id, fall back to email path
+            console.warn('getUserById error:', getErr.message);
+          } else if (userById?.user) {
+            const confirmed = !!userById.user.email_confirmed_at;
+            if (confirmed) {
+              return new Response(JSON.stringify({ status: 'blocked', code: 'already_confirmed', error: 'El usuario ya confirmó el email. Usa desactivar/gestión de usuarios.' }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+            targetAuthId = userById.user.id;
+            targetEmail = userById.user.email || targetEmail;
+          }
+        }
+
+        if (!authUserId) {
+          // Search users by paging; stop when found
+          let page = 1;
+          const perPage = 1000;
+          let found: any = null;
+          while (true) {
+            const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage } as any);
+            if (listErr) throw listErr;
+            const users = (list?.users || list || []) as any[];
+            if (!users.length) break;
+            found = users.find((u: any) => (u?.email || '').toLowerCase() === email.toLowerCase());
+            if (found) break;
+            if (users.length < perPage) break;
+            page += 1;
+          }
+
+          if (found) {
+            // Only allow cancel for PENDING (unconfirmed) invites
+            const confirmed = !!found.email_confirmed_at;
+            if (confirmed) {
+              return new Response(JSON.stringify({ status: 'blocked', code: 'already_confirmed', error: 'El usuario ya confirmó el email. Usa desactivar/gestión de usuarios.' }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+            targetAuthId = found.id;
+            targetEmail = found.email || targetEmail;
+          }
+        }
+
+        // If we have an auth user id, first remove referencing rows in public.users to avoid FK violations
+        if (targetAuthId) {
+          const { data: linkedUsers, error: linkErr } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', targetAuthId);
+          if (linkErr) {
+            console.warn('Error fetching linked users by auth_user_id:', linkErr.message);
+          }
+          const linkedIds = (linkedUsers || []).map((r: any) => r.id);
+          if (linkedIds.length > 0) {
+            const { error: delPkgsErr2 } = await supabaseAdmin
+              .from('user_packages')
+              .delete()
+              .in('user_id', linkedIds);
+            if (delPkgsErr2) {
+              console.warn('Error deleting packages for linked users:', delPkgsErr2.message);
+            }
+            const { error: delUsersErr2 } = await supabaseAdmin
+              .from('users')
+              .delete()
+              .in('id', linkedIds);
+            if (delUsersErr2) {
+              console.warn('Error deleting linked users:', delUsersErr2.message);
+            }
+          }
+        }
+
+        // Now try to delete the auth user (idempotent on not-found)
+        if (targetAuthId) {
+          const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(targetAuthId);
+          if (delErr) {
+            const msg = delErr.message || '';
+            if (!/not\s*found/i.test(msg)) {
+              return new Response(JSON.stringify({ status: 'error', code: 'delete_failed', error: msg || 'No se pudo cancelar la invitación' }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          } else {
+            deletedAuth = true;
+          }
+        }
+
+        // Clean orphaned public.users rows for that email (auth_user_id is null)
+        const { data: orphanRows, error: orphanErr } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('email', targetEmail)
+          .is('auth_user_id', null);
+        if (orphanErr) {
+          console.warn('Error fetching orphaned users for cleanup:', orphanErr.message);
+        }
+    const orphanIds = (orphanRows || []).map((r: any) => r.id);
+        if (orphanIds.length > 0) {
+          const { error: delPkgsErr } = await supabaseAdmin
+            .from('user_packages')
+            .delete()
+            .in('user_id', orphanIds);
+          if (delPkgsErr) {
+            console.warn('Error deleting orphan user packages:', delPkgsErr.message);
+          }
+          const { error: delUsersErr } = await supabaseAdmin
+            .from('users')
+            .delete()
+            .in('id', orphanIds);
+          if (delUsersErr) {
+            console.warn('Error deleting orphan users:', delUsersErr.message);
+          }
+        }
+    const cleaned = orphanIds.length;
+  return new Response(JSON.stringify({ status: 'cancelled', message: `Invitación pendiente para ${targetEmail || email} cancelada.`, deleted_auth_user: deletedAuth, cleaned_orphans: cleaned }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+    return new Response(JSON.stringify({ code: 'cancel_exception', error: err?.message || 'Error al cancelar invitación' }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    if (action === 'list_pending') {
+      try {
+        let page = 1;
+        const perPage = 1000;
+        const pending: any[] = [];
+        while (true) {
+          const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage } as any);
+          if (listErr) throw listErr;
+          const users = (list?.users || list || []) as any[];
+          if (!users.length) break;
+          for (const u of users) {
+            const confirmed = !!u.email_confirmed_at;
+            if (!confirmed) {
+              pending.push({
+                id: u.id,
+                email: u.email,
+                created_at: u.created_at,
+                confirmation_sent_at: (u as any).confirmation_sent_at || null,
+                last_sign_in_at: u.last_sign_in_at,
+                email_confirmed_at: u.email_confirmed_at,
+              });
+            }
+          }
+          if (users.length < perPage) break;
+          page += 1;
+        }
+        return new Response(JSON.stringify({ status: 'ok', count: pending.length, pending }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err?.message || 'Error al listar invitaciones pendientes' }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Default action: invite
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo,
     });
@@ -139,19 +355,41 @@ serve(async (req: Request) => {
       const status = (error as any)?.status || 400;
       const lower = `${msg}`.toLowerCase();
       if (status === 429 || lower.includes("rate limit")) {
+        // Even if invite is rate-limited, try to generate a recovery link
+        const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email,
+          options: { redirectTo },
+        } as any);
+
         return new Response(
           JSON.stringify({
             error: "RATE_LIMIT_EXCEEDED",
             message:
               `El usuario ${email} ya fue invitado recientemente. Espera unos minutos o revisa spam/correo no deseado.`,
             details: msg,
+            recovery_link: linkData?.action_link || null,
+            note: linkErr ? `No se pudo generar recovery link: ${linkErr.message}` : undefined,
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       if (lower.includes("already") || lower.includes("exists")) {
+        // Generate a recovery link so admins can send it manually
+        const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email,
+          options: { redirectTo },
+        } as any);
+
         return new Response(
-          JSON.stringify({ status: "already_exists", message: `El email ${email} ya fue invitado o existe.`, details: msg }),
+          JSON.stringify({
+            status: "already_exists",
+            message: `El email ${email} ya fue invitado o existe.`,
+            details: msg,
+            recovery_link: linkData?.action_link || null,
+            note: linkErr ? `No se pudo generar recovery link: ${linkErr.message}` : undefined,
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }

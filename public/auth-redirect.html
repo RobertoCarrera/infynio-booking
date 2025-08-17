@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Procesando autenticación</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    pre { text-align: left; background: #f5f5f5; padding: 10px; border-radius: 5px; max-width: 800px; margin: 20px auto; overflow: auto; }
+  </style>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';" />
+  <meta http-equiv="Referrer-Policy" content="no-referrer" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+</head>
+<body>
+  <h1>Procesando tu solicitud</h1>
+  <div class="loader"></div>
+  <p id="status">Analizando parámetros...</p>
+  <pre id="debug" style="display:none"></pre>
+
+  <script>
+    (function() {
+      const debug = false; // pon a true si necesitas ver detalles
+      const $debug = document.getElementById('debug');
+      const $status = document.getElementById('status');
+      function log(msg) { if (debug) { console.log(msg); $debug.style.display='block'; $debug.textContent += msg + '\n'; } }
+
+      const hash = new URLSearchParams(window.location.hash.substring(1));
+      const search = new URLSearchParams(window.location.search);
+      const accessToken = hash.get('access_token') || search.get('access_token');
+      const refreshToken = hash.get('refresh_token') || search.get('refresh_token');
+      const type = hash.get('type') || search.get('type');
+      const token = search.get('token');
+      const code = search.get('code');
+
+      // Construir destino final en la SPA
+      var base = (window.location.protocol + '//' + window.location.host + '/reset-password');
+      var params = new URLSearchParams();
+      if (accessToken) params.set('access_token', accessToken);
+      if (refreshToken) params.set('refresh_token', refreshToken);
+      if (type) params.set('type', type);
+      if (token) params.set('token', token);
+      if (code) params.set('code', code);
+
+      const target = params.toString() ? (base + '?' + params.toString()) : base;
+      log('Redirecting to: ' + target);
+      $status.textContent = 'Redirigiendo a la aplicación...';
+      window.location.replace(target);
+    })();
+  </script>
+</body>
+</html>
