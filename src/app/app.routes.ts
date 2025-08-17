@@ -3,6 +3,7 @@ import { AuthGuard } from './guards/auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import { NoAuthGuard } from './guards/no-auth.guard';
 import { RootRedirectGuard } from './guards/root-redirect.guard';
+import { ResetPasswordGuard } from './guards/reset-password.guard';
 
 export const routes: Routes = [
   {
@@ -21,7 +22,8 @@ export const routes: Routes = [
   },
   {
     path: 'reset-password',
-    loadComponent: () => import('./components/reset-password/reset-password.component').then(m => m.ResetPasswordComponent)
+  loadComponent: () => import('./components/reset-password/reset-password.component').then(m => m.ResetPasswordComponent),
+  canActivate: [ResetPasswordGuard]
   },
   {
     path: 'calendario',

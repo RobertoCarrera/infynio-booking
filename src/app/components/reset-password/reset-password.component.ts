@@ -213,13 +213,7 @@ export class ResetPasswordComponent implements OnInit {
               this.processingAuth = false;
               
               if (result.data?.session) {
-                this.showForm = true;
-                if (this.isNewUserInvite) {
-                  this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
-                } else {
-                  this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
-                }
-                this.statusMessageType = 'alert-success';
+                this.ensureOnboardingThenShowForm();
               } else {
                 this.statusMessage = 'No se pudo autenticar con el token proporcionado.';
                 this.statusMessageType = 'alert-warning';
@@ -268,13 +262,7 @@ export class ResetPasswordComponent implements OnInit {
                 this.processingAuth = false;
                 
                 if (result.data?.session) {
-                  this.showForm = true;
-                  if (this.isNewUserInvite) {
-                    this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
-                  } else {
-                    this.statusMessage = 'Sesión autenticada. Puedes cambiar tu contraseña.';
-                  }
-                  this.statusMessageType = 'alert-success';
+                  this.ensureOnboardingThenShowForm();
                 } else {
                   this.statusMessage = 'No se pudo autenticar con el token proporcionado.';
                   this.statusMessageType = 'alert-warning';
@@ -303,14 +291,7 @@ export class ResetPasswordComponent implements OnInit {
                   this.processingAuth = false;
                   
                   if (session) {
-                    // Si hay una sesión activa, mostrar el formulario
-                    this.showForm = true;
-                    if (this.isNewUserInvite) {
-                      this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
-                    } else {
-                      this.statusMessage = 'Puedes cambiar tu contraseña ahora';
-                    }
-                    this.statusMessageType = 'alert-success';
+                    this.ensureOnboardingThenShowForm();
                   } else {
                     // No hay sesión, intentar recuperar manualmente con el código
                     console.log('Intentando verificación manual del token:', params['code']);
@@ -320,13 +301,7 @@ export class ResetPasswordComponent implements OnInit {
                         this.processingAuth = false;
                         
                         if (result.data?.session) {
-                          this.showForm = true;
-                          if (this.isNewUserInvite) {
-                            this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
-                          } else {
-                            this.statusMessage = 'Puedes cambiar tu contraseña ahora';
-                          }
-                          this.statusMessageType = 'alert-success';
+                          this.ensureOnboardingThenShowForm();
                         } else {
                           this.statusMessage = 'No se pudo verificar el código. El enlace puede haber expirado.';
                           this.statusMessageType = 'alert-warning';
@@ -360,10 +335,7 @@ export class ResetPasswordComponent implements OnInit {
               this.processingAuth = false;
               
               if (session) {
-                // Si hay una sesión activa, mostrar el formulario
-                this.showForm = true;
-                this.statusMessage = 'Puedes cambiar tu contraseña ahora';
-                this.statusMessageType = 'alert-success';
+                this.ensureOnboardingThenShowForm();
               } else {
                 // No hay sesión, puede ser un problema con el token
                 this.statusMessage = 'No se pudo verificar tu sesión. El enlace puede haber expirado.';
@@ -393,6 +365,62 @@ export class ResetPasswordComponent implements OnInit {
     
     // Configurar validadores según el tipo de operación
     this.setupFormValidators();
+  }
+
+  private ensureOnboardingThenShowForm() {
+    // Determina si el usuario requiere onboarding consultando la base de datos
+    this.authService.currentUser$.subscribe(user => {
+      if (!user) {
+        // Sin usuario, muestra formulario en modo onboarding por seguridad
+        this.isNewUserInvite = true;
+        this.setupFormValidators();
+        this.showForm = true;
+        this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
+        this.statusMessageType = 'alert-success';
+        return;
+      }
+      // Intentar RPC needs_onboarding; si no existe, caer a comprobación directa de la tabla
+      this.databaseService.querySingle<any>(supabase => supabase.rpc('needs_onboarding', { uid: user.id })).subscribe({
+        next: (flag) => {
+          const needs = flag === true || flag === 'true';
+          this.isNewUserInvite = needs;
+          if (needs) this.setupFormValidators();
+          this.showForm = true;
+          this.statusMessage = needs
+            ? 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.'
+            : 'Sesión autenticada. Puedes cambiar tu contraseña.';
+          this.statusMessageType = 'alert-success';
+        },
+        error: () => {
+          // Fallback: comprobar si existe y está completo el perfil en public.users
+          this.databaseService.querySingle<any>(supabase =>
+            supabase.from('users').select('name,surname,telephone').eq('auth_user_id', user.id).single()
+          ).subscribe({
+            next: (row) => {
+              const nameOk = !!(row?.name && String(row.name).trim());
+              const surnameOk = !!(row?.surname && String(row.surname).trim());
+              const phoneOk = !!(row?.telephone && String(row.telephone).trim());
+              const needs = !(nameOk && surnameOk && phoneOk);
+              this.isNewUserInvite = needs;
+              if (needs) this.setupFormValidators();
+              this.showForm = true;
+              this.statusMessage = needs
+                ? 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.'
+                : 'Sesión autenticada. Puedes cambiar tu contraseña.';
+              this.statusMessageType = 'alert-success';
+            },
+            error: () => {
+              // Si no hay fila, forzar onboarding
+              this.isNewUserInvite = true;
+              this.setupFormValidators();
+              this.showForm = true;
+              this.statusMessage = 'Bienvenido! Completa tu perfil y crea tu contraseña para acceder al sistema.';
+              this.statusMessageType = 'alert-success';
+            }
+          });
+        }
+      });
+    });
   }
 
   onSubmit() {
