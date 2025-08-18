@@ -1,14 +1,16 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DatabaseService } from '../../services/database.service';
+import { SupabaseService } from '../../services/supabase.service';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   template: `
     <div class="container mt-5">
       <div class="row justify-content-center">
@@ -30,6 +32,15 @@ import { DatabaseService } from '../../services/database.service';
               
               <div *ngIf="statusMessage" class="alert" [ngClass]="statusMessageType">
                 {{ statusMessage }}
+                <div *ngIf="showRequestInviteCTA" class="mt-2">
+                  <div class="input-group mb-2" *ngIf="!knownEmailForRequest">
+                    <input type="email" class="form-control form-control-sm" [(ngModel)]="emailForRequest" placeholder="Tu email"/>
+                  </div>
+                  <button class="btn btn-outline-warning btn-sm" (click)="requestNewInvite()" [disabled]="requestingInvite">
+                    {{ requestingInvite ? 'Enviando solicitud...' : 'Pedir un nuevo enlace de invitación' }}
+                  </button>
+                  <small class="text-muted d-block mt-1">Avisaremos al administrador para que te lo reenvíe.</small>
+                </div>
               </div>
               
               <form *ngIf="showForm" [formGroup]="resetForm" (ngSubmit)="onSubmit()">
@@ -152,6 +163,10 @@ export class ResetPasswordComponent implements OnInit {
   showPassword = false;
   showConfirmPassword = false;
   isNewUserInvite = false;
+  showRequestInviteCTA = false;
+  requestingInvite = false;
+  knownEmailForRequest = false;
+  emailForRequest = '';
   
   constructor(
     private fb: FormBuilder,
@@ -159,6 +174,7 @@ export class ResetPasswordComponent implements OnInit {
     private router: Router,
     private authService: AuthService,
     private databaseService: DatabaseService,
+  private supabaseService: SupabaseService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     console.log('ResetPasswordComponent inicializado');
@@ -222,8 +238,9 @@ export class ResetPasswordComponent implements OnInit {
             error: (err) => {
               console.error('Error al establecer sesión con hash:', err);
               this.processingAuth = false;
-              this.statusMessage = 'Error al procesar el token. Por favor solicita un nuevo enlace.';
+              this.statusMessage = 'Error al procesar el token. Puede haber caducado. ¿Quieres pedir un nuevo enlace de invitación?';
               this.statusMessageType = 'alert-danger';
+              this.showRequestInviteCTA = true;
             }
           });
           
@@ -237,9 +254,10 @@ export class ResetPasswordComponent implements OnInit {
         
         // Verificar si hay un error
         if (params['error']) {
-          this.statusMessage = `Error: ${params['error_description'] || params['error']}`;
+          this.statusMessage = `El enlace no es válido o ya se usó. ¿Quieres pedir un nuevo enlace de invitación?`;
           this.statusMessageType = 'alert-danger';
           this.processingAuth = false;
+          this.showRequestInviteCTA = true;
           return;
         }
         
@@ -271,8 +289,9 @@ export class ResetPasswordComponent implements OnInit {
               error: (err) => {
                 console.error('Error al establecer sesión con params:', err);
                 this.processingAuth = false;
-                this.statusMessage = 'Error al procesar el token. Por favor solicita un nuevo enlace.';
+                this.statusMessage = 'Error al procesar el token. Puede haber caducado. ¿Quieres pedir un nuevo enlace de invitación?';
                 this.statusMessageType = 'alert-danger';
+                this.showRequestInviteCTA = true;
               }
             });
             
@@ -303,15 +322,17 @@ export class ResetPasswordComponent implements OnInit {
                         if (result.data?.session) {
                           this.ensureOnboardingThenShowForm();
                         } else {
-                          this.statusMessage = 'No se pudo verificar el código. El enlace puede haber expirado.';
+                          this.statusMessage = 'No se pudo verificar el código. Es posible que haya expirado. ¿Quieres pedir un nuevo enlace de invitación?';
                           this.statusMessageType = 'alert-warning';
+                          this.showRequestInviteCTA = true;
                         }
                       },
                       error: (err: any) => {
                         console.error('Error al verificar código:', err);
                         this.processingAuth = false;
-                        this.statusMessage = 'El enlace ha expirado o no es válido. Por favor solicita uno nuevo.';
+                        this.statusMessage = 'El enlace ha expirado o no es válido. ¿Quieres pedir un nuevo enlace de invitación?';
                         this.statusMessageType = 'alert-danger';
+                        this.showRequestInviteCTA = true;
                       }
                     });
                   }
@@ -319,8 +340,9 @@ export class ResetPasswordComponent implements OnInit {
                 error: (err) => {
                   console.error('Error al verificar sesión:', err);
                   this.processingAuth = false;
-                  this.statusMessage = 'Error al verificar tu sesión. Por favor solicita un nuevo enlace.';
+                  this.statusMessage = 'Error al verificar tu sesión. ¿Quieres pedir un nuevo enlace de invitación?';
                   this.statusMessageType = 'alert-danger';
+                  this.showRequestInviteCTA = true;
                 }
               });
             }, 3000); // Aumentado a 3 segundos para dar más tiempo
@@ -338,22 +360,25 @@ export class ResetPasswordComponent implements OnInit {
                 this.ensureOnboardingThenShowForm();
               } else {
                 // No hay sesión, puede ser un problema con el token
-                this.statusMessage = 'No se pudo verificar tu sesión. El enlace puede haber expirado.';
+                this.statusMessage = 'No se pudo verificar tu sesión. El enlace puede haber expirado. ¿Quieres pedir un nuevo enlace de invitación?';
                 this.statusMessageType = 'alert-warning';
+                this.showRequestInviteCTA = true;
               }
             },
             error: (err) => {
               console.error('Error al verificar sesión:', err);
               this.processingAuth = false;
-              this.statusMessage = 'Error al verificar tu sesión. Por favor solicita un nuevo enlace.';
+              this.statusMessage = 'Error al verificar tu sesión. ¿Quieres pedir un nuevo enlace de invitación?';
               this.statusMessageType = 'alert-danger';
+              this.showRequestInviteCTA = true;
             }
           });
         } else {
           // No hay token ni error, posiblemente acceso directo a la ruta
           this.processingAuth = false;
-          this.statusMessage = 'No se encontró un token válido. Por favor solicita un enlace de recuperación.';
+          this.statusMessage = 'Este enlace ya fue usado o ha caducado. ¿Quieres pedir un nuevo enlace de invitación?';
           this.statusMessageType = 'alert-warning';
+          this.showRequestInviteCTA = true;
         }
       });
     } else {
@@ -365,6 +390,46 @@ export class ResetPasswordComponent implements OnInit {
     
     // Configurar validadores según el tipo de operación
     this.setupFormValidators();
+  }
+
+  requestNewInvite() {
+    if (this.requestingInvite) return;
+    this.requestingInvite = true;
+    // Intentar deducir el email desde el parámetro o desde el usuario actual si existe
+    const searchParams = new URLSearchParams(window.location.search);
+    const emailFromUrl = searchParams.get('email');
+    const proceed = (detectedEmail: string | null) => {
+      const email = detectedEmail || (this.emailForRequest || '').trim();
+      const valid = !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!valid) {
+        this.requestingInvite = false;
+        this.statusMessage = 'Introduce tu email para avisar al administrador.';
+        this.statusMessageType = 'alert-warning';
+        return;
+      }
+      this.supabaseService.requestNewInvite(email)
+        .then(() => {
+          this.requestingInvite = false;
+          this.showRequestInviteCTA = false;
+          this.statusMessage = 'Solicitud enviada. Te avisaremos en cuanto el admin reenvíe el enlace.';
+          this.statusMessageType = 'alert-success';
+        })
+        .catch((err: any) => {
+          this.requestingInvite = false;
+          this.statusMessage = err?.message || 'No se pudo registrar la solicitud';
+          this.statusMessageType = 'alert-danger';
+        });
+    };
+    this.authService.currentUser$.subscribe(user => {
+      if (user?.email) {
+        this.knownEmailForRequest = true;
+        proceed(user.email);
+      } else {
+        this.knownEmailForRequest = !!emailFromUrl;
+        if (emailFromUrl) this.emailForRequest = emailFromUrl;
+        proceed(emailFromUrl);
+      }
+    });
   }
 
   private ensureOnboardingThenShowForm() {

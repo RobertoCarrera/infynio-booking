@@ -176,6 +176,45 @@ export class SupabaseService {
     return (data?.pending || []) as Array<{ id: string; email: string; created_at?: string }>;
   }
 
+  // --- Invite re-request flow ---
+  async requestNewInvite(email: string): Promise<{ status: string; message: string }> {
+    const { data, error } = await this.supabase.functions.invoke('invite-request', {
+      body: { action: 'request', email },
+    });
+    if (error || data?.error) {
+      const msg = this.extractFunctionsError(error || { message: data?.error });
+      throw new Error(msg || 'No se pudo registrar la solicitud');
+    }
+    return { status: data?.status || 'ok', message: data?.message || 'Solicitud registrada' };
+  }
+
+  async listInviteRequests(): Promise<Array<{ email: string; last_requested_at: string; request_count: number }>> {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+    const { data, error } = await this.supabase.functions.invoke('invite-request', {
+      body: { action: 'list' },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error || data?.error) {
+      const msg = this.extractFunctionsError(error || { message: data?.error });
+      throw new Error(msg || 'No se pudo obtener solicitudes');
+    }
+    return (data?.requests || []) as Array<{ email: string; last_requested_at: string; request_count: number }>;
+  }
+
+  async clearInviteRequest(email: string): Promise<void> {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+    const { data, error } = await this.supabase.functions.invoke('invite-request', {
+      body: { action: 'clear', email },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error || data?.error) {
+      const msg = this.extractFunctionsError(error || { message: data?.error });
+      throw new Error(msg || 'No se pudo limpiar la solicitud');
+    }
+  }
+
   private extractFunctionsError(error: any): string {
     try {
       const raw = error?.context?.body;

@@ -19,17 +19,31 @@ export class InviteUserComponent implements OnInit {
   filtered: Array<{ id: string; email: string; created_at?: string }> = [];
   filter = '';
   private lastInvitedEmail: string | null = null;
+  // invite requests alerts
+  requests: Array<{ email: string; last_requested_at: string; request_count: number }> = [];
 
   constructor(private supabase: SupabaseService) {}
 
   ngOnInit(): void {
     this.loadPending();
+    this.loadInviteRequests();
   }
 
   loadPending() {
     this.supabase.listPendingInvites()
       .then(list => { this.pending = list; this.applyFilter(); })
       .catch(err => console.error('Error cargando invitaciones pendientes:', err));
+  }
+
+  loadInviteRequests() {
+    this.supabase.listInviteRequests()
+      .then(reqs => this.requests = reqs)
+      .catch(() => {});
+  }
+
+  reloadAll() {
+    this.loadPending();
+    this.loadInviteRequests();
   }
 
   applyFilter() {
@@ -97,6 +111,8 @@ export class InviteUserComponent implements OnInit {
     this.email = email;
     this.resend();
     this.email = prev;
+  // clear alert after action
+  this.clearRequest(email);
   }
 
   cancel() {
@@ -134,7 +150,7 @@ export class InviteUserComponent implements OnInit {
       .catch((err) => {
         this.error = err.message || 'Error al cancelar la invitación.';
       })
-      .finally(() => this.loadPending());
+  .finally(() => { this.loadPending(); this.clearRequest(email); });
   }
 
   copyRecoveryLink() {
@@ -173,5 +189,19 @@ export class InviteUserComponent implements OnInit {
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  hasRequest(email: string): boolean {
+    const e = (email || '').toLowerCase();
+    return this.requests.some(r => (r.email || '').toLowerCase() === e);
+  }
+
+  requestInfo(email: string) {
+    const e = (email || '').toLowerCase();
+    return this.requests.find(r => (r.email || '').toLowerCase() === e);
+  }
+
+  clearRequest(email: string) {
+    this.supabase.clearInviteRequest(email).then(() => this.loadInviteRequests()).catch(() => {});
   }
 }

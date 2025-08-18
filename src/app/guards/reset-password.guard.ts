@@ -18,8 +18,8 @@ export class ResetPasswordGuard implements CanActivate {
       const hash = typeof window !== 'undefined' ? (window.location.hash || '') : '';
       const hParams = hash && hash.startsWith('#') ? new URLSearchParams(hash.substring(1)) : new URLSearchParams();
       const hasAuthParams = !!(
-        params.get('type') || params.get('token') || params.get('code') || params.get('access_token') ||
-        hParams.get('type') || hParams.get('token') || hParams.get('code') || hParams.get('access_token')
+        params.get('type') || params.get('token') || params.get('code') || params.get('access_token') || params.get('error') ||
+        hParams.get('type') || hParams.get('token') || hParams.get('code') || hParams.get('access_token') || hParams.get('error')
       );
       if (hasAuthParams) return of(true);
     } catch {}

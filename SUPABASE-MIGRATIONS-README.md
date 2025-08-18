@@ -72,6 +72,25 @@ Además, actualiza/crea también:
 Variables adicionales opcionales:
 - `INVITE_REDIRECT_TO=https://tudominio.com/reset-password` (prioridad sobre el `origin`).
 
+### Nuevo: soporte UX para re-solicitar invitación
+
+Para permitir que un usuario que hace clic por segunda vez en su invitación (token consumido) pueda pedir un nuevo enlace y que el admin lo vea destacado:
+
+1) Ejecuta `database/invite_requests.sql` en tu base de datos. Crea:
+  - Tabla `public.invite_requests(email pk, last_requested_at, request_count)`
+  - RPC `public.increment_invite_request(req_email text)` SECURITY DEFINER
+  - RLS habilitado (sin políticas para anon – se escribe desde Edge Function con Service Role)
+
+2) Despliega la Edge Function `supabase/functions/invite-request`.
+  - Acciones:
+    - `{ action: 'request', email }` (sin auth) registra la solicitud
+    - `{ action: 'list' }` (admin) lista solicitudes
+    - `{ action: 'clear', email }` (admin) borra aviso
+
+3) Frontend:
+  - `ResetPasswordComponent` muestra un CTA cuando falta/expiró el token: “Pedir nuevo enlace de invitación”, con campo email si es desconocido.
+  - Admin > Usuarios muestra una insignia amarilla junto al usuario pendiente que ha solicitado un nuevo enlace, con acción para limpiar el aviso.
+
 ## 3) Notas de frontend
 
 - El servicio `ClassSessionsService` ya utiliza las RPCs anteriores.
