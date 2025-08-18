@@ -4,15 +4,16 @@
     [currentRangeLabel]="currentRangeLabel"
   [currentView]="currentView"
   [isMobile]="isMobile"
-    (prev)="onPrev()"
-    (next)="onNext()"
-    (today)="goToday()"
-    (changeView)="setView($event)"
-    (toggleFilters)="toggleFiltersPanel()"
+  [filtersCollapsed]="desktopFiltersCollapsed"
+  (prev)="onPrev()"
+  (next)="onNext()"
+  (today)="goToday()"
+  (changeView)="setView($event)"
+  (toggleFilters)="onToolbarToggleFilters()"
   ></app-calendar-toolbar>
 
   <!-- Filtros de tipos de clase (desktop) -->
-  <div class="class-filters mb-4 d-none d-lg-block" *ngIf="availableClassTypes.length > 0">
+  <div class="class-filters mb-4 d-none d-lg-block" *ngIf="!desktopFiltersHidden && availableClassTypes.length > 0" [class.collapsed]="desktopFiltersCollapsed">
     <div class="filter-items">
       <button
         *ngFor="let classType of availableClassTypes"
@@ -76,6 +77,7 @@
 
   <!-- Calendario -->
   <div class="calendar-content calendar-content-container" #calendarContent>
+    <div class="transition-mask" aria-hidden="true"></div>
     <full-calendar #fullCal [options]="calendarOptions"></full-calendar>
   </div>
 </div>

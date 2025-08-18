@@ -64,6 +64,10 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   currentView: 'day' | 'week' | 'month' = 'week';
   private keyboardHandlerBound = false;
   mobileFiltersOpen = false;
+  // Desktop: allow collapsing the filters column to give more space to the calendar
+  desktopFiltersCollapsed = false;
+  // After the collapse transition completes we set this to true to fully hide from layout
+  desktopFiltersHidden = false;
   private mobileFiltersTimeout: any = null;
 
   constructor(
@@ -201,25 +205,58 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   // Toolbar exposed handlers
   onPrev() {
     try {
-      if (this.calendarApi && typeof this.calendarApi.prev === 'function') return this.calendarApi.prev();
+      // animate as a backward navigation
+      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      if (container) container.classList.add('transition-active');
+      // use calendar API where available but orchestrate via triggerViewTransition for smoothness
+      if (this.calendarApi && typeof this.calendarApi.prev === 'function') {
+        // determine target view: prev keeps same view, so just call prev and let onDatesSet handle the in animation
+        this.calendarApi.prev();
+        setTimeout(() => { try { if (container) container.classList.remove('transition-active'); } catch {} }, 420);
+        return;
+      }
       const fallback = (this.calendarOptions as any).calendarApi;
-      if (fallback && typeof fallback.prev === 'function') return fallback.prev();
+      if (fallback && typeof fallback.prev === 'function') {
+        fallback.prev();
+        setTimeout(() => { try { if (container) container.classList.remove('transition-active'); } catch {} }, 420);
+        return;
+      }
     } catch {}
   }
 
   onNext() {
     try {
-      if (this.calendarApi && typeof this.calendarApi.next === 'function') return this.calendarApi.next();
+      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      if (container) container.classList.add('transition-active');
+      if (this.calendarApi && typeof this.calendarApi.next === 'function') {
+        this.calendarApi.next();
+        setTimeout(() => { try { if (container) container.classList.remove('transition-active'); } catch {} }, 420);
+        return;
+      }
       const fallback = (this.calendarOptions as any).calendarApi;
-      if (fallback && typeof fallback.next === 'function') return fallback.next();
+      if (fallback && typeof fallback.next === 'function') {
+        fallback.next();
+        setTimeout(() => { try { if (container) container.classList.remove('transition-active'); } catch {} }, 420);
+        return;
+      }
     } catch {}
   }
 
   goToday() {
     try {
-      if (this.calendarApi && typeof this.calendarApi.today === 'function') return this.calendarApi.today();
+      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      if (container) container.classList.add('transition-active');
+      if (this.calendarApi && typeof this.calendarApi.today === 'function') {
+        this.calendarApi.today();
+        setTimeout(() => { try { if (container) container.classList.remove('transition-active'); } catch {} }, 420);
+        return;
+      }
       const fallback = (this.calendarOptions as any).calendarApi;
-      if (fallback && typeof fallback.today === 'function') return fallback.today();
+      if (fallback && typeof fallback.today === 'function') {
+        fallback.today();
+        setTimeout(() => { try { if (container) container.classList.remove('transition-active'); } catch {} }, 420);
+        return;
+      }
     } catch {}
   }
 
@@ -264,6 +301,33 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   toggleFiltersPanel() {
     this.setMobileFiltersOpen(!this.mobileFiltersOpen);
+  }
+
+  // Handler called from toolbar; toggles mobile overlay on mobile, collapses desktop filters on desktop
+  onToolbarToggleFilters() {
+    try {
+      if (this.isMobile) {
+        this.toggleFiltersPanel();
+        return;
+      }
+      this.desktopFiltersCollapsed = !this.desktopFiltersCollapsed;
+      // if we collapsed, after transition hide from layout; if we expanded, unhide immediately then let CSS animate
+      if (this.desktopFiltersCollapsed) {
+        // wait for CSS transition (match 240ms) then hide
+        setTimeout(() => { this.desktopFiltersHidden = true; try { this.cdr.markForCheck(); } catch {} }, 260);
+      } else {
+        this.desktopFiltersHidden = false;
+        try { this.cdr.markForCheck(); } catch {}
+      }
+      // pulse the calendar mask briefly to give visual feedback
+      try {
+        const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+        if (container) {
+          container.classList.add('transition-active');
+          setTimeout(() => { try { container.classList.remove('transition-active'); } catch {} }, 240);
+        }
+      } catch (e) {}
+    } catch (e) {}
   }
 
   setMobileFiltersOpen(open: boolean) {
@@ -413,7 +477,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       const e = new Date(arg.end);
       const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' } as any;
       const label = `${s.toLocaleDateString('es-ES', opts)} - ${new Date(e.getTime() - 1).toLocaleDateString('es-ES', opts)}`;
-      this.currentRangeLabel = label;
+      // assign in next tick to avoid ExpressionChangedAfterItHasBeenCheckedError
+      setTimeout(() => { try { this.currentRangeLabel = label; } catch {} }, 0);
     } catch {}
     // if our triggerViewTransition added an out-class to animate, switch to 'in' so the incoming view fades/slides in
     try {

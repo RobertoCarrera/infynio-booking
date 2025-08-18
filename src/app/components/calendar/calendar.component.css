@@ -565,7 +565,7 @@
 
 .calendar-content-container .fc-view {
   /* ensure inner views can be animated */
-  transition: transform 200ms ease, opacity 200ms ease;
+  transition: transform 220ms cubic-bezier(.2,.9,.3,1), opacity 200ms ease;
 }
 
 /* Outgoing view slides left and fades */
@@ -584,7 +584,27 @@
 .calendar-content-container.view-in .fc-view {
   transform: translateX(0);
   opacity: 1;
-  transition: transform 260ms cubic-bezier(.2,.9,.3,1), opacity 220ms ease;
+  transition: transform 300ms cubic-bezier(.16,.84,.24,1), opacity 240ms ease;
+}
+
+/* Transition mask: subtle darken + slight blur during view switch */
+.calendar-content-container .transition-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(6,10,15,0);
+  backdrop-filter: blur(0px);
+  transition: background 240ms ease, backdrop-filter 240ms ease;
+  z-index: 5;
+}
+.calendar-content-container.transition-active .transition-mask {
+  background: rgba(6,10,15,0.06);
+  backdrop-filter: blur(2px);
+}
+
+/* Smooth color change for the type badge and modal accent */
+.custom-type-badge {
+  transition: background-color 240ms ease, color 180ms ease;
 }
 
 @media (min-width: 992px) {
