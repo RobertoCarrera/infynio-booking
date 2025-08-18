@@ -71,7 +71,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   desktopFiltersCollapsed = false;
   // After the collapse transition completes we set this to true to fully hide from layout
   desktopFiltersHidden = false;
+  // Desktop offcanvas open state
+  desktopFiltersOpen = false;
   private mobileFiltersTimeout: any = null;
+  // Observers for dynamic UI elements that affect available height
+  private _resizeObservers: ResizeObserver[] = [];
+  private _boundTransitionHandlers: Array<{ el: Element; handler: (e: Event)=>void }>=[];
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -139,6 +144,38 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         body.style.overflow = 'hidden';
       }
     } catch (e) {}
+
+    // try to adjust calendar height a few times to handle FullCalendar async rendering
+    try {
+      setTimeout(() => { try { this.adjustCalendarHeight(); } catch {} }, 60);
+      setTimeout(() => { try { this.adjustCalendarHeight(); } catch {} }, 220);
+      setTimeout(() => { try { this.adjustCalendarHeight(); } catch {} }, 520);
+    } catch {}
+
+    // Watch top menu, toolbar and bottom nav for size changes to recompute height
+    try {
+      if (typeof window !== 'undefined' && 'ResizeObserver' in window) {
+        const ro = new ResizeObserver(() => { try { this.adjustCalendarHeight(); } catch {} });
+        const menu = document.querySelector('.menu-navbar');
+        const bottom = document.querySelector('.mobile-bottom-nav');
+        const toolbar = document.querySelector('.calendar-toolbar');
+        if (menu) ro.observe(menu);
+        if (bottom) ro.observe(bottom);
+        if (toolbar) ro.observe(toolbar);
+        this._resizeObservers.push(ro);
+      }
+      // Also listen to transition end for overlays that may slide in/out
+      const watchTransition = (selector: string) => {
+        const el = document.querySelector(selector);
+        if (!el) return;
+        const handler = () => { try { this.adjustCalendarHeight(); } catch {} };
+        el.addEventListener('transitionend', handler);
+        this._boundTransitionHandlers.push({ el, handler });
+      };
+      watchTransition('.mobile-filters-panel');
+      watchTransition('.filters-backdrop');
+      watchTransition('.offcanvas');
+    } catch {}
   }
 
   // Devuelve una versión corta del nombre para móviles: 3 letras por palabra
@@ -180,6 +217,13 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.keyboardHandlerBound = false;
     }
     try { if (typeof window !== 'undefined') window.removeEventListener('resize', this.onResizeBound as any); } catch {}
+    // Disconnect observers and transition handlers
+    try {
+      for (const ro of this._resizeObservers) { try { ro.disconnect(); } catch {} }
+      this._resizeObservers = [];
+      for (const b of this._boundTransitionHandlers) { try { b.el.removeEventListener('transitionend', b.handler); } catch {} }
+      this._boundTransitionHandlers = [];
+    } catch {}
     // Restore document overflow
     try {
       if (typeof document !== 'undefined') {
@@ -198,6 +242,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isMobile = (typeof window !== 'undefined') && window.innerWidth < 992;
       // if we transitioned to desktop, close mobile panel
       if (wasMobile && !this.isMobile) this.setMobileFiltersOpen(false);
+  // adjust calendar internal height on resize
+  try { this.adjustCalendarHeight(); } catch {}
     } catch {}
   }
 
@@ -334,15 +380,16 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         this.toggleFiltersPanel();
         return;
       }
-      this.desktopFiltersCollapsed = !this.desktopFiltersCollapsed;
-      // if we collapsed, after transition hide from layout; if we expanded, unhide immediately then let CSS animate
-      if (this.desktopFiltersCollapsed) {
-        // wait for CSS transition (match 240ms) then hide
-        setTimeout(() => { this.desktopFiltersHidden = true; try { this.cdr.markForCheck(); } catch {} }, 260);
-      } else {
-        this.desktopFiltersHidden = false;
-        try { this.cdr.markForCheck(); } catch {}
-      }
+      // On desktop open the offcanvas drawer from the left
+      this.desktopFiltersOpen = !this.desktopFiltersOpen;
+      // apply a small shrink class briefly to help visual fit testing
+      try {
+        const el = this.calendarContentRef?.nativeElement as HTMLElement | null;
+        if (el) {
+          el.classList.add('calendar-shrink');
+          setTimeout(() => { try { el.classList.remove('calendar-shrink'); } catch {} }, 500);
+        }
+      } catch {}
       // pulse the calendar mask briefly to give visual feedback
       try {
         const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
@@ -351,6 +398,13 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           setTimeout(() => { try { container.classList.remove('transition-active'); } catch {} }, 240);
         }
       } catch (e) {}
+      // after layout change, recalculate calendar height multiple times to avoid race
+      try {
+        const run = () => { try { this.adjustCalendarHeight(); } catch {} };
+        setTimeout(run, 120);
+        setTimeout(run, 320);
+        setTimeout(run, 720);
+      } catch {}
     } catch (e) {}
   }
 
@@ -520,6 +574,144 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         }, 300);
       }
     } catch (e) {}
+    // Ensure the internal FullCalendar scroller height matches available space
+    try { setTimeout(() => { this.adjustCalendarHeight(); }, 50); } catch {}
+  }
+
+  // Adjust FullCalendar's contentHeight to match the available height inside our layout.
+  // This prevents the last time slot from being clipped when side filters are visible
+  // and avoids extra bottom space when filters are hidden.
+  private adjustCalendarHeight() {
+    try {
+      // resolve calendar API if not already
+      if (!this.calendarApi && this.fullCalRef && this.fullCalRef.nativeElement && typeof this.fullCalRef.nativeElement.getApi === 'function') {
+        try { this.calendarApi = this.fullCalRef.nativeElement.getApi(); } catch {}
+      }
+      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      if (!container) return;
+      // Instead of trusting a 100vh-like container height, compute the usable
+      // vertical space from the viewport. This handles cases where fixed or
+      // absolutely positioned navs/panels overlap the calendar without affecting
+      // its clientHeight. Start from viewport bottom and subtract the distance
+      // from the top of the calendar to the viewport top.
+  let available = 0;
+  // padding to apply at the bottom of FullCalendar internal scrollers so
+  // the last time slot appears 'raised' above overlapping fixed elements
+  // (e.g. bottom nav). Calculated from overlaps + safety margin below.
+  let padBottom = 0;
+      try {
+        const viewportH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : (document.documentElement.clientHeight || 0);
+        const crect = container.getBoundingClientRect();
+        // base available height is viewport height minus the top offset of the calendar
+        available = Math.floor(Math.max(0, viewportH - (crect.top || 0)));
+
+        // subtract overlaps from other visible, positioned elements (menus, bottom navs,
+        // info panels) that may sit above the calendar area even if they don't affect
+        // the container's height. We look for visible elements with position fixed/sticky/absolute
+        // and subtract their vertical intersection with the calendar area.
+        try {
+          const elems = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
+          let totalOverlap = 0;
+          const containerBottom = crect.top + available;
+          for (const el of elems) {
+            try {
+              if (!el || el === container || container.contains(el)) continue;
+              if (!(el.offsetWidth || el.offsetHeight)) continue; // not visible
+              const style = (typeof window !== 'undefined') ? window.getComputedStyle(el) : null;
+              if (!style) continue;
+              const pos = style.position;
+              if (pos !== 'fixed' && pos !== 'sticky' && pos !== 'absolute') continue;
+              // We'll handle the mobile bottom nav explicitly below to avoid double counting
+              if (el.classList && el.classList.contains('mobile-bottom-nav')) continue;
+              const er = el.getBoundingClientRect();
+              // compute vertical intersection between element and the calendar visible area
+              const overlap = Math.max(0, Math.min(er.bottom, containerBottom) - Math.max(er.top, crect.top));
+              if (overlap > 0) {
+                totalOverlap += overlap;
+              }
+            } catch {}
+          }
+          if (totalOverlap > 0) {
+            // subtract overlap from available height so FC's contentHeight fits
+            available = Math.max(0, Math.floor(available - totalOverlap));
+            // compute a bottom padding so content appears from above overlapping items
+            padBottom = Math.ceil(totalOverlap + 8); // 8px safety margin
+            // clamp to reasonable maximum to avoid absurd padding
+            if (padBottom > 300) padBottom = 300;
+          }
+          // Explicitly account for the mobile bottom nav height as bottom padding and height reduction
+          try {
+            const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
+            if (bottomNav) {
+              const br = bottomNav.getBoundingClientRect();
+              const overlapBottom = Math.max(0, Math.min(br.bottom, containerBottom) - Math.max(br.top, crect.top));
+              if (overlapBottom > 0) {
+                available = Math.max(0, Math.floor(available - overlapBottom));
+                const desiredPad = Math.ceil(overlapBottom + 8);
+                padBottom = Math.max(padBottom, desiredPad);
+                if (padBottom > 300) padBottom = 300;
+              }
+            }
+          } catch {}
+        } catch {}
+
+  // Note: do not subtract toolbar or top menu heights again here.
+  // They are already accounted for in `crect.top` baseline and overlap detection above.
+      } catch {}
+      if (!this.calendarApi || typeof this.calendarApi.setOption !== 'function') {
+        return;
+      }
+      // If the computed height is reasonable, apply it as contentHeight so FullCalendar
+      // sets its internal scroller properly. Avoid updating when value is zero.
+  if (available > 100) {
+        try {
+          this.calendarApi.setOption('contentHeight', available);
+          // ask FC to re-measure
+          if (typeof this.calendarApi.updateSize === 'function') this.calendarApi.updateSize();
+          // Apply the computed bottom padding to FullCalendar internal scrollers so
+          // the last slot appears raised above overlapping fixed elements.
+          // If padBottom is zero we still clear any inline padding set previously.
+          try {
+            const host = this.fullCalRef?.nativeElement as HTMLElement | null;
+            if (host) {
+              const targets = host.querySelectorAll('.fc-scroller.fc-scroller-liquid-absolute, .fc-timegrid-col-bg');
+              targets.forEach((el: Element) => {
+                try {
+                  const he = el as HTMLElement;
+                  if (padBottom && padBottom > 0) {
+                    he.style.paddingBottom = padBottom + 'px';
+                  } else {
+                    he.style.paddingBottom = '0px';
+                  }
+                  // cleanup any stored marker
+                  if (he.dataset && he.dataset['__origPaddingBottomInline']) {
+                    delete he.dataset['__origPaddingBottomInline'];
+                  }
+                } catch {}
+              });
+            }
+          } catch {}
+          // After FC has updated sizes, ensure its internal scroller is scrolled to bottom
+          try {
+            setTimeout(() => {
+              try {
+                const host = this.fullCalRef?.nativeElement as HTMLElement | null;
+                if (!host) return;
+                const scroller = host.querySelector('.fc-scroller, .fc-scroller-liquid-absolute') as HTMLElement | null;
+                if (scroller) {
+                  // if content taller than container, scroll to bottom to reveal last slot
+                  if (scroller.scrollHeight > scroller.clientHeight + 2) {
+                    scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+                  }
+                }
+              } catch {}
+            }, 80);
+          } catch {}
+        } catch (e) { /* ignore failures */ }
+      }
+    } catch (e) {
+      // swallow errors; non-critical
+    }
   }
 
   private clipToValidRange(start: string, end: string): { start: string; end: string } {

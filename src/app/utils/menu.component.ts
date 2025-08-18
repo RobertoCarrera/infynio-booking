@@ -129,10 +129,13 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private syncMobileNavPadding() {
     try {
-      const mobileNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
-      const main = document.getElementById('mainContent') as HTMLElement | null;
+  const mobileNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
+  const main = document.getElementById('mainContent') as HTMLElement | null;
+  // If the calendar is active on the page, let the calendar component
+  // manage bottom padding/height itself to avoid double adjustments
+  const hasCalendar = !!document.querySelector('app-calendar, .fc');
       if (!main) return;
-      if (mobileNav && window.innerWidth < 992) {
+  if (mobileNav && window.innerWidth < 992 && !hasCalendar) {
         const height = mobileNav.offsetHeight + 12; // small extra gap
 
         // Prefer applying padding to scrollable elements inside main so we don't

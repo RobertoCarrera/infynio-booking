@@ -9,7 +9,8 @@
     "test": "ng test",
     "build:ssr": "ng build && ng run mars-studio:server",
     "serve:ssr": "node dist/mars-studio/server/server.mjs",
-    "serve:ssr:mars-studio": "node dist/mars-studio/server/server.mjs"
+    "serve:ssr:mars-studio": "node dist/mars-studio/server/server.mjs",
+    "smoke": "node tools/smoke/smoke.test.js"
   },
   "private": true,
   "dependencies": {
@@ -54,6 +55,7 @@
     "karma-jasmine-html-reporter": "~2.1.0",
     "supabase": "^2.33.7",
     "typescript": "~5.7.2",
-    "workbox-build": "^7.3.0"
+  "workbox-build": "^7.3.0",
+  "puppeteer": "^21.4.0"
   }
 }

@@ -45,7 +45,7 @@
 .menu-navbar .nav-link{ color: #fff; margin-left:10px; }
 .menu-navbar img#logo{ max-height:44px; }
 
-/* Reserve space at the bottom of the main container when mobile bottom nav is present */
+/* Reserve space is now applied by each page/component as needed */
 @media (max-width: 991.98px) {
-    .with-mobile-bottom-nav { padding-bottom: 92px; /* nav height + comfortable gap */ }
+    .with-mobile-bottom-nav { padding-bottom: 0; }
 }

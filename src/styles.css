@@ -1,3 +1,7 @@
+@import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
+@import "../node_modules/angular-calendar/css/angular-calendar.css";
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css");
+
 /* Forzar interacción en el calendario de admin, anulando cualquier estilo global */
 .admin-calendar-active .fc,
 .admin-calendar-active .fc-view-harness,
@@ -11,10 +15,6 @@
   pointer-events: auto !important;
   user-select: auto !important;
 }
-/* You can add global styles to this file, and also import other style files */
-@import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
-@import "../node_modules/angular-calendar/css/angular-calendar.css";
-@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css");
 
 /* Pintar todas las celdas de horas pasadas (en cualquier día) con gris #e0e0e0 */
 .fc .fc-timegrid-slot.fc-past {

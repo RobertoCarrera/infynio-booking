@@ -13,33 +13,46 @@
   ></app-calendar-toolbar>
 
   <!-- Filtros de tipos de clase (desktop) -->
-  <div class="class-filters my-3 d-none d-lg-block" *ngIf="!desktopFiltersHidden && availableClassTypes.length > 0" [class.collapsed]="desktopFiltersCollapsed">
-    <div class="filter-items">
-      <button
-        *ngFor="let classType of availableClassTypes"
-        type="button"
-        class="filter-item"
-        [class.active]="isClassTypeVisible(classType.name)"
-        (click)="toggleClassTypeFilter(classType.name)">
+  <!-- Body: desktop = two columns (filters + calendar), mobile = stacked -->
+  <div class="calendar-body d-flex flex-column flex-lg-row align-items-stretch">
+    <!-- Filtros: offcanvas drawer en desktop (entra desde la derecha, no desplaza el calendario) -->
+    <div class="filters-backdrop" [class.show]="desktopFiltersOpen" (click)="desktopFiltersOpen = false"></div>
+  <aside class="class-filters offcanvas offcanvas-start" [class.show]="desktopFiltersOpen" [attr.aria-hidden]="!desktopFiltersOpen" role="dialog" aria-label="Filtros de clases">
+      <div class="offcanvas-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Filtros</h5>
+        <!-- Visible close control for the offcanvas (accessible) -->
+        <button type="button" class="btn btn-sm offcanvas-close" aria-label="Cerrar filtros" data-testid="offcanvas-close" (click)="desktopFiltersOpen = false">×</button>
+      </div>
+      <div class="offcanvas-body p-3">
+        <div class="filter-items">
+          <button
+            *ngFor="let classType of availableClassTypes"
+            type="button"
+            class="filter-item w-100 mb-2"
+            [class.active]="isClassTypeVisible(classType.name)"
+            (click)="toggleClassTypeFilter(classType.name)">
 
-        <div
-          class="color-dot"
-          [style.background-color]="classType.color.background"
-          [style.border-color]="classType.color.border">
+            <div
+              class="color-dot"
+              [style.background-color]="classType.color.background"
+              [style.border-color]="classType.color.border">
+            </div>
+
+            <span class="type-name">{{ classType.name }}</span>
+
+            <span class="filter-toggle ms-auto">
+              {{ isClassTypeVisible(classType.name) ? '✓' : '✗' }}
+            </span>
+          </button>
         </div>
+      </div>
+    </aside>
 
-        <span class="type-name">{{ getMobileShortName(classType.name) }}</span>
-
-        <span class="filter-toggle">
-          {{ isClassTypeVisible(classType.name) ? '✓' : '✗' }}
-        </span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Mobile filters overlay (opened via toolbar) - kept in DOM for animation -->
-  <div class="mobile-filters-backdrop" [class.open]="mobileFiltersOpen" (click)="mobileFiltersOpen = false"></div>
-  <div class="mobile-filters-panel" [class.open]="mobileFiltersOpen" [attr.aria-hidden]="!mobileFiltersOpen">
+    <!-- Calendar + mobile overlays grouped so calendar can flex correctly -->
+    <div class="calendar-main flex-grow-1 d-flex flex-column">
+      <!-- Mobile filters overlay (opened via toolbar) - kept in DOM for animation -->
+      <div class="mobile-filters-backdrop" [class.open]="mobileFiltersOpen" (click)="mobileFiltersOpen = false"></div>
+      <div class="mobile-filters-panel" [class.open]="mobileFiltersOpen" [attr.aria-hidden]="!mobileFiltersOpen">
     <div class="mobile-filters-header d-flex justify-content-between align-items-center p-2">
       <strong>Filtros y Vista</strong>
       <button class="btn btn-sm btn-outline" (click)="mobileFiltersOpen = false">Cerrar</button>
@@ -75,10 +88,12 @@
     </div>
   </div>
 
-  <!-- Calendario -->
-  <div class="calendar-content calendar-content-container" #calendarContent>
-    <div class="transition-mask" aria-hidden="true"></div>
-    <full-calendar #fullCal [options]="calendarOptions"></full-calendar>
+      <!-- Calendario -->
+      <div class="calendar-content calendar-content-container flex-grow-1" #calendarContent>
+        <div class="transition-mask" aria-hidden="true"></div>
+        <full-calendar #fullCal [options]="calendarOptions"></full-calendar>
+      </div>
+    </div>
   </div>
 </div>
 

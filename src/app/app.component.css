@@ -20,5 +20,5 @@
 	overflow: hidden; /* hide page-level scroll; children may overflow internally */
 }
 
-/* Keep existing mobile-bottom-nav padding behavior */
-.with-mobile-bottom-nav { padding-bottom: 92px; }
+/* Padding for mobile bottom nav is now handled contextually by pages/components */
+.with-mobile-bottom-nav { padding-bottom: 0; }

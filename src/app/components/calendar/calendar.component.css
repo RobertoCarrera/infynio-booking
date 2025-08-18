@@ -14,7 +14,7 @@
 
 /* === ESTRUCTURA BASE === */
 .calendar-container {
-  height: 100vh;
+  height: 100%;
   padding: 0; /* we'll let inner elements control spacing */
   box-sizing: border-box;
   display: flex;
@@ -27,12 +27,56 @@
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
+/* Visual padding so the calendar isn't glued to the bottom/edges */
+.calendar-content.calendar-content-container {
+  padding: 0; /* calendar uses full available space */
+}
+.calendar-content.calendar-content-container .fc {
+  width: 100%;
+}
+
+/* Layout for desktop: filters column + calendar main area.
+   Use min-height:0 on flex children to allow inner scroll to work properly. */
+.calendar-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0; /* remove any spacing between children */
+}
+.calendar-body {
+  position: relative; /* container for overlayed filters */
+}
+.calendar-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* critical so .calendar-content can scroll inside */
+  min-width: 0; /* allow to use full width in flex container */
+}
+/* Ensure FullCalendar can occupy the full width/height of available area */
+.calendar-main, .calendar-content, .calendar-content-container, .calendar-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure no min-height constraints; let FullCalendar JS manage heights */
+.calendar-content .fc,
+.calendar-content .fc .fc-scroller {
+  min-height: 0;
+}
+.class-filters { width: 360px; }
+.class-filters.collapsed {
+  width: 64px; /* peek state during collapse */
+  overflow: hidden;
+}
+/* When filters are hidden from layout, ensure calendar uses full width */
+.class-filters[ng-reflect-ng-if="false"], .class-filters[hidden] { display: none !important; }
 
 /* Mobile overlay backdrop & panel animations */
 .mobile-filters-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(2,6,23,0.5);
   opacity: 0;
   pointer-events: none;
   transition: opacity 240ms ease;
@@ -42,6 +86,41 @@
   opacity: 1;
   pointer-events: auto;
 }
+
+/* Desktop offcanvas filters */
+.filters-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 200;
+}
+.filters-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.offcanvas {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 360px;
+  transform: translateX(-100%);
+  transition: transform 320ms cubic-bezier(.2,.9,.2,1);
+  z-index: 4100; /* above main menu and mobile bottom nav */
+  background: #fff;
+  /* absolutely no scrollbars */
+  overflow: hidden;
+  pointer-events: none; /* hidden by default */
+}
+.offcanvas .offcanvas-body { overflow: hidden; }
+.offcanvas.show {
+  transform: translateX(0%);
+  pointer-events: auto; /* enable interactions when visible */
+}
+.offcanvas .offcanvas-body { padding: 1rem; }
 
 .mobile-filters-panel {
   position: fixed;
@@ -65,9 +144,7 @@
 /* small tweak: ensure the panel content is comfortable on mobile */
 .mobile-filters-panel .mobile-filters-header { border-bottom: 1px solid #e6eef6; }
 
-.fc {
-  height: 100% !important;
-}
+/* Do not force a fixed height on .fc; height/contentHeight is managed in TS */
 
 /* Sticky toolbar on desktop */
 @media (min-width: 992px) {
@@ -87,21 +164,12 @@
     z-index: 70;
   }
   .calendar-container { padding-top: 0; }
-  .calendar-content { padding: 1rem; }
+  .calendar-content { padding: 0; }
 }
 
-/* Mobile: ensure bottom menu doesn't overlap calendar content */
+/* Mobile: dynamic padding handled via TS (adjustCalendarHeight). Remove static bottom padding. */
 @media (max-width: 991px) {
-  /* reserve space at bottom for the mobile bottom menu (approx 64px) */
-  .calendar-content { padding-bottom: 84px; }
-  .mobile-bottom-menu {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    height: 64px;
-    z-index: 90;
-    background: rgba(255,255,255,0.98);
-    border-top: 1px solid #e6eef6;
-  }
+  .calendar-content { padding-bottom: 0; }
 }
 
 /* === PÍLDORAS DE FILTRO SÚPER CHULAS (consolidado) === */
@@ -204,10 +272,9 @@
 
 .filter-items {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column; /* stack vertically */
+  gap: 0.5rem;
+  align-items: stretch;
   padding-top: 0.5rem;
 }
 
@@ -398,17 +465,6 @@
   color: #1e293b;
   margin: 0;
   font-size: 1.3rem;
-
-/* ==========================
-   Experimental: remove FullCalendar auto-calculated bottom padding
-   This is a scoped, temporary override so you can preview the calendar
-   without the inline `padding-bottom: calc(...)` that FullCalendar sets.
-   If it looks good, we can make it conditional or compute a safer fix.
-   ========================== */
-.user-calendar .fc-scroller.fc-scroller-liquid-absolute,
-.user-calendar .fc-timegrid-col-bg {
-  padding-bottom: 0 !important;
-}
 }
 
 .modal-body {
@@ -613,6 +669,22 @@
   overflow: hidden; /* keep sliding content clipped */
 }
 
+/* Avoid forcing scroller height; FullCalendar will size this via options */
+
+/* Offcanvas close button */
+.offcanvas .offcanvas-close {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  z-index: 4110; /* sit above nearby nav elements */
+}
+
+/* Temporary shrink class to test vertical fit: apply a slight scale to see behaviour */
+.calendar-shrink .calendar-content { transform: scale(0.985); transform-origin: top center; }
+
 .calendar-content-container .fc-view {
   /* ensure inner views can be animated */
   transition: transform 220ms cubic-bezier(.2,.9,.3,1), opacity 200ms ease;
@@ -723,7 +795,7 @@
 }
 
 /* === EFECTOS DE BRILLO === */
-.class-filters, .modal-content {
+.modal-content {
   position: relative;
 }
 
