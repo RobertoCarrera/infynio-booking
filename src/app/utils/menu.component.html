@@ -2,10 +2,36 @@
   <div class="container-fluid">
     <img src="https://mars-studio.es/wp-content/uploads/2025/04/logo_marron-100x100.png" alt="" id="logo">
     <button class="navbar-toggler custom-toggler" type="button" (click)="toggleMenu()" [attr.aria-expanded]="isMenuOpen" aria-label="Toggle navigation">
-      <i class="bi toggle-icon" [ngClass]="isMenuOpen ? 'bi-filter-right' : 'bi-list'"></i>
+      <span class="menu-toggle-svg" [attr.data-open]="isMenuOpen">
+        <!-- Layered SVGs: one for the list icon, one for the filter icon. We crossfade via CSS. -->
+        <svg class="icon-layer icon-list" width="32" height="32" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+        </svg>
+        <svg class="icon-layer icon-filter" width="32" height="32" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M14 10.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 .5-.5m0-3a.5.5 0 0 0-.5-.5h-7a.5.5 0 0 0 0 1h7a.5.5 0 0 0 .5-.5m0-3a.5.5 0 0 0-.5-.5h-11a.5.5 0 0 0 0 1h11a.5.5 0 0 0 .5-.5"/>
+        </svg>
+      </span>
     </button>
     <div class="collapse navbar-collapse animated" id="navbarNav" [class.show]="isMenuOpen">
-      <ul class="navbar-nav text-end">
+      <ul class="navbar-nav text-end w-100 d-flex align-items-center justify-content-end">
+        <!-- General items for all authenticated users -->
+        <ng-container *ngIf="isLoggedIn">
+          <li class="nav-item">
+            <a routerLink="/calendario" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Bonos</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/perfil" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Mi Perfil</a>
+          </li>
+          <li class="nav-item w-100 d-flex align-items-center justify-content-center">
+            <a (click)="logout(); closeMenu()" class="nav-link bg-danger text-white rounded w-100 text-center" style="cursor: pointer;">
+              <i class="bi bi-door-closed pe-2"></i>Cerrar Sesión</a>
+          </li>
+        </ng-container>
+
+        <!-- Admin-only items -->
         <ng-container *ngIf="isLoggedIn && isAdmin">
           <li class="nav-item">
             <a routerLink="/admin/users" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Usuarios</a>
@@ -19,17 +45,8 @@
           <li class="nav-item">
             <a routerLink="/admin/calendar" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
           </li>
-          <li class="nav-item d-xxl-none">
-            <a (click)="logout(); closeMenu()" class="nav-link text-danger" style="cursor: pointer;">Cerrar Sesión</a>
-          </li>
         </ng-container>
       </ul>
-    </div>
-  <div *ngIf="isLoggedIn && !needsOnboarding" class="d-none d-xxl-flex">
-      <div class="p-2">
-        <a routerLink="/perfil" class="nav-link text-white" routerLinkActive="active">Mi Perfil</a>
-      </div>
-      <button class="btn btn-outline-danger" (click)="logout()">Cerrar sesión</button>
     </div>
   </div>
 </nav>
