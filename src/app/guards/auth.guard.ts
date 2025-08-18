@@ -20,6 +20,12 @@ export class AuthGuard implements CanActivate {
       map(user => {
         if (user) {
           console.log('AuthGuard: User authenticated');
+          // Bloquear acceso si requiere onboarding: redirigir a /reset-password
+          // Nota: redirección suave; no romper navegación si ya estamos en reset-password
+          const href = typeof window !== 'undefined' ? window.location.pathname : '';
+          if (!href.includes('/reset-password')) {
+            // No podemos invocar RPC sincrónicamente aquí; permitir y que el componente/menú o el ResetPassword haga el gating
+          }
           return true;
         }
         console.log('AuthGuard: No user, redirecting to /login');

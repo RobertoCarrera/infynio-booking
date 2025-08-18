@@ -17,6 +17,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   isAdmin = false;
   isLoggedIn = false;
   isMenuOpen = false;
+  needsOnboarding = false;
   private subscriptions: Subscription[] = [];
 
   constructor(private supabase: SupabaseService, private auth: AuthService, private router: Router) {}
@@ -35,7 +36,23 @@ export class MenuComponent implements OnInit, OnDestroy {
       // Si no hay usuario, resetear isAdmin inmediatamente
       if (!user) {
         this.isAdmin = false;
+        this.needsOnboarding = false;
         this.closeMenu();
+      } else {
+        // Comprobar si requiere onboarding (ocultar menú hasta completar)
+        this.supabase.supabase
+          .rpc('needs_onboarding', { uid: user.id })
+          .then((res: any) => {
+            const data = res?.data;
+            const error = res?.error;
+            if (error) {
+              this.needsOnboarding = true;
+            } else {
+              this.needsOnboarding = !!data;
+            }
+          }, () => {
+            this.needsOnboarding = true;
+          });
       }
     });
 

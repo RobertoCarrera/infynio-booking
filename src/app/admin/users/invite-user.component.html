@@ -85,22 +85,23 @@
                                                             {{ row.email }}
                                                             <i *ngIf="hasRequest(row.email)" class="bi bi-exclamation-triangle-fill text-warning ms-2" title="Solicitó reenvío"></i>
                                                         </td>
-                                                        <td>
-                                                            <span *ngIf="row.source==='pending'" class="badge text-bg-info">Pendiente</span>
-                                                            <span *ngIf="row.source==='pending' && isInviteExpired(row)" class="badge text-bg-warning ms-1">Caducado</span>
-                                                            <span *ngIf="row.source==='request'" class="badge text-bg-secondary">Solicitud</span>
-                                                        </td>
+                                                                                    <td>
+                                                                                        <span *ngIf="row.source==='pending'" class="badge text-bg-info">Pendiente</span>
+                                                                                        <span *ngIf="row.source==='pending' && isInviteExpired(row)" class="badge text-bg-warning ms-1">Caducado</span>
+                                                                                        <span *ngIf="row.source==='request'" class="badge text-bg-secondary">Solicitud</span>
+                                                                                        <span *ngIf="row.source==='needs'" class="badge text-bg-primary">Necesita onboarding</span>
+                                                                                    </td>
                                                                                     <td>
                                                                                         {{ rowDate(row) | date:'short' }}
                                                                                     </td>
                                                         <td>
                                                                 <div class="btn-group btn-group-sm">
-                                                                        <button 
-                                                                            class="btn btn-outline-primary"
-                                                                            (click)="resendFor(row.email)"
-                                                                            *ngIf="hasRequest(row.email) || (row.source==='pending' && isInviteExpired(row))">
-                                                                            Reenviar
-                                                                        </button>
+                                                                                                                                                <button
+                                                                                                                                                    class="btn btn-outline-primary"
+                                                                                                                                                    (click)="resendFor(row.email)"
+                                                                                                                                                    *ngIf="hasRequest(row.email) || (row.source==='pending' && isInviteExpired(row)) || row.source==='needs'">
+                                                                                                                                                    Reenviar
+                                                                                                                                                </button>
                                                                         <button 
                                                                             class="btn btn-outline-danger" 
                                                                             *ngIf="row.source==='pending'"

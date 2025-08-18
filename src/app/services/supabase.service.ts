@@ -129,21 +129,60 @@ export class SupabaseService {
   }
 
   async resendRecovery(email: string): Promise<{ message: string; recovery_link?: string }> {
+    const origin = window.location.origin;
+    const redirect = new URL('/auth-redirect.html', origin);
+    redirect.searchParams.set('type', 'invite');
+    try {
+      // Prefer sending the email directly using Auth API (this actually sends the email)
+      const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirect.toString(),
+      });
+      if (error) throw error;
+      return { message: `Email de recuperación reenviado a ${email}` };
+    } catch (primaryErr: any) {
+      // Fallback: generate a link via Edge Function so the admin can copy it manually
+      const { data: { session } } = await this.supabase.auth.getSession();
+      if (!session) throw new Error(primaryErr?.message || 'No hay sesión activa');
+      const { data, error } = await this.supabase.functions.invoke('invite-user', {
+        body: { action: 'resend', email, redirectTo: redirect.toString() },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) {
+        const msg = this.extractFunctionsError(error);
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      return { message: data?.message || 'Enlace generado', recovery_link: data?.recovery_link };
+    }
+  }
+
+  async resendInvite(email: string, kind: 'pending' | 'onboarding'): Promise<{ status: string; message: string; recovery_link?: string }> {
+    const origin = window.location.origin;
+    const redirect = new URL('/auth-redirect.html', origin);
+    // Edge function will set the correct type based on kind
     const { data: { session } } = await this.supabase.auth.getSession();
     if (!session) throw new Error('No hay sesión activa');
-  const origin = window.location.origin;
-  const redirect = new URL('/auth-redirect.html', origin);
-  redirect.searchParams.set('type', 'invite');
     const { data, error } = await this.supabase.functions.invoke('invite-user', {
-      body: { action: 'resend', email, redirectTo: redirect.toString() },
+      body: { action: 'resend', email, kind, redirectTo: redirect.toString() },
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    if (error) {
-      const msg = this.extractFunctionsError(error);
+    if (error || data?.error) {
+      const msg = this.extractFunctionsError(error || { message: data?.error });
       throw new Error(msg);
     }
-    if (data?.error) throw new Error(data.error);
-    return { message: data?.message || 'Enlace generado', recovery_link: data?.recovery_link };
+    return { status: data?.status || 'ok', message: data?.message || 'Enviado', recovery_link: data?.recovery_link };
+  }
+
+  // Users who confirmed but haven't completed onboarding (missing required fields)
+  async listUsersNeedingOnboarding(): Promise<Array<{ id: number; email: string; auth_user_id: string }>> {
+    const { data, error } = await this.supabase
+      .from('users')
+      .select('id, email, auth_user_id, name, surname, telephone')
+      .not('auth_user_id', 'is', null);
+    if (error) throw error;
+    const needs = (data || []).filter((u: any) => !u.name?.trim() || !u.surname?.trim() || !u.telephone?.trim())
+      .map((u: any) => ({ id: u.id, email: u.email, auth_user_id: u.auth_user_id }));
+    return needs;
   }
 
   async cancelInvitation(email: string, authUserId?: string): Promise<{ message: string }> {

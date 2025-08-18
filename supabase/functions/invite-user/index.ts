@@ -124,19 +124,18 @@ serve(async (req: Request) => {
   const authUserId = (body?.auth_user_id || "").toString().trim();
   const redirectToRaw = (body?.redirectTo || pickRedirectUrl(origin)) as string | undefined;
 
-  // Force redirect to auth-redirect.html and set type=invite so the SPA can capture tokens and detect onboarding
-  const redirectTo = (() => {
+  // Build redirect and type per flow
+  const makeRedirect = (appType: 'invite' | 'onboarding' | 'recovery') => {
     if (!redirectToRaw) return redirectToRaw;
     try {
       const u = new URL(redirectToRaw);
-      // Always enforce auth-redirect.html path
       u.pathname = '/auth-redirect.html';
-      u.searchParams.set('type', 'invite');
+      u.searchParams.set('type', appType);
       return u.toString();
     } catch {
       return redirectToRaw;
     }
-  })();
+  };
 
     // Validate email only for actions that need it
   const needsEmail = action === 'invite' || action === 'resend' || (action === 'cancel' && !authUserId);
@@ -147,27 +146,57 @@ serve(async (req: Request) => {
       });
     }
 
-    // Helper to generate a recovery link
-    const genRecovery = async () => {
-      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email,
-        options: { redirectTo },
-      } as any);
-      return { linkData, linkErr };
-    };
+    if (action === 'resend') {
+      // kind: 'pending' (invite) | 'onboarding' (magic link)
+      const kind = (body?.kind || '').toString();
+      if (!isValidEmail(email)) {
+        return new Response(JSON.stringify({ error: "Valid email is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-  if (action === 'resend') {
-      const { linkData, linkErr } = await genRecovery();
-      return new Response(
-        JSON.stringify({
-          status: 'resent',
-          message: `Generado enlace de recuperación para ${email}.`,
-          recovery_link: linkData?.action_link || null,
-          note: linkErr ? `No se pudo generar recovery link: ${linkErr.message}` : undefined,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      if (kind === 'pending') {
+        // Reenviar INVITACIÓN a usuarios no confirmados
+        const redirectToInvite = makeRedirect('invite');
+        const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo: redirectToInvite });
+        if (error) {
+          const msg = (error as any)?.message || "Invite failed";
+          const lower = `${msg}`.toLowerCase();
+          const status = (error as any)?.status || 400;
+          if (status === 429 || lower.includes("rate limit")) {
+            return new Response(JSON.stringify({
+              status: 'rate_limited',
+              message: `Ya se envió recientemente una invitación a ${email}.`,
+              details: msg
+            }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          return new Response(JSON.stringify({ error: msg }), {
+            status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ status: 'resent_invite', message: `Invitación reenviada a ${email}.` }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Default: onboarding with MAGIC LINK
+      const redirectToOnboarding = makeRedirect('onboarding');
+      const { data, error } = await (supabaseAdmin as any).auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectToOnboarding }
+      });
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message || 'No se pudo enviar el magic link' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      return new Response(JSON.stringify({ status: 'sent_magic_link', message: `Enlace de acceso enviado a ${email}.` }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
   if (action === 'cancel') {
@@ -345,9 +374,69 @@ serve(async (req: Request) => {
       }
     }
 
+    if (action === 'list_unfinished') {
+      try {
+        let page = 1;
+        const perPage = 1000;
+        const candidates: any[] = [];
+        while (true) {
+          const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage } as any);
+          if (listErr) throw listErr;
+          const users = (list?.users || list || []) as any[];
+          if (!users.length) break;
+          for (const u of users) {
+            const confirmed = !!u.email_confirmed_at;
+            if (confirmed) {
+              candidates.push({ id: u.id, email: u.email, last_sign_in_at: u.last_sign_in_at, created_at: u.created_at });
+            }
+          }
+          if (users.length < perPage) break;
+          page += 1;
+        }
+
+        // Check profiles for these auth ids
+        const authIds = candidates.map(c => c.id);
+        const batches: string[][] = [];
+        for (let i = 0; i < authIds.length; i += 1000) {
+          batches.push(authIds.slice(i, i + 1000));
+        }
+        const existingProfiles: Record<string, any> = {};
+        for (const batch of batches) {
+          if (!batch.length) continue;
+          const { data: rows, error: rowsErr } = await supabaseAdmin
+            .from('users')
+            .select('auth_user_id, name, surname, telephone')
+            .in('auth_user_id', batch);
+          if (rowsErr) throw rowsErr;
+          for (const r of rows || []) {
+            existingProfiles[r.auth_user_id] = r;
+          }
+        }
+
+        const unfinished = candidates.filter(c => {
+          const prof = existingProfiles[c.id];
+          if (!prof) return true; // no profile row yet
+          const nameOk = !!(prof.name && String(prof.name).trim());
+          const surnameOk = !!(prof.surname && String(prof.surname).trim());
+          const phoneOk = !!(prof.telephone && String(prof.telephone).trim());
+          return !(nameOk && surnameOk && phoneOk);
+        }).map(c => ({ id: c.id, email: c.email }));
+
+        return new Response(JSON.stringify({ status: 'ok', count: unfinished.length, unfinished }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err?.message || 'Error al listar usuarios sin onboarding' }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Default action: invite
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
+      redirectTo: makeRedirect('invite'),
     });
 
     if (error) {

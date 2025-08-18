@@ -21,9 +21,11 @@ export class InviteUserComponent implements OnInit {
   private lastInvitedEmail: string | null = null;
   // invite requests alerts
   requests: Array<{ email: string; last_requested_at: string; request_count: number }> = [];
+  needs: Array<{ id: number; email: string; auth_user_id: string }> = [];
   combined: Array<
     | ({ source: 'pending' } & { id: string; email: string; created_at?: string; confirmation_sent_at?: string | null })
     | ({ source: 'request' } & { email: string; last_requested_at: string; request_count: number })
+    | ({ source: 'needs' } & { id: number; email: string; auth_user_id: string })
   > = [];
   combinedFiltered: typeof this.combined = [];
 
@@ -34,6 +36,7 @@ export class InviteUserComponent implements OnInit {
   ngOnInit(): void {
     this.loadPending();
     this.loadInviteRequests();
+  this.loadNeedsOnboarding();
   }
 
   loadPending() {
@@ -48,9 +51,16 @@ export class InviteUserComponent implements OnInit {
       .catch(() => { this.mergeLists(); });
   }
 
+  loadNeedsOnboarding() {
+    this.supabase.listUsersNeedingOnboarding()
+      .then(needs => { this.needs = needs; this.mergeLists(); })
+      .catch(() => { this.mergeLists(); });
+  }
+
   reloadAll() {
     this.loadPending();
     this.loadInviteRequests();
+  this.loadNeedsOnboarding();
   }
 
   applyFilter() {
@@ -114,12 +124,13 @@ export class InviteUserComponent implements OnInit {
   }
 
   resendFor(email: string) {
-    const prev = this.email;
-    this.email = email;
-    this.resend();
-    this.email = prev;
-  // clear alert after action
-  this.clearRequest(email);
+    // Mantener método por compatibilidad si se llama desde otra parte
+    const row = this.combined.find(r => r.email?.toLowerCase() === (email || '').toLowerCase());
+    const kind: 'pending' | 'onboarding' = row && (row as any).source === 'pending' ? 'pending' : 'onboarding';
+    this.supabase.resendInvite(email, kind)
+      .then(res => { this.message = res.message || 'Correo enviado'; })
+      .catch(err => { this.error = err.message || 'No se pudo reenviar'; });
+    // Nota: no limpiar automáticamente la solicitud; que el admin decida con "Limpiar aviso"
   }
 
   cancel() {
@@ -218,7 +229,9 @@ export class InviteUserComponent implements OnInit {
     const requestOnly = (this.requests || []).filter(r => !pendingEmails.has((r.email || '').toLowerCase()))
       .map(r => ({ source: 'request' as const, email: r.email, last_requested_at: r.last_requested_at, request_count: r.request_count }));
     const pendingWithSource = (this.pending || []).map(p => ({ source: 'pending' as const, ...p }));
-    this.combined = [...pendingWithSource, ...requestOnly]
+    const needsOnly = (this.needs || []).filter(n => !pendingEmails.has((n.email || '').toLowerCase()))
+      .map(n => ({ source: 'needs' as const, ...n }));
+    this.combined = [...pendingWithSource, ...needsOnly, ...requestOnly]
       .sort((a: any, b: any) => {
         const aTime = (a.source === 'pending') ? (a.created_at ? new Date(a.created_at).getTime() : 0) : new Date(a.last_requested_at).getTime();
         const bTime = (b.source === 'pending') ? (b.created_at ? new Date(b.created_at).getTime() : 0) : new Date(b.last_requested_at).getTime();
@@ -244,6 +257,8 @@ export class InviteUserComponent implements OnInit {
       return row.confirmation_sent_at || row.created_at;
     }
     // request-only rows carry last_requested_at
-    return row.last_requested_at || this.requestInfo(row.email)?.last_requested_at;
+  if (row.source === 'request') return row.last_requested_at || this.requestInfo(row.email)?.last_requested_at;
+  // needs-onboarding: show last request date if exists
+  return this.requestInfo(row.email)?.last_requested_at;
   }
 }
