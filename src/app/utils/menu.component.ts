@@ -143,6 +143,14 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
         scrollers.unshift(main);
 
         scrollers.forEach(el => {
+          // Skip any element that is part of a FullCalendar instance. FullCalendar
+          // manages its own scrollers and we must not mutate its inline styles
+          // (it was adding `padding-bottom: calc(...)` which causes layout issues).
+          // We detect FullCalendar by the presence of a parent/ancestor with
+          // the root `.fc` class.
+          if (el.closest && el.closest('.fc')) {
+            return; // don't touch FullCalendar internals
+          }
           try {
             const cs = window.getComputedStyle(el);
             const overflowY = (cs.overflowY || '').toLowerCase();

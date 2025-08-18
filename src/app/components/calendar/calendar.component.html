@@ -13,7 +13,7 @@
   ></app-calendar-toolbar>
 
   <!-- Filtros de tipos de clase (desktop) -->
-  <div class="class-filters mb-4 d-none d-lg-block" *ngIf="!desktopFiltersHidden && availableClassTypes.length > 0" [class.collapsed]="desktopFiltersCollapsed">
+  <div class="class-filters my-3 d-none d-lg-block" *ngIf="!desktopFiltersHidden && availableClassTypes.length > 0" [class.collapsed]="desktopFiltersCollapsed">
     <div class="filter-items">
       <button
         *ngFor="let classType of availableClassTypes"

@@ -82,8 +82,8 @@
   .class-filters.d-none.d-lg-block {
     position: sticky;
     top: 80px; /* leave space for top toolbar */
-    align-self: flex-start;
-    margin: 1rem;
+    align-self: center;
+    margin: 0.3rem;
     z-index: 70;
   }
   .calendar-container { padding-top: 0; }
@@ -398,6 +398,17 @@
   color: #1e293b;
   margin: 0;
   font-size: 1.3rem;
+
+/* ==========================
+   Experimental: remove FullCalendar auto-calculated bottom padding
+   This is a scoped, temporary override so you can preview the calendar
+   without the inline `padding-bottom: calc(...)` that FullCalendar sets.
+   If it looks good, we can make it conditional or compute a safer fix.
+   ========================== */
+.user-calendar .fc-scroller.fc-scroller-liquid-absolute,
+.user-calendar .fc-timegrid-col-bg {
+  padding-bottom: 0 !important;
+}
 }
 
 .modal-body {
