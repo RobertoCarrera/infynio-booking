@@ -557,6 +557,36 @@
 }
 .mobile-filters-panel .filter-item { display:flex; align-items:center }
 
+/* Calendar view transition classes */
+.calendar-content-container {
+  position: relative;
+  overflow: hidden; /* keep sliding content clipped */
+}
+
+.calendar-content-container .fc-view {
+  /* ensure inner views can be animated */
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+/* Outgoing view slides left and fades */
+.calendar-content-container.view-out-left .fc-view {
+  transform: translateX(-8%);
+  opacity: 0;
+}
+
+/* Outgoing view slides right and fades */
+.calendar-content-container.view-out-right .fc-view {
+  transform: translateX(8%);
+  opacity: 0;
+}
+
+/* Incoming state: briefly set from script to allow a smooth in-animation */
+.calendar-content-container.view-in .fc-view {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 260ms cubic-bezier(.2,.9,.3,1), opacity 220ms ease;
+}
+
 @media (min-width: 992px) {
   .mobile-filters-backdrop, .mobile-filters-panel { display: none; }
 }

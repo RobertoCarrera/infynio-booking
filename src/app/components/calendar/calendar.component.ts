@@ -226,9 +226,40 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   setView(view: string) {
     // accept any string from template; validate and apply
     if (view !== 'day' && view !== 'week' && view !== 'month') return;
+    // if same view, no-op
+    if (view === this.currentView) return;
+    const prev = this.currentView;
     this.currentView = view as any;
-    try { this.setCalendarView(view); } catch {}
+    try { this.triggerViewTransition(prev, view); } catch (e) { try { this.setCalendarView(view); } catch {} }
     try { localStorage.setItem('calendar:view', view); } catch {}
+  }
+
+  // orchestrates a small out/in animation when changing FullCalendar views
+  private triggerViewTransition(fromView: string, toView: string) {
+    const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+    // mapping to determine direction
+    const idx = (v: string) => (v === 'day' ? 0 : v === 'week' ? 1 : 2);
+    const direction = Math.sign(idx(toView) - idx(fromView));
+    if (!container || !this.calendarApi) {
+      // fallback: direct change
+      this.setCalendarView(toView);
+      return;
+    }
+
+    // clear any existing classes
+    container.classList.remove('view-in', 'view-out-left', 'view-out-right');
+    // apply out animation
+    const outClass = direction >= 0 ? 'view-out-left' : 'view-out-right';
+    container.classList.add(outClass);
+
+    // after out animation, change view and animate in
+    const outDuration = 200; // ms, should match CSS
+    setTimeout(() => {
+      try {
+        this.setCalendarView(toView);
+      } catch {}
+      // small tick to allow FC to render then animate in via onDatesSet
+    }, outDuration);
   }
 
   toggleFiltersPanel() {
@@ -384,6 +415,22 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       const label = `${s.toLocaleDateString('es-ES', opts)} - ${new Date(e.getTime() - 1).toLocaleDateString('es-ES', opts)}`;
       this.currentRangeLabel = label;
     } catch {}
+    // if our triggerViewTransition added an out-class to animate, switch to 'in' so the incoming view fades/slides in
+    try {
+      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      if (container) {
+        // remove out classes and add 'view-in' to animate the incoming view
+        container.classList.remove('view-out-left', 'view-out-right');
+        // force a reflow then add view-in to trigger transition
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        container.offsetHeight; // trigger reflow
+        container.classList.add('view-in');
+        // remove view-in after animation completes
+        setTimeout(() => {
+          try { container.classList.remove('view-in'); } catch {}
+        }, 300);
+      }
+    } catch (e) {}
   }
 
   private clipToValidRange(start: string, end: string): { start: string; end: string } {
