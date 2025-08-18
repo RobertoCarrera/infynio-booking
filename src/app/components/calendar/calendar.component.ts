@@ -114,6 +114,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     } catch (e) {
       // non-critical
     }
+    // listen to resize to update isMobile
+    try {
+      if (typeof window !== 'undefined') {
+        window.addEventListener('resize', this.onResizeBound as any);
+      }
+    } catch {}
   }
 
   // Devuelve una versión corta del nombre para móviles: 3 letras por palabra
@@ -154,6 +160,17 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       window.removeEventListener('keydown', this.globalKeyHandler as any);
       this.keyboardHandlerBound = false;
     }
+    try { if (typeof window !== 'undefined') window.removeEventListener('resize', this.onResizeBound as any); } catch {}
+  }
+
+  // resize handler (bound) to update isMobile dynamically
+  private onResizeBound = () => {
+    try {
+      const wasMobile = this.isMobile;
+      this.isMobile = (typeof window !== 'undefined') && window.innerWidth < 992;
+      // if we transitioned to desktop, close mobile panel
+      if (wasMobile && !this.isMobile) this.setMobileFiltersOpen(false);
+    } catch {}
   }
 
   // global keyboard shortcuts
@@ -497,6 +514,52 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  // Format a date-like input into "weekday, d de Month" with Month capitalized (es-ES)
+  formatDateCapitalMonth(input: string | Date | null | undefined): string {
+    if (!input) return '';
+    try {
+      const d = (typeof input === 'string') ? (input.includes('T') ? new Date(input) : new Date(input + 'T00:00:00')) : new Date(input);
+  let formatted = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+  // Capitalize the first character (weekday) and the last token (month) initial letter
+  formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  formatted = formatted.replace(/([^,\s]+)\s*$/u, (m) => m.charAt(0).toUpperCase() + m.slice(1));
+  return formatted;
+    } catch (e) {
+      return String(input);
+    }
+  }
+
+  // Format time part as HH:MM from either a time string (HH:MM[:SS]) or a Date/ISO string
+  formatTimeHHMM(input: string | Date | null | undefined): string {
+    if (!input) return '';
+    try {
+      if (typeof input === 'string') {
+        // If ISO datetime
+        if (input.includes('T')) {
+          const d = new Date(input);
+          return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
+        // If time like HH:MM:SS or HH:MM
+        const m = input.match(/^(\d{2}:\d{2})/);
+        if (m) return m[1];
+      }
+      const d = (input instanceof Date) ? input : new Date(String(input));
+      return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return String(input).slice(0,5);
+    }
+  }
+
+  // Format date+time: capitalized month + HH:MM
+  formatDateCapitalMonthWithTime(input: string | Date | null | undefined): string {
+    if (!input) return '';
+    try {
+      const datePart = this.formatDateCapitalMonth(input);
+      const timePart = this.formatTimeHHMM(input);
+      return timePart ? `${datePart}, ${timePart}` : datePart;
+    } catch (e) { return this.formatDateCapitalMonth(input); }
   }
   private applyValidRangeOption() {
     if (this.isAdmin) {

@@ -122,11 +122,11 @@
                 <div class="row">
                   <div class="col-6">
                     <strong>Fecha:</strong><br>
-                    <span>{{ selectedSession.schedule_date | date:'EEEE, d \'de\' MMMM':'es-ES' }}</span>
+                    <span>{{ formatDateCapitalMonth(selectedSession.schedule_date) }}</span>
                   </div>
                   <div class="col-6">
                     <strong>Hora:</strong><br>
-                    <span>{{ selectedSession.schedule_time }}</span>
+                    <span>{{ formatTimeHHMM(selectedSession.schedule_time) }}</span>
                   </div>
                 </div>
                 <div class="row mt-2">
@@ -144,7 +144,7 @@
                   <div class="col-12">
                     <strong>Límite para cancelar:</strong><br>
                     <span>
-                      {{ selectedSession.self_cancellation_time | date:'EEEE, d \'de\' MMMM, HH:mm':'es-ES' }}
+                      {{ formatDateCapitalMonthWithTime(selectedSession.self_cancellation_time) }}
                     </span>
                   </div>
                 </div>
