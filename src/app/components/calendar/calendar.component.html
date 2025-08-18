@@ -90,7 +90,7 @@
     <div class="modal-content">
       
       <!-- Header del Modal -->
-      <div class="modal-header">
+  <div class="modal-header" [style.--modal-accent]="getModalAccent()">
         <h5 class="modal-title">
           <i class="fas fa-calendar-plus me-2"></i>
           {{ selectedSession?.class_type_name || 'Clase' }}
@@ -132,7 +132,7 @@
                 <div class="row mt-2">
                   <div class="col-6">
                     <strong>Tipo:</strong><br>
-                    <span class="badge bg-primary">{{ selectedSession.class_type_name }}</span>
+                    <span class="badge custom-type-badge" [style.background]="getModalAccent()" [style.color]="getBadgeTextColor()">{{ selectedSession.class_type_name }}</span>
                   </div>
                   <div class="col-6">
                     <strong>Duración:</strong><br>

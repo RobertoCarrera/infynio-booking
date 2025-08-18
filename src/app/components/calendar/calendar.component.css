@@ -350,7 +350,8 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b, #ef4444);
+  /* solid accent color provided via CSS variable */
+  background-color: var(--modal-accent, #3b82f6);
 }
 
 .modal-title {

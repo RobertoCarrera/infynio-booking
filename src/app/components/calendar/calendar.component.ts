@@ -561,6 +561,50 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       return timePart ? `${datePart}, ${timePart}` : datePart;
     } catch (e) { return this.formatDateCapitalMonth(input); }
   }
+
+  // Returns a CSS-safe value for the modal accent. Prefer the selected session's class color.
+  getModalAccent(): string {
+    try {
+      const s = this.selectedSession as any;
+      // class color may be available on the session via extended properties or via service
+      // First try common paths
+      if (s && s.class_type_id) {
+        // try to find a matching availableClassTypes entry
+  const found = this.availableClassTypes.find(t => t.name === s.class_type_name);
+        if (found && found.color && found.color.background) return found.color.background;
+      }
+      // fallback: if event extendedProps were stored in last clicked event, try that
+      if (s && (s.color || s.backgroundColor)) return s.color || s.backgroundColor;
+    } catch {}
+    // final fallback: return the fallback gradient as a CSS value (must be a string)
+    return 'linear-gradient(90deg, #3b82f6, #10b981, #f59e0b, #ef4444)';
+  }
+
+  // Given current modal accent, choose readable text color (black/white)
+  getBadgeTextColor(): string {
+    try {
+      const accent = this.getModalAccent();
+      // if it's a gradient fallback, return white
+      if (accent.includes('gradient') || accent.includes(',')) return '#ffffff';
+      // simple hex parse
+      const hex = accent.replace('#','').trim();
+      if (hex.length === 3) {
+        const r = parseInt(hex[0]+hex[0], 16);
+        const g = parseInt(hex[1]+hex[1], 16);
+        const b = parseInt(hex[2]+hex[2], 16);
+        const yiq = (r*299 + g*587 + b*114) / 1000;
+        return yiq >= 128 ? '#000000' : '#ffffff';
+      }
+      if (hex.length >= 6) {
+        const r = parseInt(hex.substring(0,2), 16);
+        const g = parseInt(hex.substring(2,4), 16);
+        const b = parseInt(hex.substring(4,6), 16);
+        const yiq = (r*299 + g*587 + b*114) / 1000;
+        return yiq >= 128 ? '#000000' : '#ffffff';
+      }
+    } catch {}
+    return '#ffffff';
+  }
   private applyValidRangeOption() {
     if (this.isAdmin) {
       // Admin: sin validRange
