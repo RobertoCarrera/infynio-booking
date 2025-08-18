@@ -4,25 +4,48 @@
 
 /* New menu background */
 .menu-navbar {
-    background: linear-gradient(180deg, #0f172a 0%, #111827 100%); /* slate to gray */
+    background: #D4D0D9; /* slate to gray */
 }
 
-/* Custom mobile toggler with better contrast on dark bg */
+/* Custom mobile toggler: cleaned visuals using #E4C4DE */
 .custom-toggler {
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #A3E635; /* lime-400 */
-    background: rgba(255,255,255,0.04);
+    /* remove hard borders so the icon doesn't look boxed */
+    border: none;
+    color: #424242; /* icon color */
+    background: rgba(228,196,222,0.04); /* very subtle wash */
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 6px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
-.custom-toggler:focus { box-shadow: 0 0 0 2px rgba(163, 230, 53, 0.25); }
+.custom-toggler:hover {
+    /* subtle hover wash, very low contrast to avoid harsh borders */
+    background: rgba(228,196,222,0.035);
+    transform: translateY(-1px);
+}
+.custom-toggler:active {
+    transform: translateY(0);
+}
+.custom-toggler:focus {
+    outline: none;
+}
+/* smaller, softer focus ring on the inner svg to meet accessibility without being intrusive */
+.custom-toggler:focus .menu-toggle-svg {
+    /* softer, more diffuse focus ring using the theme color */
+    border-radius: 6px;
+}
 .custom-toggler .toggle-icon { font-size: 1.35rem; transition: transform 220ms ease, color 220ms ease; }
-.custom-toggler:hover .toggle-icon { transform: scale(1.05); color: #C7F464; }
+.custom-toggler:hover .toggle-icon { transform: scale(1.04); color: #F2DDF4; }
 
 /* Animated collapse */
 .navbar-collapse.animated {
     transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, max-height 260ms ease, padding 200ms ease;
     will-change: transform, opacity, max-height;
+}
+
+.nav-item .nav-link{
+    color: #424242;
 }
 
 @media (max-width: 991.98px) {
@@ -44,13 +67,30 @@
 }
 
 /* Menu icon layering and crossfade */
-.menu-toggle-svg { position: relative; display: inline-block; width: 32px; height: 32px; }
-.menu-toggle-svg .icon-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transition: opacity 200ms cubic-bezier(.2, .9, .2, 1), transform 220ms ease; }
+.menu-toggle-svg {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    padding: 4px; /* give breathing room without adding a visible border */
+    border-radius: 6px;
+    background: transparent;
+    color: inherit; /* inherit the color from the button (so svg uses currentColor) */
+}
+.menu-toggle-svg .icon-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 200ms cubic-bezier(.2, .9, .2, 1), transform 220ms ease;
+    transform-origin: center;
+    color: inherit;
+}
 .menu-toggle-svg .icon-list { opacity: 1; transform: scale(1); }
-.menu-toggle-svg .icon-filter { opacity: 0; transform: scale(0.92); }
-.menu-toggle-svg[data-open="true"] .icon-list { opacity: 0; transform: scale(0.92); }
+.menu-toggle-svg .icon-filter { opacity: 0; transform: scale(0.94); }
+.menu-toggle-svg[data-open="true"] .icon-list { opacity: 0; transform: scale(0.94); }
 .menu-toggle-svg[data-open="true"] .icon-filter { opacity: 1; transform: scale(1); }
 
-/* Improve focus ring for accessibility */
-.custom-toggler:focus { outline: none; }
-.custom-toggler:focus .menu-toggle-svg { box-shadow: 0 0 0 4px rgba(163,230,53,0.12); border-radius: 6px; }
+/* Tidy focus style for menu icon specifically */
+.custom-toggler:focus .menu-toggle-svg { box-shadow: 0 10px 30px rgba(228,196,222,0.05); }
