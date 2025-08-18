@@ -15,12 +15,19 @@ export class InviteUserComponent implements OnInit {
   showFallbackOption = false; // Controla si mostrar el botón de respaldo
   recoveryLink: string | null = null;
   status: string | undefined;
-  pending: Array<{ id: string; email: string; created_at?: string }> = [];
-  filtered: Array<{ id: string; email: string; created_at?: string }> = [];
+  pending: Array<{ id: string; email: string; created_at?: string; confirmation_sent_at?: string | null }> = [];
+  filtered: Array<{ id: string; email: string; created_at?: string; confirmation_sent_at?: string | null }> = [];
   filter = '';
   private lastInvitedEmail: string | null = null;
   // invite requests alerts
   requests: Array<{ email: string; last_requested_at: string; request_count: number }> = [];
+  combined: Array<
+    | ({ source: 'pending' } & { id: string; email: string; created_at?: string; confirmation_sent_at?: string | null })
+    | ({ source: 'request' } & { email: string; last_requested_at: string; request_count: number })
+  > = [];
+  combinedFiltered: typeof this.combined = [];
+
+  private readonly INVITE_EXPIRY_HOURS = 48; // adjust as needed
 
   constructor(private supabase: SupabaseService) {}
 
@@ -31,14 +38,14 @@ export class InviteUserComponent implements OnInit {
 
   loadPending() {
     this.supabase.listPendingInvites()
-      .then(list => { this.pending = list; this.applyFilter(); })
+      .then(list => { this.pending = list as any; this.mergeLists(); this.applyFilter(); })
       .catch(err => console.error('Error cargando invitaciones pendientes:', err));
   }
 
   loadInviteRequests() {
     this.supabase.listInviteRequests()
-      .then(reqs => this.requests = reqs)
-      .catch(() => {});
+      .then(reqs => { this.requests = reqs; this.mergeLists(); })
+      .catch(() => { this.mergeLists(); });
   }
 
   reloadAll() {
@@ -48,9 +55,9 @@ export class InviteUserComponent implements OnInit {
 
   applyFilter() {
     const f = (this.filter || '').toLowerCase().trim();
-    this.filtered = !f
-      ? [...this.pending]
-      : this.pending.filter(u => (u.email || '').toLowerCase().includes(f));
+    this.combinedFiltered = !f
+      ? [...this.combined]
+      : this.combined.filter(u => (u.email || '').toLowerCase().includes(f));
   }
 
   invite() {
@@ -203,5 +210,40 @@ export class InviteUserComponent implements OnInit {
 
   clearRequest(email: string) {
     this.supabase.clearInviteRequest(email).then(() => this.loadInviteRequests()).catch(() => {});
+  }
+
+  // Helpers to merge and display
+  private mergeLists() {
+    const pendingEmails = new Set(this.pending.map(p => (p.email || '').toLowerCase()));
+    const requestOnly = (this.requests || []).filter(r => !pendingEmails.has((r.email || '').toLowerCase()))
+      .map(r => ({ source: 'request' as const, email: r.email, last_requested_at: r.last_requested_at, request_count: r.request_count }));
+    const pendingWithSource = (this.pending || []).map(p => ({ source: 'pending' as const, ...p }));
+    this.combined = [...pendingWithSource, ...requestOnly]
+      .sort((a: any, b: any) => {
+        const aTime = (a.source === 'pending') ? (a.created_at ? new Date(a.created_at).getTime() : 0) : new Date(a.last_requested_at).getTime();
+        const bTime = (b.source === 'pending') ? (b.created_at ? new Date(b.created_at).getTime() : 0) : new Date(b.last_requested_at).getTime();
+        return bTime - aTime;
+      });
+    this.applyFilter();
+  }
+
+  isInviteExpired(row: any): boolean {
+    if (row?.source !== 'pending') return false;
+    const base = row.confirmation_sent_at || row.created_at;
+    if (!base) return false;
+    const sent = new Date(base).getTime();
+    const now = Date.now();
+    const diffHours = (now - sent) / (1000 * 60 * 60);
+    return diffHours >= this.INVITE_EXPIRY_HOURS;
+  }
+
+  // Date accessor for template to avoid union property narrowing issues
+  rowDate(row: any): string | undefined {
+    if (!row) return undefined;
+    if (row.source === 'pending') {
+      return row.confirmation_sent_at || row.created_at;
+    }
+    // request-only rows carry last_requested_at
+    return row.last_requested_at || this.requestInfo(row.email)?.last_requested_at;
   }
 }
