@@ -148,6 +148,7 @@
 
 /* Sticky toolbar on desktop */
 @media (min-width: 992px) {
+  .calendar-container { padding: 2em; }
   .calendar-toolbar {
     position: sticky;
     top: 0;

@@ -77,6 +77,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   // Observers for dynamic UI elements that affect available height
   private _resizeObservers: ResizeObserver[] = [];
   private _boundTransitionHandlers: Array<{ el: Element; handler: (e: Event)=>void }>=[];
+  private _mutationObserver: MutationObserver | null = null;
+  private _vvHandlers: Array<{ type: string; handler: any }> = [];
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -164,6 +166,31 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         if (toolbar) ro.observe(toolbar);
         this._resizeObservers.push(ro);
       }
+      // Watch for late insertion/removal of the mobile bottom nav or toolbar
+      if (typeof MutationObserver !== 'undefined') {
+        this._mutationObserver = new MutationObserver((records) => {
+          // On first appearance of bottom nav or toolbar, recalc
+          const hasBottom = !!document.querySelector('.mobile-bottom-nav');
+          const hasToolbar = !!document.querySelector('.calendar-toolbar');
+          if (hasBottom || hasToolbar) {
+            setTimeout(() => { try { this.adjustCalendarHeight(); } catch {} }, 20);
+          }
+        });
+        try {
+          this._mutationObserver.observe(document.body, { childList: true, subtree: true });
+        } catch {}
+      }
+      // On mobile Safari/Chrome UI show/hide, visualViewport height changes
+      try {
+        const vv = (window as any).visualViewport;
+        if (vv && typeof vv.addEventListener === 'function') {
+          const onVvResize = () => { try { this.adjustCalendarHeight(); } catch {} };
+          vv.addEventListener('resize', onVvResize);
+          vv.addEventListener('scroll', onVvResize);
+          this._vvHandlers.push({ type: 'resize', handler: onVvResize });
+          this._vvHandlers.push({ type: 'scroll', handler: onVvResize });
+        }
+      } catch {}
       // Also listen to transition end for overlays that may slide in/out
       const watchTransition = (selector: string) => {
         const el = document.querySelector(selector);
@@ -223,6 +250,16 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this._resizeObservers = [];
       for (const b of this._boundTransitionHandlers) { try { b.el.removeEventListener('transitionend', b.handler); } catch {} }
       this._boundTransitionHandlers = [];
+      if (this._mutationObserver) { try { this._mutationObserver.disconnect(); } catch {} this._mutationObserver = null; }
+      try {
+        const vv = (window as any).visualViewport;
+        if (vv && this._vvHandlers.length) {
+          for (const h of this._vvHandlers) {
+            try { vv.removeEventListener(h.type, h.handler); } catch {}
+          }
+        }
+        this._vvHandlers = [];
+      } catch {}
     } catch {}
     // Restore document overflow
     try {
@@ -600,7 +637,14 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   // (e.g. bottom nav). Calculated from overlaps + safety margin below.
   let padBottom = 0;
       try {
-        const viewportH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : (document.documentElement.clientHeight || 0);
+        let viewportH = 0;
+        try {
+          const vv = (window as any).visualViewport;
+          viewportH = (vv && typeof vv.height === 'number') ? Math.floor(vv.height) : 0;
+        } catch {}
+        if (!viewportH) {
+          viewportH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : (document.documentElement.clientHeight || 0);
+        }
         const crect = container.getBoundingClientRect();
         // base available height is viewport height minus the top offset of the calendar
         available = Math.floor(Math.max(0, viewportH - (crect.top || 0)));
@@ -642,12 +686,15 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           // Explicitly account for the mobile bottom nav height as bottom padding and height reduction
           try {
             const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
-            if (bottomNav) {
+            if (bottomNav && (typeof window !== 'undefined') && window.innerWidth < 992) {
               const br = bottomNav.getBoundingClientRect();
-              const overlapBottom = Math.max(0, Math.min(br.bottom, containerBottom) - Math.max(br.top, crect.top));
-              if (overlapBottom > 0) {
-                available = Math.max(0, Math.floor(available - overlapBottom));
-                const desiredPad = Math.ceil(overlapBottom + 8);
+              // Explicit overlap with the calendar's visible area
+              const overlapBottom = Math.max(0, Math.min(br.bottom, viewportH) - Math.max(br.top, crect.top));
+              // If no geometric overlap is computed (due to safe areas/UA toolbars), still reserve nav height
+              const reserve = overlapBottom > 0 ? overlapBottom : (Math.ceil(br.height) || 64);
+              if (reserve > 0) {
+                available = Math.max(0, Math.floor(available - reserve));
+                const desiredPad = Math.ceil(reserve + 8);
                 padBottom = Math.max(padBottom, desiredPad);
                 if (padBottom > 300) padBottom = 300;
               }
@@ -674,7 +721,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           try {
             const host = this.fullCalRef?.nativeElement as HTMLElement | null;
             if (host) {
-              const targets = host.querySelectorAll('.fc-scroller.fc-scroller-liquid-absolute, .fc-timegrid-col-bg');
+              const targets = host.querySelectorAll('.fc-scroller, .fc-scroller-liquid-absolute, .fc-timegrid-col-bg, .fc-timegrid-body');
               targets.forEach((el: Element) => {
                 try {
                   const he = el as HTMLElement;
