@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../services/supabase.service';
@@ -13,12 +13,13 @@ import { distinctUntilChanged, switchMap } from 'rxjs/operators';
   templateUrl: './menu.component.html',
   styleUrls: ['./menu.component.css']
 })
-export class MenuComponent implements OnInit, OnDestroy {
+export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
   isAdmin = false;
   isLoggedIn = false;
   isMenuOpen = false;
   needsOnboarding = false;
   private subscriptions: Subscription[] = [];
+  private resizeHandler: any;
 
   constructor(private supabase: SupabaseService, private auth: AuthService, private router: Router) {}
 
@@ -84,8 +85,18 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.subscriptions.push(navSub);
   }
 
+  ngAfterViewInit() {
+    // apply padding based on mobile nav height immediately and on resize
+    this.syncMobileNavPadding();
+    this.resizeHandler = () => this.syncMobileNavPadding();
+    window.addEventListener('resize', this.resizeHandler);
+  }
+
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+    }
   }
 
   logout() {
@@ -103,6 +114,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     if (navCollapse) {
       navCollapse.classList.toggle('show', this.isMenuOpen);
     }
+  // keep padding in sync if the menu affects layout
+  setTimeout(() => this.syncMobileNavPadding(), 50);
   }
 
   closeMenu() {
@@ -110,6 +123,72 @@ export class MenuComponent implements OnInit, OnDestroy {
     const navCollapse = document.getElementById('navbarNav');
     if (navCollapse) {
       navCollapse.classList.remove('show');
+    }
+    setTimeout(() => this.syncMobileNavPadding(), 50);
+  }
+
+  private syncMobileNavPadding() {
+    try {
+      const mobileNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
+      const main = document.getElementById('mainContent') as HTMLElement | null;
+      if (!main) return;
+      if (mobileNav && window.innerWidth < 992) {
+        const height = mobileNav.offsetHeight + 12; // small extra gap
+
+        // Prefer applying padding to scrollable elements inside main so we don't
+        // mutate heights globally (safer for libraries like FullCalendar).
+        const scrollers = Array.from(main.querySelectorAll<HTMLElement>('*')) as HTMLElement[];
+
+        // Always include the main container itself as a fallback target
+        scrollers.unshift(main);
+
+        scrollers.forEach(el => {
+          try {
+            const cs = window.getComputedStyle(el);
+            const overflowY = (cs.overflowY || '').toLowerCase();
+            const isScrollable = overflowY === 'auto' || overflowY === 'scroll' || el.scrollHeight > el.clientHeight + 1;
+            if (!isScrollable) return;
+
+            // store original inline padding-bottom if not stored
+            if (!el.dataset['__origPaddingBottomInline']) {
+              el.dataset['__origPaddingBottomInline'] = el.style.paddingBottom || '';
+            }
+
+            const computedPadding = window.getComputedStyle(el).paddingBottom || '0px';
+            // Set padding-bottom to ensure content isn't hidden behind the bottom nav.
+            // Use calc to preserve existing computed padding.
+            el.style.paddingBottom = `calc(${height}px + ${computedPadding})`;
+          } catch (e) {
+            // ignore individual element errors
+          }
+        });
+
+        // Also set a minimal fallback on the main element's inline padding so
+        // simple pages without inner scrollers are protected.
+        if (!main.dataset['__origPaddingBottomInline']) {
+          main.dataset['__origPaddingBottomInline'] = main.style.paddingBottom || '';
+        }
+        main.style.paddingBottom = `${height}px`;
+      } else {
+        // restore inline padding-bottom on any elements we modified
+        const adjusted = Array.from(document.querySelectorAll<HTMLElement>('[data-__orig-padding-bottom-inline]')) as HTMLElement[];
+        adjusted.forEach(el => {
+          try {
+            el.style.paddingBottom = el.dataset['__origPaddingBottomInline'] || '';
+            delete el.dataset['__origPaddingBottomInline'];
+          } catch (e) {}
+        });
+
+        // ensure main also gets restored
+        if (main && main.dataset['__origPaddingBottomInline']) {
+          main.style.paddingBottom = main.dataset['__origPaddingBottomInline'] || '';
+          delete main.dataset['__origPaddingBottomInline'];
+        } else if (main) {
+          main.style.paddingBottom = '';
+        }
+      }
+    } catch (e) {
+      // ignore DOM errors
     }
   }
 }

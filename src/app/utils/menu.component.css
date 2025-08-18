@@ -1,96 +1,51 @@
-#logo{
-    max-height: 50px;
-}
-
-/* New menu background */
-.menu-navbar {
-    background: #D4D0D9; /* slate to gray */
-}
-
-/* Custom mobile toggler: cleaned visuals using #E4C4DE */
-.custom-toggler {
-    /* remove hard borders so the icon doesn't look boxed */
-    border: none;
-    color: #424242; /* icon color */
-    background: rgba(228,196,222,0.04); /* very subtle wash */
-    border-radius: 8px;
+/* Mobile-first: fixed bottom navigation */
+#logo{ max-height: 46px; }
+.mobile-bottom-nav {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    height: 64px;
+    background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98));
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 8px;
     padding: 6px 8px;
-    display: inline-flex;
+    box-shadow: 0 18px 40px rgba(2,6,23,0.45);
+    z-index: 4000;
+}
+.mobile-nav-item{
+    color: #E4C4DE;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 2px;
+    font-size: 12px;
+    width: 72px;
 }
-.custom-toggler:hover {
-    /* subtle hover wash, very low contrast to avoid harsh borders */
-    background: rgba(228,196,222,0.035);
-    transform: translateY(-1px);
-}
-.custom-toggler:active {
-    transform: translateY(0);
-}
-.custom-toggler:focus {
-    outline: none;
-}
-/* smaller, softer focus ring on the inner svg to meet accessibility without being intrusive */
-.custom-toggler:focus .menu-toggle-svg {
-    /* softer, more diffuse focus ring using the theme color */
-    border-radius: 6px;
-}
-.custom-toggler .toggle-icon { font-size: 1.35rem; transition: transform 220ms ease, color 220ms ease; }
-.custom-toggler:hover .toggle-icon { transform: scale(1.04); color: #F2DDF4; }
-
-/* Animated collapse */
-.navbar-collapse.animated {
-    transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, max-height 260ms ease, padding 200ms ease;
-    will-change: transform, opacity, max-height;
+.mobile-nav-item svg{ color: inherit; opacity: 0.95; }
+.mobile-nav-item.active, .mobile-nav-item:active, .mobile-nav-item.router-link-active{ 
+    background: #e4c4de; 
+    border-radius: 8px; 
+    color: #151C2D;
 }
 
-.nav-item .nav-link{
-    color: #424242;
+/* Desktop: show top navbar and hide mobile bottom nav */
+@media(min-width: 992px){
+    .mobile-bottom-nav{ display:none; }
+    .menu-navbar{ display:flex; align-items:center; padding:8px 20px; }
 }
 
+/* Desktop top nav tweaks */
+.menu-navbar { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); }
+.menu-navbar .nav-link{ color: #fff; margin-left:10px; }
+.menu-navbar img#logo{ max-height:44px; }
+
+/* Reserve space at the bottom of the main container when mobile bottom nav is present */
 @media (max-width: 991.98px) {
-        .navbar-collapse.animated {
-            transform: translateY(-6px);
-            opacity: 0;
-            max-height: 0;
-            overflow: hidden;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-        .navbar-collapse.animated.show {
-            transform: translateY(0);
-            opacity: 1;
-            max-height: 420px; /* enough for menu items */
-            padding-top: 8px;
-            padding-bottom: 8px;
-        }
+    .with-mobile-bottom-nav { padding-bottom: 92px; /* nav height + comfortable gap */ }
 }
-
-/* Menu icon layering and crossfade */
-.menu-toggle-svg {
-    position: relative;
-    display: inline-block;
-    width: 32px;
-    height: 32px;
-    padding: 4px; /* give breathing room without adding a visible border */
-    border-radius: 6px;
-    background: transparent;
-    color: inherit; /* inherit the color from the button (so svg uses currentColor) */
-}
-.menu-toggle-svg .icon-layer {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    transition: opacity 200ms cubic-bezier(.2, .9, .2, 1), transform 220ms ease;
-    transform-origin: center;
-    color: inherit;
-}
-.menu-toggle-svg .icon-list { opacity: 1; transform: scale(1); }
-.menu-toggle-svg .icon-filter { opacity: 0; transform: scale(0.94); }
-.menu-toggle-svg[data-open="true"] .icon-list { opacity: 0; transform: scale(0.94); }
-.menu-toggle-svg[data-open="true"] .icon-filter { opacity: 1; transform: scale(1); }
-
-/* Tidy focus style for menu icon specifically */
-.custom-toggler:focus .menu-toggle-svg { box-shadow: 0 10px 30px rgba(228,196,222,0.05); }
