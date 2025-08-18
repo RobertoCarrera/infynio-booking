@@ -1,0 +1,40 @@
+.calendar-toolbar{
+  display:flex;
+  gap:1rem;
+  align-items:center;
+  justify-content:space-between;
+  padding:0.5rem 0.75rem;
+  border-radius:10px;
+  background: linear-gradient(135deg,#ffffff,#f8fafc);
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  margin-bottom:1rem;
+}
+
+.calendar-toolbar .nav-group{
+  display:flex;align-items:center;gap:0.5rem;
+}
+
+.calendar-toolbar .view-group{display:flex;gap:0.5rem;align-items:center}
+
+.calendar-toolbar .current-range{font-weight:700;color:#334155;margin-left:0.5rem}
+
+/* responsive: keep view-group visible on small screens but compact it */
+@media (max-width: 991px){
+  .calendar-toolbar{flex-direction:row;gap:0.5rem}
+  .calendar-toolbar .view-group{display:flex;gap:0.25rem;align-items:center}
+}
+
+.mobile-view-group .btn { min-width: 64px; }
+
+/* screen-reader only helper */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}

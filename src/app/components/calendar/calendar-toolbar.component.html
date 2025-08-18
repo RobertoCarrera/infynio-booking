@@ -1,0 +1,24 @@
+<div class="calendar-toolbar" role="toolbar" aria-label="Calendar controls">
+  <div class="nav-group" role="group" aria-label="Navegación de fechas">
+    <button class="btn btn-sm" type="button" (click)="onPrev()" aria-label="Anterior">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+    <button class="btn btn-sm btn-outline" type="button" (click)="onToday()" aria-label="Hoy">Hoy</button>
+    <button class="btn btn-sm" type="button" (click)="onNext()" aria-label="Siguiente">
+      <i class="fas fa-chevron-right"></i>
+    </button>
+    <div class="current-range" aria-live="polite">{{ currentRangeLabel }}</div>
+  </div>
+
+  <div class="view-group" role="group" aria-label="Seleccionar vista">
+  <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='day'" (click)="onChangeView('day')">Día</button>
+  <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='week'" (click)="onChangeView('week')">Semana</button>
+  <button *ngIf="!isMobile" class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='month'" (click)="onChangeView('month')">Mes</button>
+  </div>
+
+  <div class="actions-group" role="group" aria-label="Acciones">
+    <button class="btn btn-sm" type="button" (click)="onToggleFilters()">Filtros</button>
+  </div>
+  <!-- Hidden live region for announcements (screen readers) -->
+  <div class="sr-only" aria-live="polite" aria-atomic="true">{{ currentView }} {{ currentRangeLabel }}</div>
+</div>

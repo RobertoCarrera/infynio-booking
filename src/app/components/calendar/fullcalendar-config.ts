@@ -33,17 +33,8 @@ const formatDayHeader = (date: Date): string => {
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
   locale: esLocale,
-  headerToolbar: isMobile
-    ? {
-        left: 'prev,next today',
-        center: 'title',
-  right: 'timeGridDay,timeGridWeek'
-      }
-    : {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'timeGridWeek,dayGridMonth'
-      },
+  // We use a custom toolbar component; disable FullCalendar's built-in header
+  headerToolbar: false,
   // Formatos personalizados de fecha
   dayHeaderFormat: {
     weekday: 'short',

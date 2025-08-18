@@ -24,6 +24,43 @@
   overflow: hidden;
 }
 
+/* Mobile overlay backdrop & panel animations */
+.mobile-filters-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+  z-index: 50;
+}
+.mobile-filters-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-filters-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  transform: translateY(100%);
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 60;
+  box-shadow: 0 -20px 40px rgba(2,6,23,0.12);
+  max-height: 80vh;
+  overflow: auto;
+}
+.mobile-filters-panel.open {
+  transform: translateY(0%);
+}
+
+/* small tweak: ensure the panel content is comfortable on mobile */
+.mobile-filters-panel .mobile-filters-header { border-bottom: 1px solid #e6eef6; }
+
 .fc {
   height: 100% !important;
 }
@@ -496,6 +533,31 @@
 
 .bg-light {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+}
+
+/* Mobile filters overlay */
+.mobile-filters-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1050;
+}
+.mobile-filters-panel {
+  position: fixed;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  background: #fff;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  z-index: 1060;
+  max-height: 70vh;
+  overflow: auto;
+}
+.mobile-filters-panel .filter-item { display:flex; align-items:center }
+
+@media (min-width: 992px) {
+  .mobile-filters-backdrop, .mobile-filters-panel { display: none; }
 }
 
 /* === SPINNER CHULO === */

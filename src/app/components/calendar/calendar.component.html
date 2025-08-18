@@ -1,6 +1,18 @@
 <div class="calendar-container">
-  <!-- Filtros de tipos de clase -->
-  <div class="class-filters mb-4" *ngIf="availableClassTypes.length > 0">
+  <!-- Toolbar -->
+  <app-calendar-toolbar
+    [currentRangeLabel]="currentRangeLabel"
+  [currentView]="currentView"
+  [isMobile]="isMobile"
+    (prev)="onPrev()"
+    (next)="onNext()"
+    (today)="goToday()"
+    (changeView)="setView($event)"
+    (toggleFilters)="toggleFiltersPanel()"
+  ></app-calendar-toolbar>
+
+  <!-- Filtros de tipos de clase (desktop) -->
+  <div class="class-filters mb-4 d-none d-lg-block" *ngIf="availableClassTypes.length > 0">
     <div class="filter-items">
       <button
         *ngFor="let classType of availableClassTypes"
@@ -24,9 +36,47 @@
     </div>
   </div>
 
+  <!-- Mobile filters overlay (opened via toolbar) - kept in DOM for animation -->
+  <div class="mobile-filters-backdrop" [class.open]="mobileFiltersOpen" (click)="mobileFiltersOpen = false"></div>
+  <div class="mobile-filters-panel" [class.open]="mobileFiltersOpen" [attr.aria-hidden]="!mobileFiltersOpen">
+    <div class="mobile-filters-header d-flex justify-content-between align-items-center p-2">
+      <strong>Filtros y Vista</strong>
+      <button class="btn btn-sm btn-outline" (click)="mobileFiltersOpen = false">Cerrar</button>
+    </div>
+    <div class="p-3">
+      <!-- Mobile view selector (no month on mobile) -->
+      <div class="mobile-view-group d-flex gap-2 mb-3" role="group" aria-label="Seleccionar vista">
+        <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='day'" (click)="setView('day'); mobileFiltersOpen=false">Día</button>
+        <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='week'" (click)="setView('week'); mobileFiltersOpen=false">Semana</button>
+      </div>
+
+      <div class="filter-items flex-column">
+        <button
+          *ngFor="let classType of availableClassTypes"
+          type="button"
+          class="filter-item w-100 mb-2"
+          [class.active]="isClassTypeVisible(classType.name)"
+          (click)="toggleClassTypeFilter(classType.name)">
+
+          <div
+            class="color-dot"
+            [style.background-color]="classType.color.background"
+            [style.border-color]="classType.color.border">
+          </div>
+
+          <span class="type-name">{{ classType.name }}</span>
+
+          <span class="filter-toggle ms-auto">
+            {{ isClassTypeVisible(classType.name) ? '✓' : '✗' }}
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Calendario -->
-  <div class="calendar-content">
-    <full-calendar [options]="calendarOptions"></full-calendar>
+  <div class="calendar-content" #calendarContent>
+    <full-calendar #fullCal [options]="calendarOptions"></full-calendar>
   </div>
 </div>
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, signal, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FullCalendarModule } from '@fullcalendar/angular';
@@ -8,16 +8,22 @@ import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { WaitingListService } from '../../services/waiting-list.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { FULLCALENDAR_OPTIONS } from './fullcalendar-config';
+import { CalendarToolbarComponent } from './calendar-toolbar.component';
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [CommonModule, FormsModule, FullCalendarModule],
+  imports: [CommonModule, FormsModule, FullCalendarModule, CalendarToolbarComponent],
   templateUrl: './calendar.component.html',
   styleUrls: ['./calendar.component.css']
 })
-export class CalendarComponent implements OnInit, OnDestroy {
+export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
+  @ViewChild('fullCal', { static: false }) fullCalRef!: ElementRef<any>;
+  @ViewChild('calendarContent', { static: false }) calendarContentRef!: ElementRef<HTMLElement>;
+  // store a direct calendar API reference when available
+  private calendarApi: any = null;
+  isMobile = false;
   calendarOptions: CalendarOptions;
   events: any[] = [];
   filteredClassTypes = signal<Set<string>>(new Set());
@@ -53,6 +59,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private lastVisibleStart: string | null = null;
   private lastVisibleEnd: string | null = null;
 
+  // Toolbar state
+  currentRangeLabel: string | null = null;
+  currentView: 'day' | 'week' | 'month' = 'week';
+  private keyboardHandlerBound = false;
+  mobileFiltersOpen = false;
+  private mobileFiltersTimeout: any = null;
+
   constructor(
     private classSessionsService: ClassSessionsService,
     private carteraService: CarteraClasesService,
@@ -66,6 +79,41 @@ export class CalendarComponent implements OnInit, OnDestroy {
   datesSet: this.onDatesSet.bind(this),
   events: this.events
     };
+  }
+
+  ngAfterViewInit() {
+    // detect mobile based on viewport width
+    try { this.isMobile = (typeof window !== 'undefined') && window.innerWidth < 992; } catch {}
+    // attach touch listeners for swipe navigation on mobile
+    try {
+      const el = this.calendarContentRef?.nativeElement;
+      if (el && this.isMobile) {
+        let startX: number | null = null;
+        let startY: number | null = null;
+        const onTouchStart = (ev: TouchEvent) => {
+          if (ev.touches && ev.touches.length === 1) {
+            startX = ev.touches[0].clientX;
+            startY = ev.touches[0].clientY;
+          }
+        };
+        const onTouchEnd = (ev: TouchEvent) => {
+          if (startX == null || startY == null) return;
+          const endX = ev.changedTouches[0].clientX;
+          const endY = ev.changedTouches[0].clientY;
+          const dx = endX - startX;
+          const dy = endY - startY;
+          // require horizontal swipe with sufficient magnitude and mostly horizontal
+          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+            if (dx < 0) this.onNext(); else this.onPrev();
+          }
+          startX = null; startY = null;
+        };
+        el.addEventListener('touchstart', onTouchStart, { passive: true });
+        el.addEventListener('touchend', onTouchEnd, { passive: true });
+      }
+    } catch (e) {
+      // non-critical
+    }
   }
 
   // Devuelve una versión corta del nombre para móviles: 3 letras por palabra
@@ -84,11 +132,114 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // restore view from localStorage if present
+    try {
+      const savedView = localStorage.getItem('calendar:view');
+      if (savedView === 'day' || savedView === 'week' || savedView === 'month') {
+        this.currentView = savedView as any;
+        this.setCalendarView(this.currentView);
+      }
+    } catch (e) {}
+    // keyboard handlers
+    if (typeof window !== 'undefined' && !this.keyboardHandlerBound) {
+      window.addEventListener('keydown', this.globalKeyHandler as any);
+      this.keyboardHandlerBound = true;
+    }
     this.getCurrentUser();
   }
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
+    if (typeof window !== 'undefined' && this.keyboardHandlerBound) {
+      window.removeEventListener('keydown', this.globalKeyHandler as any);
+      this.keyboardHandlerBound = false;
+    }
+  }
+
+  // global keyboard shortcuts
+  private globalKeyHandler = (e: KeyboardEvent) => {
+    if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+    const key = e.key;
+    if (key === 'ArrowLeft') {
+      this.onPrev();
+      e.preventDefault();
+    } else if (key === 'ArrowRight') {
+      this.onNext();
+      e.preventDefault();
+    } else if (key.toLowerCase() === 't') {
+      this.goToday();
+      e.preventDefault();
+    } else if (key === '1') {
+      this.setView('day');
+      e.preventDefault();
+    } else if (key === '2') {
+      this.setView('week');
+      e.preventDefault();
+    } else if (key === '3') {
+      this.setView('month');
+      e.preventDefault();
+    }
+  }
+
+  // Toolbar exposed handlers
+  onPrev() {
+    try {
+      if (this.calendarApi && typeof this.calendarApi.prev === 'function') return this.calendarApi.prev();
+      const fallback = (this.calendarOptions as any).calendarApi;
+      if (fallback && typeof fallback.prev === 'function') return fallback.prev();
+    } catch {}
+  }
+
+  onNext() {
+    try {
+      if (this.calendarApi && typeof this.calendarApi.next === 'function') return this.calendarApi.next();
+      const fallback = (this.calendarOptions as any).calendarApi;
+      if (fallback && typeof fallback.next === 'function') return fallback.next();
+    } catch {}
+  }
+
+  goToday() {
+    try {
+      if (this.calendarApi && typeof this.calendarApi.today === 'function') return this.calendarApi.today();
+      const fallback = (this.calendarOptions as any).calendarApi;
+      if (fallback && typeof fallback.today === 'function') return fallback.today();
+    } catch {}
+  }
+
+  setView(view: string) {
+    // accept any string from template; validate and apply
+    if (view !== 'day' && view !== 'week' && view !== 'month') return;
+    this.currentView = view as any;
+    try { this.setCalendarView(view); } catch {}
+    try { localStorage.setItem('calendar:view', view); } catch {}
+  }
+
+  toggleFiltersPanel() {
+    this.setMobileFiltersOpen(!this.mobileFiltersOpen);
+  }
+
+  setMobileFiltersOpen(open: boolean) {
+    // small debounce to allow transition to start
+    try { if (this.mobileFiltersTimeout) clearTimeout(this.mobileFiltersTimeout); } catch {}
+    this.mobileFiltersOpen = open;
+    if (open) {
+      this.mobileFiltersTimeout = setTimeout(() => {
+        const first = document.querySelector('.mobile-filters-panel .filter-item') as HTMLElement | null;
+        if (first) first.focus();
+      }, 200);
+    }
+  }
+
+  closeMobileFilters() { this.setMobileFiltersOpen(false); }
+
+  private setCalendarView(view: string) {
+  // prevent month view on mobile
+  if (this.isMobile && view === 'month') return;
+  const api = this.calendarApi || (this.calendarOptions as any).calendarApi;
+  if (!api) return;
+  if (view === 'day') api.changeView('timeGridDay');
+  if (view === 'week') api.changeView('timeGridWeek');
+  if (view === 'month') api.changeView('dayGridMonth');
   }
 
   private getCurrentUser() {
@@ -196,7 +347,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // FullCalendar datesSet callback
   private onDatesSet(arg: any) {
-    if (this.isAdmin) return; // admins unaffected
+  if (this.isAdmin) return; // admins unaffected
+  // capture calendar API reference when available
+  try { if (arg && arg.view && arg.view.calendar) this.calendarApi = arg.view.calendar; } catch {}
   // Usar fechas locales para evitar saltos por zona horaria
   const startStr = this.formatDate(new Date(arg.start));
     // arg.endStr is exclusive in FullCalendar; subtract one day for inclusive logic
@@ -206,6 +359,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.lastVisibleStart = startStr;
     this.lastVisibleEnd = endStr;
     this.fetchAndRenderRange(startStr, endStr);
+    // update toolbar label
+    try {
+      const s = new Date(arg.start);
+      const e = new Date(arg.end);
+      const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' } as any;
+      const label = `${s.toLocaleDateString('es-ES', opts)} - ${new Date(e.getTime() - 1).toLocaleDateString('es-ES', opts)}`;
+      this.currentRangeLabel = label;
+    } catch {}
   }
 
   private clipToValidRange(start: string, end: string): { start: string; end: string } {
