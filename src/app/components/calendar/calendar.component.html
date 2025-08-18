@@ -1,32 +1,26 @@
 <div class="calendar-container">
   <!-- Filtros de tipos de clase -->
   <div class="class-filters mb-4" *ngIf="availableClassTypes.length > 0">
-    <div class="filter-controls mb-3">
-      <h6 class="mb-0">
-        <i class="fas fa-filter me-2"></i>
-        Filtrar tipos de clase
-      </h6>
-    </div>
-    
     <div class="filter-items">
-      <div 
-        *ngFor="let classType of availableClassTypes" 
+      <button
+        *ngFor="let classType of availableClassTypes"
+        type="button"
         class="filter-item"
         [class.active]="isClassTypeVisible(classType.name)"
         (click)="toggleClassTypeFilter(classType.name)">
-        
-        <div 
-          class="color-dot" 
+
+        <div
+          class="color-dot"
           [style.background-color]="classType.color.background"
           [style.border-color]="classType.color.border">
         </div>
-        
-        <span class="type-name">{{ classType.name }}</span>
-        
+
+        <span class="type-name">{{ getMobileShortName(classType.name) }}</span>
+
         <span class="filter-toggle">
           {{ isClassTypeVisible(classType.name) ? '✓' : '✗' }}
         </span>
-      </div>
+      </button>
     </div>
   </div>
 

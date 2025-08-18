@@ -28,78 +28,76 @@
   height: 100% !important;
 }
 
-/* === EVENTOS DEL CALENDARIO === */
-/* Base para cualquier evento */
-.fc-event,
-.fc-timegrid-event,
-.fc-daygrid-event {
-  border: 2px solid rgba(0, 0, 0, 0.3) !important;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
-  font-weight: 700 !important;
-  font-size: 13px !important;
-  padding: 3px 6px !important;
-  border-radius: 6px !important;
-  opacity: 0.95 !important;
-  background-clip: padding-box !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+/* === PÍLDORAS DE FILTRO SÚPER CHULAS (consolidado) === */
+.filter-item {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  background: white;
+  display: flex; /* ensure entire padded area receives pointer events */
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 30px;
+  border: 3px solid #e2e8f0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
-}
-
-/* Hover sutil que invita a pulsar (aplica a todas las variantes) */
-.fc-event:hover,
-.fc-timegrid-event:hover,
-.fc-daygrid-event:hover,
-.fc-event-main:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  filter: brightness(1.03) saturate(1.02);
-}
-
-/* Asegurar que el contenido interno también responde al hover */
-.fc-event .fc-event-main,
-.fc-timegrid-event .fc-event-main,
-.fc-daygrid-event .fc-event-main {
-  transition: inherit !important;
-}
-
-/* Forzar estilos a través de la encapsulación de Angular */
-:host ::ng-deep .fc .fc-event,
-:host ::ng-deep .fc .fc-timegrid-event,
-:host ::ng-deep .fc .fc-daygrid-event {
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
-}
-
-:host ::ng-deep .fc .fc-event:hover,
-:host ::ng-deep .fc .fc-timegrid-event:hover,
-:host ::ng-deep .fc .fc-daygrid-event:hover,
-:host ::ng-deep .fc .fc-event .fc-event-main:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  filter: brightness(1.03) saturate(1.02) !important;
-}
-
-/* === FILTROS SÚPER CHULOS === */
-.class-filters {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  border: 1px solid #cbd5e1;
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   position: relative;
-  overflow: hidden;
+  z-index: 10; /* ensure it's above decorative layers */
+  isolation: isolate; /* create stacking context so neighbors don't overlap */
+  overflow: visible; /* allow pseudo-element animation without blocking */
+  font-weight: 600;
+  min-width: 64px; /* ensure a reasonable hit area */
+  flex: 0 0 auto; /* don't shrink to avoid overlapping when wrapping */
+  touch-action: manipulation; /* improve mobile tap handling */
 }
 
-.class-filters::before {
+.filter-item::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b, #ef4444, #8b5cf6);
-  border-radius: 16px 16px 0 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transition: left 0.5s ease;
+  pointer-events: none; /* don't intercept clicks */
+  z-index: 0; /* under the pill content */
+}
+
+.filter-item:hover::before {
+  left: 100%;
+}
+
+.filter-item:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.filter-item.active {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+  transform: translateY(-2px);
+}
+
+.filter-item.active:hover {
+  transform: translateY(-5px) scale(1.08);
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+}
+
+.filter-item:not(.active) {
+  opacity: 0.7;
+  border-color: #d1d5db;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.filter-item:not(.active):hover {
+  opacity: 1;
+  border-color: #9ca3af;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .filter-controls {
@@ -153,6 +151,40 @@
   position: relative;
   overflow: hidden;
   font-weight: 600;
+}
+.filter-item {
+  /* Buttons: reset native button visuals and keep pill style */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.filter-item > .color-dot,
+.filter-item > .type-name,
+.filter-item > .filter-toggle {
+  /* ensure children participate in the clickable area */
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-item {
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: white;
+  border: 3px solid #e2e8f0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
 }
 
 .filter-item::before {

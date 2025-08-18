@@ -68,6 +68,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
     };
   }
 
+  // Devuelve una versión corta del nombre para móviles: 3 letras por palabra
+  getMobileShortName(fullName: string | undefined | null): string {
+    if (!fullName) return '';
+    try {
+      // Solo aplicar truncado en pantallas pequeñas
+      if (typeof window !== 'undefined' && window.innerWidth >= 992) return fullName;
+      return fullName
+        .split(/\s+/)
+        .map(w => w.substring(0, 3))
+        .join(' ');
+    } catch (e) {
+      return fullName;
+    }
+  }
+
   ngOnInit() {
     this.getCurrentUser();
   }
