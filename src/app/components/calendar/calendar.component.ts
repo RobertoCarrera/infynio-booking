@@ -683,21 +683,18 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
             // clamp to reasonable maximum to avoid absurd padding
             if (padBottom > 300) padBottom = 300;
           }
-          // Explicitly account for the mobile bottom nav height as bottom padding and height reduction
+          // Explicitly account for the mobile bottom nav by adding padding to the outer container.
+          // We do NOT subtract it from the available height to avoid double shrinking.
           try {
             const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
             if (bottomNav && (typeof window !== 'undefined') && window.innerWidth < 992) {
               const br = bottomNav.getBoundingClientRect();
-              // Explicit overlap with the calendar's visible area
               const overlapBottom = Math.max(0, Math.min(br.bottom, viewportH) - Math.max(br.top, crect.top));
-              // If no geometric overlap is computed (due to safe areas/UA toolbars), still reserve nav height
               const reserve = overlapBottom > 0 ? overlapBottom : (Math.ceil(br.height) || 64);
-              if (reserve > 0) {
-                available = Math.max(0, Math.floor(available - reserve));
-                const desiredPad = Math.ceil(reserve + 8);
-                padBottom = Math.max(padBottom, desiredPad);
-                if (padBottom > 300) padBottom = 300;
-              }
+              const desiredPad = Math.ceil(reserve + 8);
+              (container as HTMLElement).style.paddingBottom = desiredPad + 'px';
+            } else {
+              (container as HTMLElement).style.paddingBottom = '0px';
             }
           } catch {}
         } catch {}
