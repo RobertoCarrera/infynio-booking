@@ -1,6 +1,12 @@
 <div class="calendar-toolbar" role="toolbar" aria-label="Calendar controls">
   <div class="nav-group" role="group" aria-label="Navegación de fechas">
+    <button *ngIf="!isMobile" class="btn btn-sm" type="button" (click)="onPrev()" aria-label="Anterior">
+      <i class="bi bi-chevron-left"></i>
+    </button>
     <button class="btn btn-sm btn-outline" type="button" (click)="onToday()" aria-label="Hoy">Hoy</button>
+    <button *ngIf="!isMobile" class="btn btn-sm" type="button" (click)="onNext()" aria-label="Siguiente">
+      <i class="bi bi-chevron-right"></i>
+    </button>
     <div class="current-range" aria-live="polite">{{ currentRangeLabel }}</div>
   </div>
 

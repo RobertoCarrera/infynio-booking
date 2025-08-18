@@ -15,13 +15,17 @@
 /* === ESTRUCTURA BASE === */
 .calendar-container {
   height: 100vh;
-  padding: 1rem;
+  padding: 0; /* we'll let inner elements control spacing */
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
+/* Make the calendar content the only scrollable area */
 .calendar-content {
-  height: calc(100vh - 2rem);
-  overflow: hidden;
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Mobile overlay backdrop & panel animations */
@@ -63,6 +67,41 @@
 
 .fc {
   height: 100% !important;
+}
+
+/* Sticky toolbar on desktop */
+@media (min-width: 992px) {
+  .calendar-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    margin: 1rem;
+    background: transparent; /* toolbar already styled inside component */
+  }
+  /* Desktop filters: fix them to left as an info bar */
+  .class-filters.d-none.d-lg-block {
+    position: sticky;
+    top: 80px; /* leave space for top toolbar */
+    align-self: flex-start;
+    margin: 1rem;
+    z-index: 70;
+  }
+  .calendar-container { padding-top: 0; }
+  .calendar-content { padding: 1rem; }
+}
+
+/* Mobile: ensure bottom menu doesn't overlap calendar content */
+@media (max-width: 991px) {
+  /* reserve space at bottom for the mobile bottom menu (approx 64px) */
+  .calendar-content { padding-bottom: 84px; }
+  .mobile-bottom-menu {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 64px;
+    z-index: 90;
+    background: rgba(255,255,255,0.98);
+    border-top: 1px solid #e6eef6;
+  }
 }
 
 /* === PÍLDORAS DE FILTRO SÚPER CHULAS (consolidado) === */

@@ -49,6 +49,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   private subscriptions: Subscription[] = [];
   private isAdmin = false;
   private eventsLoaded = false;
+  // store previous document overflow to restore on destroy
+  private _prevHtmlOverflow: string | null = null;
+  private _prevBodyOverflow: string | null = null;
 
   // Cached range for data loading and validRange
   private rangeStartDate: string | null = null;
@@ -124,6 +127,18 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         window.addEventListener('resize', this.onResizeBound as any);
       }
     } catch {}
+
+    // Prevent the outer page from scrolling while the calendar component is active
+    try {
+      if (typeof document !== 'undefined') {
+        const html = document.documentElement as HTMLElement;
+        const body = document.body as HTMLElement;
+        this._prevHtmlOverflow = html.style.overflow || null;
+        this._prevBodyOverflow = body.style.overflow || null;
+        html.style.overflow = 'hidden';
+        body.style.overflow = 'hidden';
+      }
+    } catch (e) {}
   }
 
   // Devuelve una versión corta del nombre para móviles: 3 letras por palabra
@@ -165,6 +180,15 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.keyboardHandlerBound = false;
     }
     try { if (typeof window !== 'undefined') window.removeEventListener('resize', this.onResizeBound as any); } catch {}
+    // Restore document overflow
+    try {
+      if (typeof document !== 'undefined') {
+        const html = document.documentElement as HTMLElement;
+        const body = document.body as HTMLElement;
+        if (this._prevHtmlOverflow !== null) html.style.overflow = this._prevHtmlOverflow; else html.style.removeProperty('overflow');
+        if (this._prevBodyOverflow !== null) body.style.overflow = this._prevBodyOverflow; else body.style.removeProperty('overflow');
+      }
+    } catch (e) {}
   }
 
   // resize handler (bound) to update isMobile dynamically

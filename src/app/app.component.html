@@ -1,10 +1,11 @@
-<div class="container-fluid vh-100 p-0 m-0 overflow-x-hidden overflow-xxl-hidden with-mobile-bottom-nav">
-    <div class="row vh-100">
-        <div class="col-12 sticky-top">
+<div class="app-shell container-fluid p-0 m-0 overflow-x-hidden overflow-xxl-hidden with-mobile-bottom-nav">
+    <div class="app-shell-inner">
+        <div class="sticky-top">
             <app-menu></app-menu>
         </div>
-        <div id="mainContent" class="col-12">
+
+        <main id="mainContent" class="app-main">
             <router-outlet></router-outlet>
-        </div>
+        </main>
     </div>
 </div>
