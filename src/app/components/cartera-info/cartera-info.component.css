@@ -8,7 +8,6 @@
   padding: 1rem;
   text-align: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  height: 100%;
   border: 1px solid #dee2e6;
 }
 
@@ -89,6 +88,10 @@
   border: 1px solid #dee2e6;
 }
 
+.bonos-list{
+  max-height: 30vh;
+}
+
 .bono-item {
   border: 1px solid #dee2e6;
   border-radius: 8px;
@@ -137,6 +140,18 @@
 @media (max-width: 768px) {
   .stats-card {
     margin-bottom: 1rem;
+  }
+
+  /* Prevent titles from wrapping and keep cards equal height */
+  .stats-content h6 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Ensure badge labels don't cause line breaks */
+  .badge {
+    white-space: nowrap;
   }
   
   .total-summary .row > div {

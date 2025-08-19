@@ -25,7 +25,6 @@
         <div class="col-md-3 col-6 mb-2">
           <div class="stats-card mat-funcional">
             <div class="stats-icon">
-              <i class="fas fa-dumbbell"></i>
             </div>
             <div class="stats-content">
               <h6>MAT-Funcional</h6>
@@ -37,7 +36,6 @@
         <div class="col-md-3 col-6 mb-2">
           <div class="stats-card reformer">
             <div class="stats-icon">
-              <i class="fas fa-expand-arrows-alt"></i>
             </div>
             <div class="stats-content">
               <h6>Reformer</h6>
@@ -49,10 +47,9 @@
         <div class="col-md-3 col-6 mb-2">
           <div class="stats-card personalizada">
             <div class="stats-icon">
-              <i class="fas fa-user-check"></i>
             </div>
             <div class="stats-content">
-              <h6>MAT-Funcional Personal</h6>
+              <h6>{{ isMobile ? 'MAT-Func. Pers.' : 'MAT-Funcional Personal' }}</h6>
               <span class="stats-number">{{ resumenClases.matPersonalizada }}</span>
               <small>clases</small>
             </div>
@@ -61,10 +58,9 @@
         <div class="col-md-3 col-6 mb-2">
           <div class="stats-card personalizada">
             <div class="stats-icon">
-              <i class="fas fa-crown"></i>
             </div>
             <div class="stats-content">
-              <h6>Reformer Personal</h6>
+              <h6>{{ isMobile ? 'Reformer Pers.' : 'Reformer Personal' }}</h6>
               <span class="stats-number">{{ resumenClases.reformerPersonalizada }}</span>
               <small>clases</small>
             </div>
@@ -75,7 +71,7 @@
       <!-- Detalle de bonos -->
       <div *ngIf="carteraClases.length > 0">
         <h6 class="mb-3">Detalle de tus bonos:</h6>
-        <div class="bonos-list">
+        <div class="bonos-list overflow-y-auto">
           <div *ngFor="let entrada of carteraClases" class="bono-item card mb-3">
             <div class="card-body">
               <div class="row align-items-center">
@@ -114,13 +110,6 @@
                     <i class="fas fa-clock me-1"></i>
                     Expira: {{ formatearFecha(entrada.fecha_expiracion) }}
                   </small>
-                </div>
-                <div class="col-md-2 text-end">
-                  <span class="clases-count">
-                    {{ entrada.clases_disponibles }}
-                  </span>
-                  <br>
-                  <small class="text-muted">clases</small>
                 </div>
               </div>
             </div>

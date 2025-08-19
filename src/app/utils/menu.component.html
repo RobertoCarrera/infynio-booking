@@ -4,6 +4,14 @@
     <img src="https://mars-studio.es/wp-content/uploads/2025/04/logo_marron-100x100.png" alt="" id="logo">
     <div class="collapse navbar-collapse d-flex" id="navbarNav">
       <ul class="navbar-nav ms-auto d-flex align-items-center">
+        <ng-container *ngIf="isLoggedIn">
+          <li class="nav-item"><a routerLink="/calendario" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a></li>
+          <li class="nav-item"><a routerLink="/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Bonos</a></li>
+          <li class="nav-item"><a routerLink="/perfil" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Mi Perfil</a></li>
+          <li class="nav-item ms-3">
+            <a (click)="logout(); closeMenu()" class="nav-link bg-danger text-white rounded px-3" style="cursor: pointer;">Cerrar Sesión</a>
+          </li>
+        </ng-container>
         <ng-container *ngIf="isLoggedIn && isAdmin">
           <li class="nav-item">
             <a routerLink="/admin/users" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Usuarios</a>

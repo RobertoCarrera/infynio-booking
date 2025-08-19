@@ -12,18 +12,6 @@ import { Subscription } from 'rxjs';
   template: `
     <div class="cartera-page-container">
       <div class="container py-4">
-        <!-- Header -->
-        <div class="row mb-4">
-          <div class="col-12">
-            <div class="page-header">
-              <h1 class="display-6 mb-2">
-                <i class="fas fa-ticket-alt me-3"></i>
-                Tu Cartera de Clases
-              </h1>
-              <p class="text-muted">Gestiona y consulta tus bonos de clases disponibles</p>
-            </div>
-          </div>
-        </div>
 
         <!-- Cartera Info Component -->
         <div class="row">

@@ -25,6 +25,11 @@ export class CarteraInfoComponent implements OnInit, OnDestroy {
 
   constructor(private carteraService: CarteraClasesService) {}
 
+  // expose mobile detection for template-level conditional text
+  get isMobile(): boolean {
+    try { return typeof window !== 'undefined' && window.innerWidth < 992; } catch { return false; }
+  }
+
   ngOnInit() {
     this.cargarCartera();
   }
