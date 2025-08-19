@@ -173,6 +173,28 @@
   .calendar-content { padding-bottom: 0; }
 }
 
+/* Mobile: allow the calendar component to show overflowing overlays/elements
+   (popovers, expanded lists, filters) while keeping the inner calendar scrollable.) */
+@media (max-width: 991px) {
+  .calendar-container,
+  .calendar-main {
+    /* allow absolutely positioned children to escape the normal box
+       so panels and popovers are not clipped by ancestor containers */
+    overflow: visible;
+  }
+
+  /* keep the calendar scroller as the primary scrollable area */
+  .calendar-content {
+    overflow: auto; /* ensure scrolling still works */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* if desktop offcanvas is used on smaller screens, allow its body to scroll */
+  .offcanvas .offcanvas-body {
+    overflow: auto;
+  }
+}
+
 /* === PÍLDORAS DE FILTRO SÚPER CHULAS (consolidado) === */
 .filter-item {
   -webkit-appearance: none;

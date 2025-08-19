@@ -18,7 +18,7 @@ import { Subscription } from 'rxjs';
             <div class="page-header">
               <h1 class="display-6 mb-2">
                 <i class="fas fa-ticket-alt me-3"></i>
-                Mi Cartera de Clases
+                Tu Cartera de Clases
               </h1>
               <p class="text-muted">Gestiona y consulta tus bonos de clases disponibles</p>
             </div>
@@ -50,14 +50,6 @@ import { Subscription } from 'rxjs';
                       <li><i class="fas fa-check text-success me-2"></i>Cada bono incluye un número específico de clases</li>
                       <li><i class="fas fa-check text-success me-2"></i>Las clases se consumen al confirmar tu reserva</li>
                       <li><i class="fas fa-check text-success me-2"></i>Puedes tener múltiples bonos activos al mismo tiempo</li>
-                    </ul>
-                  </div>
-                  <div class="col-md-6">
-                    <h6>Tipos de clases</h6>
-                    <ul class="list-unstyled">
-                      <li><i class="fas fa-dumbbell text-primary me-2"></i><strong>MAT-Funcional:</strong> Clases en colchoneta</li>
-                      <li><i class="fas fa-expand-arrows-alt text-purple me-2"></i><strong>Reformer:</strong> Clases con máquina Reformer</li>
-                      <li><i class="fas fa-crown text-warning me-2"></i><strong>Personalizadas:</strong> Clases individuales</li>
                     </ul>
                   </div>
                 </div>

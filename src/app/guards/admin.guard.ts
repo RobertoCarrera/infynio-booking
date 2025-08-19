@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router } from '@angular/router';
+import { CanActivate, Router, UrlTree } from '@angular/router';
 import { SupabaseService } from '../services/supabase.service';
 import { Observable, of } from 'rxjs';
 import { switchMap, map, catchError, take } from 'rxjs/operators';
@@ -7,34 +7,31 @@ import { switchMap, map, catchError, take } from 'rxjs/operators';
 @Injectable({ providedIn: 'root' })
 export class AdminGuard implements CanActivate {
   constructor(private supabase: SupabaseService, private router: Router) {}
-
-  canActivate(): Observable<boolean> {
+  canActivate(): Observable<boolean | UrlTree> {
+    // Use UrlTree for redirects — prevents flicker and is the recommended pattern
     return this.supabase.getCurrentUser().pipe(
-      take(1), // Solo tomar el primer valor
+      take(1), // only need first value
       switchMap(user => {
         if (!user) {
-          console.log('AdminGuard: No user, redirecting to /login');
-          this.router.navigate(['/login']);
-          return of(false);
+          console.log('AdminGuard: No user, will redirect to /login');
+          return of(this.router.createUrlTree(['/login']));
         }
         return this.supabase.getCurrentUserRole().pipe(
-          take(1), // Solo tomar el primer valor del rol
+          take(1),
           map(role => {
-            console.log('AdminGuard: user', user.id, 'role', role);
-            if (role === 'admin') {
-              console.log('AdminGuard: Access granted - user is admin');
+            // Accept numeric or string role identifiers
+            const roleStr = (role === null || role === undefined) ? '' : String(role).toLowerCase();
+            const isAdmin = roleStr === 'admin' || roleStr === '1' || roleStr === 'role_admin' || roleStr === 'rol_admin';
+            console.log('AdminGuard: user', user.id, 'role', role, 'isAdmin', isAdmin);
+            if (isAdmin) {
               return true;
-            } else {
-              console.log('AdminGuard: Access denied - user role is:', role, 'redirecting to calendario');
-              this.router.navigate(['/calendario']);
-              return false;
             }
+            // redirect normal users to calendario
+            return this.router.createUrlTree(['/calendario']);
           }),
-          catchError(error => {
-            console.error('AdminGuard: Error checking user role:', error);
-            console.log('AdminGuard: Error occurred, redirecting to calendario');
-            this.router.navigate(['/calendario']);
-            return of(false);
+          catchError(err => {
+            console.error('AdminGuard: error checking role', err);
+            return of(this.router.createUrlTree(['/calendario']));
           })
         );
       })
