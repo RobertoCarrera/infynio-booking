@@ -17,4 +17,9 @@
       <p>Por favor, verifica la consola del navegador para más detalles.</p>
     </div>
   </ng-template>
+  
+  <!-- Mobile: quick logout button fixed at bottom of profile for easy access -->
+  <div class="mobile-logout d-lg-none" style="position: sticky; bottom: 12px; margin-top: 12px; display:flex; justify-content:center;">
+    <button class="btn btn-danger w-75" (click)="logout()">Cerrar sesión</button>
+  </div>
 </div>

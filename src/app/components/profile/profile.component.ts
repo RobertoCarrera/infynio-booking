@@ -16,6 +16,19 @@ export class ProfileComponent implements OnInit {
 
   constructor(private usersService: UsersService, private authService: AuthService) {}
 
+  // Expose a public logout wrapper for the template to call
+  logout() {
+    try {
+      this.authService.logout().subscribe(() => {
+        // navigation handled by AuthService or other global logic
+      }, (err) => {
+        console.error('Logout failed', err);
+      });
+    } catch (e) {
+      console.error('Logout wrapper error', e);
+    }
+  }
+
   ngOnInit() {
     this.authService.currentUser$.subscribe(currentUser => {
       if (currentUser?.id || currentUser?.auth_user_id) {
