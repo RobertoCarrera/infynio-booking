@@ -11,7 +11,7 @@ import { Subscription } from 'rxjs';
   imports: [CommonModule, CarteraInfoComponent],
   template: `
     <div class="cartera-page-container">
-      <div class="container py-4 overflow-y-auto">
+  <div class="container py-4">
 
         <!-- Cartera Info Component -->
         <div class="row">
@@ -43,7 +43,7 @@ import { Subscription } from 'rxjs';
               </div>
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4 mt-4">
             <div class="card bg-light">
               <div class="card-header">
                 <h6 class="mb-0">
@@ -71,9 +71,26 @@ import { Subscription } from 'rxjs';
     </div>
   `,
   styles: [`
+    :host {
+      /* Ensure this route component fills the available height in app-main */
+      display: block;
+      height: 100%;
+    }
+
     .cartera-page-container {
-      min-height: 100%;
+      /* Fill parent and let inner container handle scrolling */
+      height: 100%;
+      display: flex;
+      flex-direction: column;
       background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+
+    /* Make the Bootstrap container the scrollable region within the page */
+    .cartera-page-container > .container {
+      flex: 1 1 auto;
+      min-height: 0; /* critical for nested flex scrollers */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .page-header {
@@ -117,6 +134,10 @@ import { Subscription } from 'rxjs';
       
       .display-6 {
         font-size: 1.5rem;
+      }
+      /* Minimal safe-area padding; menu script will add extra bottom padding dynamically */
+      .cartera-page-container > .container {
+        padding-bottom: env(safe-area-inset-bottom);
       }
     }
   `]
