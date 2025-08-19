@@ -11,7 +11,7 @@ import { Subscription } from 'rxjs';
   imports: [CommonModule, CarteraInfoComponent],
   template: `
     <div class="cartera-page-container">
-      <div class="container py-4">
+      <div class="container py-4 overflow-y-auto">
 
         <!-- Cartera Info Component -->
         <div class="row">
@@ -19,14 +19,13 @@ import { Subscription } from 'rxjs';
             <app-cartera-info></app-cartera-info>
           </div>
         </div>
-
         <!-- Información adicional -->
         <div class="row mt-4">
           <div class="col-md-8">
             <div class="card">
               <div class="card-header">
                 <h5 class="mb-0">
-                  <i class="fas fa-info-circle me-2"></i>
+                  <i class="bi bi-info-circle me-2"></i>
                   Información sobre tus bonos
                 </h5>
               </div>
@@ -73,7 +72,7 @@ import { Subscription } from 'rxjs';
   `,
   styles: [`
     .cartera-page-container {
-      min-height: 100vh;
+      min-height: 100%;
       background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     }
 
