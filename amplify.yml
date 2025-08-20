@@ -3,7 +3,6 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Node: $(node -v), npm: $(npm -v)"
         # Skip Chromium download from puppeteer to avoid long installs/timeouts
         - export PUPPETEER_SKIP_DOWNLOAD=1
         - npm ci --cache .npm --prefer-offline
