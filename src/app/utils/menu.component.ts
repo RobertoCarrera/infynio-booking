@@ -137,6 +137,8 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!main) return;
   if (mobileNav && window.innerWidth < 992 && !hasCalendar) {
         const height = mobileNav.offsetHeight + 12; // small extra gap
+        // expose bottom nav height as a CSS variable for pages to consume
+        try { document.documentElement.style.setProperty('--bottom-nav-height', `${height}px`); } catch (e) {}
 
         // Prefer applying padding to scrollable elements inside main so we don't
         // mutate heights globally (safer for libraries like FullCalendar).
@@ -181,6 +183,8 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         main.style.paddingBottom = `${height}px`;
       } else {
+        // clear the CSS variable when no mobile nav is present
+        try { document.documentElement.style.removeProperty('--bottom-nav-height'); } catch (e) {}
         // restore inline padding-bottom on any elements we modified
         const adjusted = Array.from(document.querySelectorAll<HTMLElement>('[data-__orig-padding-bottom-inline]')) as HTMLElement[];
         adjusted.forEach(el => {

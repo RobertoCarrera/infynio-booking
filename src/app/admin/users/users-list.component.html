@@ -1,16 +1,20 @@
-<div class="container-fluid users-list-root py-3">
-    <div class="row g-3">
+<div class="container-fluid users-list-root">
+    <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h3>Gestión de Usuarios</h3>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="toggleDeactivated" [(ngModel)]="showDeactivated" (change)="resetAndLoad()">
-                        <label class="form-check-label" for="toggleDeactivated">Ver desactivados</label>
+            <div class="row pb-lg-4 d-flex justify-content-between align-items-center">
+                <div class="col-12 col-lg-3 d-flex align-items-center justify-content-around">
+                    <div class="row w-100 d-flex flex-lg-column align-items-start justify-content-around">
+                        <div class="col-8 col-sm-9 col-md-10 col-lg-12 mb-lg-2 form-check form-switch d-flex align-items-center justify-content-start">
+                            <input class="form-check-input col-2" type="checkbox" id="toggleDeactivated" [(ngModel)]="showDeactivated" (change)="resetAndLoad()">
+                            <label class="form-check-label col-10 ps-2" for="toggleDeactivated">Ver desactivados</label>
+                        </div>
+                        <span class="col-4 col-sm-3 col-md-2 col-lg-6 col-xxl-4 badge bg-primary fs-6" title="Sólo usuarios normales (rol 2)">
+                            {{ filteredNormalUsers.length }} usuarios
+                        </span>
                     </div>
-                    <span class="badge bg-primary fs-6" title="Sólo usuarios normales (rol 2)">
-                        {{ filteredNormalUsers.length }} usuarios
-                    </span>
+                </div>
+                <div class="col-12 col-lg-6 py-3 pb-0">
+                    <input type="text" [(ngModel)]="filterText" (ngModelChange)="onFilterChange($event)" placeholder="Buscar usuario..." class="form-control">
                 </div>
             </div>
         </div>
@@ -18,14 +22,11 @@
             <div *ngIf="loading">Cargando...</div>
             <div *ngIf="error">{{ error }}</div>
         </div>
-        <div class="col-12 mb-2">
-            <input type="text" [(ngModel)]="filterText" (ngModelChange)="onFilterChange($event)" placeholder="Buscar usuario..." class="form-control mb-2">
-        </div>
         <!-- Mobile: stacked list with scrollable viewport -->
-    <div class="col-12 d-md-none mobile-list-block">
+    <div #mobileListBlock class="col-12 d-lg-none mobile-list-block">
             <div class="mobile-list-scroll">
                 <div class="list-group mobile-list-viewport" (scroll)="onScrollEndMobile($event)">
-                    <div class="list-group-item mb-2" *ngFor="let user of displayedUsers">
+                    <div class="list-group-item mb-2 rounded shadow-sm" *ngFor="let user of displayedUsers">
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="me-2">
                                 <div class="fw-medium text-break">{{ user.surname || '-' }}, {{ user.name || '-' }}</div>
@@ -58,14 +59,14 @@
         </div>
 
         <!-- Desktop/Tablet: table -->
-    <div class="table-responsive d-none d-md-block">
-            <table class="table table-hover table-bordered table-sm" *ngIf="!loading && !error">
+    <div class="table-responsive d-none d-lg-block tabla-usuarios">
+            <table class="table table-hover table-bordered table-sm mb-0" *ngIf="!loading && !error">
                 <thead>
                     <tr>
                     <th>Apellidos</th>
                     <th>Nombre</th>
+                    <th>Teléfono</th>
                     <th>Email</th>
-                    <th>Estado</th>
                     <th>Acciones</th>
                     </tr>
                 </thead>
@@ -73,11 +74,10 @@
                     <tr *ngFor="let user of displayedUsers">
                             <td>{{ user.surname || '-' }}</td>
                             <td>{{ user.name || '-' }}</td>
-                            <td>{{ user.email }}</td>
                             <td>
-                                <span *ngIf="user.is_active !== false" class="badge bg-success">Activo</span>
-                                <span *ngIf="user.is_active === false" class="badge bg-secondary" title="{{ user.last_deactivation_reason || '' }}">Desactivado</span>
+                                <a [href]="'tel:+34'+ user.telephone">{{ user.telephone || '-' }}</a>
                             </td>
+                            <td>{{ user.email }}</td>
                             <td>
                                 <button 
                                     class="btn btn-sm btn-warning me-1"

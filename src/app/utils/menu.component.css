@@ -5,7 +5,7 @@
     left: 12px;
     right: 12px;
     bottom: 12px;
-    height: 64px;
+    min-height: 8dvh;
     background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98));
     border-radius: 14px;
     display: flex;

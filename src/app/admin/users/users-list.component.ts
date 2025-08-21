@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { SupabaseService } from '../../services/supabase.service';
 import { User } from '../../models/user';
 import { CommonModule } from '@angular/common';
@@ -12,6 +12,10 @@ import { EditUserModalComponent } from './edit-user-modal.component';
   imports: [CommonModule, FormsModule, EditUserModalComponent]
 })
 export class UsersListComponent implements OnInit {
+  @ViewChild('mobileListBlock', { read: ElementRef }) mobileListBlock!: ElementRef<HTMLElement>;
+  private resizeHandler: any;
+  private mutationObserver: MutationObserver | null = null;
+  private debounceTimer: any = null;
   users: User[] = [];
   totalLoaded = 0;
   pageSize = 20;
@@ -27,6 +31,73 @@ export class UsersListComponent implements OnInit {
 
   ngOnInit() {
     this.resetAndLoad();
+  }
+
+  ngAfterViewInit() {
+    // compute and expose offset for the mobile list so CSS can size it
+    this.computeUsersListOffset();
+    this.resizeHandler = () => this.scheduleComputeUsersListOffset();
+    window.addEventListener('resize', this.resizeHandler);
+    window.addEventListener('orientationchange', this.resizeHandler);
+
+    // Observe DOM changes inside the parent container (e.g. loading/error/input changes)
+    try {
+      const parent = this.mobileListBlock?.nativeElement?.parentElement;
+      if (parent) {
+        this.mutationObserver = new MutationObserver(() => this.scheduleComputeUsersListOffset());
+        this.mutationObserver.observe(parent, { childList: true, subtree: true, attributes: true });
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  ngOnDestroy() {
+    if (this.resizeHandler) window.removeEventListener('resize', this.resizeHandler);
+    try { window.removeEventListener('orientationchange', this.resizeHandler); } catch (e) {}
+    if (this.mutationObserver) {
+      try { this.mutationObserver.disconnect(); } catch (e) {}
+      this.mutationObserver = null;
+    }
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+  }
+
+  private computeUsersListOffset() {
+    try {
+      const el = this.mobileListBlock?.nativeElement;
+      if (!el) return;
+
+      // Prefer summing heights of preceding siblings inside the same parent. This
+      // is more stable than rect.top when headers/margins or fixed elements exist.
+      const parent = el.parentElement;
+      let sum = 0;
+      if (parent) {
+        for (const child of Array.from(parent.children)) {
+          if (child === el) break;
+          const ce = child as HTMLElement;
+          // include only visible elements
+          const cs = window.getComputedStyle(ce);
+          if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+          sum += ce.offsetHeight;
+        }
+      }
+
+      // Fallback: if no parent or sum is 0, use rect.top as a best-effort value
+      if (sum === 0) {
+        const rect = el.getBoundingClientRect();
+        sum = Math.max(0, Math.round(rect.top));
+      }
+
+      document.documentElement.style.setProperty('--users-list-offset', `${Math.round(sum)}px`);
+    } catch (e) {}
+  }
+
+  private scheduleComputeUsersListOffset() {
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.computeUsersListOffset();
+      this.debounceTimer = null;
+    }, 80);
   }
 
   resetAndLoad() {

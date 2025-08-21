@@ -1,1 +1,14 @@
-.mobile-list-viewport { max-height: 70vh; overflow-y: auto; }
+
+.mobile-list-viewport {
+	/* Calculate height dynamically: full viewport minus bottom nav (if present).
+		 Fallback to 70vh when the variable isn't set. */
+	max-height: 76vh;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.tabla-usuarios{
+    max-height: 78vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
