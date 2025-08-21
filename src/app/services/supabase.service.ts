@@ -297,6 +297,23 @@ export class SupabaseService {
   return await this.supabase.from('users').select('*');
   }
 
+  /**
+   * Obtiene usuarios paginados.
+   * - roleId: filtra por rol (por defecto 2 = usuario normal)
+   * - offset/limit: ventana de resultados
+   * - deactivatedOnly: si true, solo inactivos
+   */
+  async getUsersPaged(params: { roleId?: number; offset: number; limit: number; deactivatedOnly?: boolean }): Promise<{ data: any[]; error: any }> {
+    const { roleId = 2, offset, limit, deactivatedOnly = false } = params;
+    const { data, error } = await this.supabase.rpc('admin_get_users_paged', {
+      p_role_id: roleId,
+      p_deactivated_only: deactivatedOnly,
+      p_offset: offset,
+      p_limit: limit,
+    });
+    return { data: data || [], error };
+  }
+
   async getValidUsers(): Promise<any> {
     // Solo obtener usuarios que tengan auth_user_id (usuarios válidos)
     return await this.supabase
