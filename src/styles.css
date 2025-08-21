@@ -100,3 +100,9 @@
     padding: 0.3em 0.6em;
   }
 }
+
+/* Small utilities used across the app: map the project's min-vh-0 usage to a real rule
+  so flex children can shrink and nested overflow:auto containers can scroll. */
+.min-h-0, .min-vh-0 { min-height: 0 !important; }
+
+/* If any component needs a full-height flex child, use .h-100 or min-vh-100 per Bootstrap. */

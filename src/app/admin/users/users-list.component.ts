@@ -49,36 +49,23 @@ export class UsersListComponent implements OnInit {
         deactivatedOnly: this.showDeactivated,
       });
       if (error) throw error;
-      if ((data?.length ?? 0) < this.pageSize) {
+  if ((data?.length ?? 0) < this.pageSize) {
         this.hasMore = false;
       }
-      // If first page returns empty, fall back to legacy fetch to avoid blank UI
-      if ((data?.length ?? 0) === 0 && this.totalLoaded === 0) {
-  const legacy = this.showDeactivated ? await this.supabase.getDeactivatedUsers() : await this.supabase.getAllUsers();
-        const all = (legacy?.data || []).filter((u: any) => (u.role_id ?? 0) == 2);
-        const text0 = this.filterText.trim().toLowerCase();
-        this.users = !text0
-          ? all
-          : all.filter((user: any) =>
-              (user.surname || '').toLowerCase().includes(text0) ||
-              (user.name || '').toLowerCase().includes(text0) ||
-              (user.email || '').toLowerCase().includes(text0)
-            );
-  this.totalLoaded = all.length;
-  this.hasMore = false; // legacy fetch loads everything
-      } else {
+  if ((data?.length ?? 0) > 0 || this.totalLoaded > 0) {
         // Apply client-side filter on the page fetched
+  const completed = data || []; // backend enforces completeness now
         const text = this.filterText.trim().toLowerCase();
         const page = !text
-          ? data
-          : data.filter((user: any) =>
+          ? completed
+          : completed.filter((user: any) =>
               (user.surname || '').toLowerCase().includes(text) ||
               (user.name || '').toLowerCase().includes(text) ||
               (user.email || '').toLowerCase().includes(text)
             );
         this.users = [...this.users, ...page];
   this.totalLoaded += data.length; // increment by raw page size fetched
-      }
+  }
     } catch (e: any) {
       this.error = 'Error al cargar usuarios';
     } finally {

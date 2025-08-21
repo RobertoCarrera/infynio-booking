@@ -22,28 +22,24 @@
             <input type="text" [(ngModel)]="filterText" (ngModelChange)="onFilterChange($event)" placeholder="Buscar usuario..." class="form-control mb-2">
         </div>
         <!-- Mobile: stacked list with scrollable viewport -->
-        <div class="col-12 d-md-none">
+    <div class="col-12 d-md-none mobile-list-block">
             <div class="mobile-list-scroll">
-                <div class="list-group mobile-list-viewport" (scroll)="onScrollEndMobile($event)" [class.pointer-events-none]="!hasMore">
-                    <div class="list-group-item" *ngFor="let user of displayedUsers">
-                        <div class="d-flex justify-content-between align-items-start">
+                <div class="list-group mobile-list-viewport" (scroll)="onScrollEndMobile($event)">
+                    <div class="list-group-item mb-2" *ngFor="let user of displayedUsers">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div class="me-2">
                                 <div class="fw-medium text-break">{{ user.surname || '-' }}, {{ user.name || '-' }}</div>
                                 <div class="small text-muted text-break">{{ user.email }}</div>
-                                <div class="mt-1">
-                                    <span *ngIf="user.is_active !== false" class="badge text-bg-success">Activo</span>
-                                    <span *ngIf="user.is_active === false" class="badge text-bg-secondary" [title]="user.last_deactivation_reason || ''">Desactivado</span>
-                                </div>
                             </div>
                             <div class="btn-group btn-group-sm flex-shrink-0 d-flex flex-column align-items-end justify-content-around">
                                 <button 
-                                    class="btn btn-outline-warning mb-2 rounded"
+                                    class="btn btn-outline-warning mb-2 rounded w-100"
                                     (click)="openEditUser(user)"
                                     title="Editar usuario">
                                     Editar
                                 </button>
                                 <button *ngIf="user.is_active !== false"
-                                    class="btn btn-outline-secondary mb-2 rounded"
+                                    class="btn btn-outline-secondary rounded"
                                     (click)="deactivateUser(user)"
                                     title="Desactivar usuario">
                                     Desactivar
