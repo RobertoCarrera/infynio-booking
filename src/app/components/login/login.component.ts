@@ -42,7 +42,7 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading = false;
-        this.error = err?.message || 'Error al iniciar sesión, verifica tus credenciales.';
+        this.error = 'Error al iniciar sesión, verifica tus credenciales.';
       }
     });
   }
