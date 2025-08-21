@@ -13,9 +13,13 @@ import { EditUserModalComponent } from './edit-user-modal.component';
 })
 export class UsersListComponent implements OnInit {
   @ViewChild('mobileListBlock', { read: ElementRef }) mobileListBlock!: ElementRef<HTMLElement>;
+  @ViewChild('tableContainer', { read: ElementRef }) tableContainer!: ElementRef<HTMLElement>;
   private resizeHandler: any;
   private mutationObserver: MutationObserver | null = null;
   private debounceTimer: any = null;
+  private tableScrollHandler: any = null;
+  private desktopAutoLoadTimer: any = null;
+  private desktopAutoLoading = false;
   users: User[] = [];
   totalLoaded = 0;
   pageSize = 20;
@@ -50,6 +54,19 @@ export class UsersListComponent implements OnInit {
     } catch (e) {
       // ignore
     }
+
+    // attach desktop scroll listener to container to emulate infinite scroll on large screens
+    try {
+      const tableEl = this.tableContainer?.nativeElement;
+      if (tableEl) {
+        this.tableScrollHandler = () => this.onDesktopScroll();
+        window.addEventListener('scroll', this.tableScrollHandler, { passive: true });
+        window.addEventListener('resize', this.tableScrollHandler);
+      }
+    } catch (e) {}
+
+  // Trigger an initial desktop auto-load check in case first page doesn't fill viewport
+  this.scheduleDesktopAutoLoad();
   }
 
   ngOnDestroy() {
@@ -60,6 +77,56 @@ export class UsersListComponent implements OnInit {
       this.mutationObserver = null;
     }
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    if (this.tableScrollHandler) {
+      try { window.removeEventListener('scroll', this.tableScrollHandler); } catch (e) {}
+      try { window.removeEventListener('resize', this.tableScrollHandler); } catch (e) {}
+    }
+  }
+
+  private onDesktopScroll() {
+    try {
+      if (!this.tableContainer) return;
+      if (!this.hasMore || this.loading) return;
+      const rect = this.tableContainer.nativeElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      // If the bottom of the table container is within 200px of the viewport bottom, load next page
+      if (rect.bottom - viewportHeight <= 200) {
+        this.loadNextPage();
+      }
+    } catch (e) {}
+  }
+
+  private scheduleDesktopAutoLoad() {
+    if (this.desktopAutoLoadTimer) clearTimeout(this.desktopAutoLoadTimer);
+    this.desktopAutoLoadTimer = setTimeout(() => this.performDesktopAutoLoad(), 120);
+  }
+
+  private async performDesktopAutoLoad() {
+    try {
+      if (this.desktopAutoLoading) return;
+      // Only run on large screens where table is visible
+      if (window.innerWidth < 992) return;
+      const tableEl = this.tableContainer?.nativeElement;
+      if (!tableEl) return;
+
+      this.desktopAutoLoading = true;
+      const threshold = 200;
+      let rect = tableEl.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+      // While the table bottom is within viewport + threshold and there are more pages,
+      // keep loading pages. Use await to serialize calls.
+      while (this.hasMore && !this.loading && (rect.bottom <= viewportHeight + threshold)) {
+        await this.loadNextPage();
+        // small pause to allow DOM to update
+        await new Promise(r => setTimeout(r, 50));
+        rect = tableEl.getBoundingClientRect();
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      this.desktopAutoLoading = false;
+    }
   }
 
   private computeUsersListOffset() {

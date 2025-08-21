@@ -1,0 +1,17 @@
+.user-edit-modal{ 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,0.35);
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+}
+.user-edit-modal .modal-dialog { 
+    width: 90%; 
+}
+.user-edit-modal .modal-dialog .modal-content { 
+    width: 100%; 
+}
+.user-edit-modal .modal-content { 
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2); 
+}
