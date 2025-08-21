@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-invite-user',
   templateUrl: './invite-user.component.html',
+  styleUrls: ['./invite-user.component.css'],
   imports: [FormsModule, CommonModule]
 })
 export class InviteUserComponent implements OnInit {

@@ -1,126 +1,208 @@
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12 d-flex flex-column align-items-start justify-content-around">
-            <h3>Gestionar usuarios</h3>
-            
-            <div class="w-100 mb-3">
-                <label class="form-label">Email del usuario:</label>
-                <input type="email" [(ngModel)]="email" class="form-control" required placeholder="usuario@ejemplo.com">
+<div class="container-fluid py-3 invite-user-root">
+    <div class="row g-3">
+        <div class="col-12">
+            <h3 class="mb-2">Gestionar usuarios</h3>
+
+            <div class="mb-2">
+                <label for="emailInput" class="form-label">Email del usuario</label>
+                <input
+                    id="emailInput"
+                    name="email"
+                    type="email"
+                    class="form-control"
+                    [(ngModel)]="email"
+                    #emailCtrl="ngModel"
+                    required
+                    autocomplete="email"
+                    inputmode="email"
+                    placeholder="usuario@ejemplo.com"
+                />
             </div>
 
             <div class="d-flex gap-2 w-100 flex-wrap">
-                <button 
-                    type="button" 
-                    [disabled]="!email" 
-                    (click)="invite()" 
-                    class="btn btn-primary flex-fill">
-                    <i class="fas fa-envelope"></i> Enviar invitación
+                <button
+                    type="button"
+                    class="btn btn-primary flex-fill"
+                    [disabled]="!email"
+                    (click)="invite()"
+                >
+                    Enviar invitación
                 </button>
-                
-                <!-- Botón de respaldo oculto por defecto -->
-                <button 
+
+                <button
                     *ngIf="showFallbackOption"
-                    type="button" 
-                    [disabled]="!email" 
-                    (click)="createUserDirectly()" 
-                    class="btn btn-outline-secondary">
-                    <i class="fas fa-user-plus"></i> Plan B
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    [disabled]="!email"
+                    (click)="createUserDirectly()"
+                >
+                    Plan B
                 </button>
             </div>
-            
-            <small class="text-muted mt-2">
-                Envía una invitación por email al usuario para que pueda registrarse en la plataforma.
-                Si el usuario ya existía o el enlace caducó/lo "quemó" un escáner, te mostraremos un enlace de recuperación para enviar manualmente.
+
+            <small class="text-muted d-block mt-2">
+                Envía una invitación al email indicado. Si ya existía o el enlace caducó/lo quemó un escáner, podrás generar un enlace de recuperación para enviarlo manualmente.
             </small>
         </div>
-        
-        <!-- Mensajes de éxito y error -->
-        <div class="col-12 mt-3" *ngIf="message || error || recoveryLink">
-            <div *ngIf="message" class="alert alert-success" role="alert">
-                <strong>✅ Éxito:</strong> {{ message }}
+
+        <div class="col-12" *ngIf="message || error || recoveryLink" aria-live="polite">
+            <div *ngIf="message" class="alert alert-success" role="status">
+                <strong>Éxito:</strong> {{ message }}
             </div>
+
             <div *ngIf="error" class="alert alert-danger" role="alert">
-                <strong>❌ Error:</strong> {{ error }}
-                <button 
+                <strong>Error:</strong> {{ error }}
+                <button
                     *ngIf="!showFallbackOption"
-                    (click)="showFallbackOption = true" 
-                    class="btn btn-sm btn-outline-secondary mt-2">
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary mt-2"
+                    (click)="showFallbackOption = true"
+                >
                     Mostrar opción alternativa
                 </button>
             </div>
-            
+
             <div *ngIf="recoveryLink" class="alert alert-warning" role="alert">
-                <strong>⚠️ Usuario ya existente o invitado:</strong> Puedes enviar este enlace de recuperación para que complete el acceso y, al ser su primera vez, vaya al formulario de datos.
+                <strong>Usuario ya existente o invitado:</strong>
+                Puedes enviar este enlace de recuperación para completar el acceso (dirige a
+                <code>/reset-password?invitation=1</code>).
                 <div class="input-group mt-2">
                     <input type="text" class="form-control" [value]="recoveryLink" readonly>
                     <button type="button" class="btn btn-outline-secondary" (click)="copyRecoveryLink()">
                         Copiar enlace
                     </button>
                 </div>
-                <small class="text-muted">El enlace dirige a <code>/reset-password?invitation=1</code> para activar el flujo de alta inicial.</small>
             </div>
         </div>
-                <div class="container-fluid mt-4" *ngIf="combined?.length">
-                        <div class="d-flex align-items-center justify-content-between">
-                                <h5 class="mb-0">Invitaciones y solicitudes <small class="text-muted">({{ combinedFiltered.length }}/{{ combined.length }})</small></h5>
-                                <div class="d-flex gap-2 align-items-center">
-                                        <input class="form-control form-control-sm" style="max-width: 240px" placeholder="Filtrar por email" [(ngModel)]="filter" (ngModelChange)="applyFilter()">
-                                        <button class="btn btn-outline-secondary btn-sm" (click)="filter=''; applyFilter()" [disabled]="!filter">Limpiar</button>
-                                        <button class="btn btn-link" (click)="reloadAll()">Actualizar</button>
-                                </div>
-                        </div>
-                        <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                        <thead>
-                                                <tr>
-                                                        <th>Email</th>
-                                                        <th>Estado</th>
-                                                        <th>Fecha</th>
-                                                        <th style="width:1%" class="text-nowrap">Acciones</th>
-                                                </tr>
-                                        </thead>
-                                        <tbody>
-                                                <tr *ngFor="let row of combinedFiltered">
-                                                        <td>
-                                                            {{ row.email }}
-                                                            <i *ngIf="hasRequest(row.email)" class="bi bi-exclamation-triangle-fill text-warning ms-2" title="Solicitó reenvío"></i>
-                                                        </td>
-                                                                                    <td>
-                                                                                        <span *ngIf="row.source==='pending'" class="badge text-bg-info">Pendiente</span>
-                                                                                        <span *ngIf="row.source==='pending' && isInviteExpired(row)" class="badge text-bg-warning ms-1">Caducado</span>
-                                                                                        <span *ngIf="row.source==='request'" class="badge text-bg-secondary">Solicitud</span>
-                                                                                        <span *ngIf="row.source==='needs'" class="badge text-bg-primary">Necesita onboarding</span>
-                                                                                    </td>
-                                                                                    <td>
-                                                                                        {{ rowDate(row) | date:'short' }}
-                                                                                    </td>
-                                                        <td>
-                                                                <div class="btn-group btn-group-sm">
-                                                                                                                                                <button
-                                                                                                                                                    class="btn btn-outline-primary"
-                                                                                                                                                    (click)="resendFor(row.email)"
-                                                                                                                                                    *ngIf="hasRequest(row.email) || (row.source==='pending' && isInviteExpired(row)) || row.source==='needs'">
-                                                                                                                                                    Reenviar
-                                                                                                                                                </button>
-                                                                        <button 
-                                                                            class="btn btn-outline-danger" 
-                                                                            *ngIf="row.source==='pending'"
-                                                                            (click)="cancelFor(row.email, row.id)">
-                                                                            Cancelar
-                                                                        </button>
-                                                                        <button 
-                                                                            class="btn btn-outline-secondary" 
-                                                                            *ngIf="hasRequest(row.email)"
-                                                                            (click)="clearRequest(row.email)"
-                                                                            title="Ocultar aviso">
-                                                                            Limpiar aviso
-                                                                        </button>
-                                                                </div>
-                                                        </td>
-                                                </tr>
-                                        </tbody>
-                                </table>
-                        </div>
+
+        <div class="col-12 mt-2" *ngIf="combined?.length">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h5 class="mb-0">
+                    Invitaciones y solicitudes
+                    <small class="text-muted">({{ combinedFiltered.length }}/{{ combined.length }})</small>
+                </h5>
+                <div class="d-flex gap-2 align-items-center w-100 w-md-auto">
+                    <input
+                        class="form-control form-control-sm"
+                        style="max-width: 260px"
+                        placeholder="Filtrar por email"
+                        [(ngModel)]="filter"
+                        (ngModelChange)="applyFilter()"
+                    />
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        (click)="filter=''; applyFilter()"
+                        [disabled]="!filter"
+                    >
+                        Limpiar
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm" (click)="reloadAll()">Actualizar</button>
                 </div>
+            </div>
+
+            <!-- Mobile: stacked list in scrollable viewport -->
+            <div class="d-md-none mt-2 mobile-list-scroll">
+                <div class="list-group mobile-list-viewport">
+                    <div class="list-group-item" *ngFor="let row of combinedFiltered">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-2">
+                                <div class="fw-medium text-break">{{ row.email }}</div>
+                                <div class="small text-muted">{{ rowDate(row) | date:'short' }}</div>
+                                <div class="mt-1">
+                                    <span *ngIf="row.source==='pending'" class="badge text-bg-info me-1">Pendiente</span>
+                                    <span *ngIf="row.source==='pending' && isInviteExpired(row)" class="badge text-bg-warning me-1">Caducado</span>
+                                    <span *ngIf="row.source==='request'" class="badge text-bg-secondary me-1">Solicitud</span>
+                                    <span *ngIf="row.source==='needs'" class="badge text-bg-primary me-1">Necesita onboarding</span>
+                                    <span *ngIf="hasRequest(row.email)" class="badge text-bg-warning">Reenvío solicitado</span>
+                                </div>
+                            </div>
+                            <div class="btn-group btn-group-sm flex-shrink-0 d-flex flex-column align-items-end justify-content-around">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary mb-2 rounded"
+                                    (click)="resendFor(row.email)"
+                                    *ngIf="hasRequest(row.email) || (row.source==='pending' && isInviteExpired(row)) || row.source==='needs'">
+                                    Reenviar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-danger mb-2 rounded"
+                                    *ngIf="row.source==='pending'"
+                                    (click)="cancelFor(row.email, row.id)">
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-secondary w-100 rounded"
+                                    *ngIf="hasRequest(row.email)"
+                                    (click)="clearRequest(row.email)"
+                                    title="Ocultar aviso">
+                                    Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop/Tablet: table -->
+            <div class="table-responsive d-none d-md-block mt-2">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th style="width:1%" class="text-nowrap">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let row of combinedFiltered">
+                            <td class="text-break">
+                                {{ row.email }}
+                                <span *ngIf="hasRequest(row.email)" class="text-warning ms-2" title="Solicitó reenvío">●</span>
+                            </td>
+                            <td>
+                                <span *ngIf="row.source==='pending'" class="badge text-bg-info">Pendiente</span>
+                                <span *ngIf="row.source==='pending' && isInviteExpired(row)" class="badge text-bg-warning ms-1">Caducado</span>
+                                <span *ngIf="row.source==='request'" class="badge text-bg-secondary">Solicitud</span>
+                                <span *ngIf="row.source==='needs'" class="badge text-bg-primary">Necesita onboarding</span>
+                            </td>
+                            <td class="text-nowrap">{{ rowDate(row) | date:'short' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-primary"
+                                        (click)="resendFor(row.email)"
+                                        *ngIf="hasRequest(row.email) || (row.source==='pending' && isInviteExpired(row)) || row.source==='needs'"
+                                    >
+                                        Reenviar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-danger"
+                                        *ngIf="row.source==='pending'"
+                                        (click)="cancelFor(row.email, row.id)"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary"
+                                        *ngIf="hasRequest(row.email)"
+                                        (click)="clearRequest(row.email)"
+                                        title="Ocultar aviso"
+                                    >
+                                        Limpiar aviso
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>

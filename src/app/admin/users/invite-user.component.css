@@ -1,0 +1,30 @@
+:host{
+  display:block;
+  height:100%;
+}
+
+.container-fluid.invite-user-root{
+  display:flex;
+  flex-direction:column;
+  min-height:100%;
+}
+
+/* Make the list area grow and scroll on small screens */
+.mobile-list-scroll{
+  display:flex;
+  flex-direction:column;
+  min-height:0; /* allow child to shrink in a flex column */
+}
+.mobile-list-scroll .mobile-list-viewport{
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  max-height:60vh; /* fallback */
+}
+
+@media (min-width: 768px){
+  /* On md+ we show the table; no special scroll needed */
+  .mobile-list-scroll .mobile-list-viewport{ max-height:none; overflow:visible; }
+}
+
+/* Safe area for iOS bottom insets when a bottom menu may overlap */
+.mobile-list-viewport{ padding-bottom: env(safe-area-inset-bottom, 0); }
