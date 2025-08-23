@@ -536,7 +536,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     let start = this.lastVisibleStart;
     let end = this.lastVisibleEnd;
     if (!start || !end) {
-      const now = new Date();
+      // Use an "effective now" that advances to next Monday when it's weekend
+      // or after the studio's last working hour on Friday (19:00).
+      const now = this.getEffectiveNowForWeek();
       const day = now.getDay();
       const diffToMonday = (day + 6) % 7;
       const weekStart = new Date(now);
@@ -558,7 +560,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.rangeEndDate = this.formatDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
       return;
     }
-    const now = new Date();
+  // Use effective now so users visiting on weekend (or after Friday 19:00)
+  // see the upcoming week instead of the past/ending week.
+  const now = this.getEffectiveNowForWeek();
     // Inicio: lunes de la semana actual (España)
     const day = now.getDay(); // 0-Domingo ... 6-Sábado
     const diffToMonday = (day + 6) % 7; // convierte lunes=0
@@ -613,6 +617,41 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     } catch (e) {}
     // Ensure the internal FullCalendar scroller height matches available space
     try { setTimeout(() => { this.adjustCalendarHeight(); }, 50); } catch {}
+  }
+
+  /**
+   * Return an effective "now" used to compute the visible week for users.
+   * Rules:
+   * - If today is Saturday or Sunday, return next Monday (so the UI shows next week).
+   * - If today is Friday and local time is >= 19:00, treat it as next Monday.
+   * - Otherwise return actual now.
+   */
+  private getEffectiveNowForWeek(): Date {
+    try {
+      const now = new Date();
+      const localDay = now.getDay(); // 0 Sun .. 6 Sat
+      const localHour = now.getHours();
+      // If weekend -> jump to next Monday
+      if (localDay === 6 || localDay === 0) {
+        // compute next Monday
+        const daysToMonday = (8 - localDay) % 7 || 1;
+        const nextMon = new Date(now);
+        nextMon.setDate(now.getDate() + daysToMonday);
+        nextMon.setHours(9, 0, 0, 0); // morning of that Monday
+        return nextMon;
+      }
+      // If Friday after or equal to 19:00 -> jump to next Monday
+      if (localDay === 5 && localHour >= 19) {
+        const daysToMonday = 3; // Fri -> Mon
+        const nextMon = new Date(now);
+        nextMon.setDate(now.getDate() + daysToMonday);
+        nextMon.setHours(9, 0, 0, 0);
+        return nextMon;
+      }
+      return now;
+    } catch (e) {
+      return new Date();
+    }
   }
 
   // Adjust FullCalendar's contentHeight to match the available height inside our layout.
