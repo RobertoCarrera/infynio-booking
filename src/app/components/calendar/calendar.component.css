@@ -502,88 +502,6 @@
   gap: 1rem;
 }
 
-/* === BOTONES SÚPER CHULOS === */
-.btn {
-  border-radius: 12px;
-  font-weight: 700;
-  padding: 0.875rem 1.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  transform: translate(-50%, -50%);
-}
-
-.btn:hover::before {
-  width: 300%;
-  height: 300%;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
-}
-
-.btn-warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
-}
-
-.btn-warning:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e28009 0%, #c2410c 100%);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
-}
-
-.btn-outline-danger {
-  border: 3px solid #ef4444;
-  color: #ef4444;
-  background: transparent;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
-}
-
-.btn-outline-danger:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
-}
-
-.btn-secondary {
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
-}
-
 /* === ALERTAS CHULAS === */
 .alert {
   border-radius: 12px;
@@ -789,11 +707,6 @@
   .modal-header, .modal-body, .modal-footer {
     padding: 1rem 1.25rem;
   }
-  
-  .btn {
-    padding: 0.75rem 1.25rem;
-    font-size: 0.9rem;
-  }
 }
 
 /* === ANIMACIONES CHULAS === */
@@ -814,7 +727,8 @@
 }
 
 .modal-content {
-  animation: bounce-in 0.5s ease-out;
+  /* Disable entrance animation to avoid transient layering/pointer issues */
+  animation: none !important;
 }
 
 /* === EFECTOS DE BRILLO === */
@@ -823,22 +737,8 @@
 }
 
 .class-filters::after, .modal-content::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    45deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  transform: rotate(45deg);
-  transition: all 0.5s ease;
-  opacity: 0;
-  /* pointer-events: none;  -- REMOVE for admin calendar, keep for user calendar only */
+  /* Remove decorative pseudo elements on modal to avoid invisible overlay that may block clicks */
+  display: none !important;
 }
 
 .class-filters:hover::after, .modal-content:hover::after {
@@ -849,5 +749,24 @@
 @keyframes shine {
   0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
   100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+/* Force modal to sit above app and ensure pointer events reach its buttons */
+.modal {
+  z-index: 200000 !important;
+  pointer-events: auto !important;
+}
+.modal-backdrop {
+  z-index: 199990 !important;
+  pointer-events: auto !important;
+  background: rgba(0,0,0,0.45) !important;
+}
+.modal-dialog, .modal-content {
+  z-index: 200001 !important;
+}
+
+/* Ensure transition mask never intercepts clicks */
+.calendar-content-container .transition-mask {
+  pointer-events: none !important;
 }
 
