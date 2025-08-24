@@ -98,6 +98,31 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   ngAfterViewInit() {
     // detect mobile based on viewport width
     try { this.isMobile = (typeof window !== 'undefined') && window.innerWidth < 992; } catch {}
+    // Ensure FullCalendar shows full weekday names where requested:
+    try {
+      const longWeekday = { weekday: 'long' } as any;
+      const views = { ...(this.calendarOptions.views || {}) } as any;
+      // Renderer that outputs full weekday names (and day/month). We vary month style by context.
+      const weekdayContent = (arg: any) => {
+        try {
+          const d = (arg && arg.date) ? new Date(arg.date) : new Date();
+          const opts: any = this.isMobile ? { weekday: 'long', day: 'numeric', month: 'short' } : { weekday: 'long', day: 'numeric', month: 'long' };
+          const raw = new Intl.DateTimeFormat('es-ES', opts).format(d);
+          // Capitalize first letter for consistency with other labels
+          if (!raw) return '';
+          return raw.charAt(0).toUpperCase() + raw.slice(1);
+        } catch (e) { return ''; }
+      };
+      // Always show full weekday in single-day view (mobile and desktop)
+      views.timeGridDay = { ...(views.timeGridDay || {}), dayHeaderContent: weekdayContent };
+      if (!this.isMobile) {
+        // On desktop, use full weekday names in week/month views as well
+        views.timeGridWeek = { ...(views.timeGridWeek || {}), dayHeaderContent: weekdayContent };
+        views.dayGridMonth = { ...(views.dayGridMonth || {}), dayHeaderContent: weekdayContent };
+      }
+      this.calendarOptions = { ...this.calendarOptions, views };
+      try { this.cdr.detectChanges(); } catch {}
+    } catch (e) {}
     // attach touch listeners for swipe navigation on mobile
     try {
       const el = this.calendarContentRef?.nativeElement;
@@ -217,6 +242,24 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         .join(' ');
     } catch (e) {
       return fullName;
+    }
+  }
+
+  // Format a date as 'day month' with the month capitalized. monthStyle: 'short'|'long'
+  private formatDayAndMonth(date: Date, monthStyle: 'short' | 'long'): string {
+    try {
+      const parts = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: monthStyle }).formatToParts(date);
+      // Capitalize the month part only
+      const out = parts.map(p => {
+        if (p.type === 'month') {
+          const v = p.value || '';
+          return v.charAt(0).toUpperCase() + v.slice(1);
+        }
+        return p.value || '';
+      }).join('');
+      return out;
+    } catch (e) {
+      try { return date.toLocaleDateString('es-ES'); } catch { return String(date); }
     }
   }
 
@@ -609,8 +652,16 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     try {
       const s = new Date(arg.start);
       const e = new Date(arg.end);
-      const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' } as any;
-      const label = `${s.toLocaleDateString('es-ES', opts)} - ${new Date(e.getTime() - 1).toLocaleDateString('es-ES', opts)}`;
+  // Choose month format: if we're in single-day view show full month; otherwise mobile uses short, desktop uses full
+  const monthStyle: 'short' | 'long' = (this.currentView === 'day') ? 'long' : (this.isMobile ? 'short' : 'long');
+      let label: string;
+      if (this.currentView === 'day') {
+        label = this.formatDayAndMonth(s, monthStyle);
+      } else {
+        const left = this.formatDayAndMonth(s, monthStyle);
+        const right = this.formatDayAndMonth(new Date(e.getTime() - 1), monthStyle);
+        label = `${left} - ${right}`;
+      }
       // assign in next tick to avoid ExpressionChangedAfterItHasBeenCheckedError
       setTimeout(() => { try { this.currentRangeLabel = label; } catch {} }, 0);
     } catch {}
