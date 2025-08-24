@@ -581,6 +581,21 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   if (this.isAdmin) return; // admins unaffected
   // capture calendar API reference when available
   try { if (arg && arg.view && arg.view.calendar) this.calendarApi = arg.view.calendar; } catch {}
+  // Keep our toolbar view state in sync with FullCalendar's actual view type.
+  // This fixes an issue on mobile where the component thought the view was 'week'
+  // but FullCalendar started in 'timeGridDay', making the "Semana" button appear
+  // to do nothing until the user toggled the day view first.
+  try {
+    const fcType = arg?.view?.type;
+    if (fcType) {
+      const mapped = fcType === 'timeGridDay' ? 'day' : (fcType === 'timeGridWeek' ? 'week' : (fcType === 'dayGridMonth' ? 'month' : this.currentView));
+      if (mapped && mapped !== this.currentView) {
+        this.currentView = mapped as any;
+        // ensure stored preference isn't overwritten incorrectly
+        try { localStorage.setItem('calendar:view', this.currentView); } catch {}
+      }
+    }
+  } catch (e) {}
   // Usar fechas locales para evitar saltos por zona horaria
   const startStr = this.formatDate(new Date(arg.start));
     // arg.endStr is exclusive in FullCalendar; subtract one day for inclusive logic
