@@ -155,11 +155,12 @@ export class CarteraClasesService {
    * Agrega un nuevo user_package (usado por administradores)
    */
   agregarPackageAUsuario(createData: CreateUserPackage): Observable<UserPackage> {
-    const now = new Date().toISOString();
-    
-    // Calcular la fecha de rollover (primera semana del mes siguiente)
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1, 7); // Día 7 del mes siguiente
+  const now = new Date().toISOString();
+  // Fecha de activación efectiva (proporcionada o ahora)
+  const activation = createData.activation_date ? new Date(createData.activation_date) : new Date();
+  // Caducidad: último día del mismo mes de la activación
+  const eom = new Date(activation.getFullYear(), activation.getMonth() + 1, 0);
+  const expirationDateStr = eom.toISOString().split('T')[0];
     
     const newUserPackage = {
       ...createData,
@@ -168,7 +169,7 @@ export class CarteraClasesService {
       current_classes_remaining: 0, // Se establecerá según el package
       classes_used_this_month: 0,
       rollover_classes_remaining: 0,
-      next_rollover_reset_date: nextMonth.toISOString().split('T')[0],
+  next_rollover_reset_date: expirationDateStr,
       status: 'active'
     };
 

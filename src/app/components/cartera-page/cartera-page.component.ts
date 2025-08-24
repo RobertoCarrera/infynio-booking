@@ -4,11 +4,12 @@ import { CarteraInfoComponent } from '../cartera-info/cartera-info.component';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { AuthService } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
+import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.component';
 
 @Component({
   selector: 'app-cartera-page',
   standalone: true,
-  imports: [CommonModule, CarteraInfoComponent],
+  imports: [CommonModule, CarteraInfoComponent, CarteraBookingsComponent],
   template: `
     <div class="cartera-page-container">
   <div class="container py-4">
@@ -17,6 +18,13 @@ import { Subscription } from 'rxjs';
         <div class="row">
           <div class="col-12">
             <app-cartera-info></app-cartera-info>
+          </div>
+        </div>
+
+        <!-- Bookings list -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <app-cartera-bookings></app-cartera-bookings>
           </div>
         </div>
         <!-- Información adicional -->
