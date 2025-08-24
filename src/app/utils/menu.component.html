@@ -39,14 +39,11 @@
           <li class="nav-item">
             <a routerLink="/admin/calendar" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
           </li>
-          <li class="nav-item ms-3">
-            <a (click)="logout(); closeMenu()" class="nav-link bg-danger text-white rounded px-3" style="cursor: pointer;">Cerrar Sesión</a>
-          </li>
         </ng-container>
       </ul>
     </div>
     <div class="div">
-      <ng-container *ngIf="isLoggedIn && !isAdmin">
+      <ng-container *ngIf="isLoggedIn">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item ms-3">
             <a (click)="logout(); closeMenu()" class="nav-link bg-danger text-white rounded px-3" style="cursor: pointer;">Cerrar Sesión</a>
