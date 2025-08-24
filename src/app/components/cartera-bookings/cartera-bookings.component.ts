@@ -135,10 +135,8 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
   }
 
   canCancel(u: UpcomingBooking): boolean {
-    if (!u.cancellationTime) return false;
-    const cutoff = new Date(u.cancellationTime);
-    if (isNaN(cutoff.getTime())) return false;
-    return cutoff.getTime() > Date.now();
+  const cutoff = this.getCutoff(u);
+  return !!cutoff && cutoff.getTime() > Date.now();
   }
 
   cancelling: { [id: number]: boolean } = {};
@@ -161,5 +159,18 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
       }
     });
     this.subs.push(sub);
+  }
+
+  private getCutoff(u: UpcomingBooking): Date | null {
+    // Prefer DB-provided cancellation_time
+    if (u.cancellationTime) {
+      const parsed = new Date(u.cancellationTime);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    // Fallback: 12h antes de la clase según fecha/hora local
+    const dt = this.combineDateTime(u.scheduleDate, u.scheduleTime);
+    if (!dt) return null;
+    const fallback = new Date(dt.getTime() - 12 * 60 * 60 * 1000);
+    return fallback;
   }
 }
