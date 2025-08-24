@@ -24,6 +24,11 @@
         <button type="button" class="btn btn-sm offcanvas-close" aria-label="Cerrar filtros" data-testid="offcanvas-close" (click)="desktopFiltersOpen = false">×</button>
       </div>
       <div class="offcanvas-body p-3">
+        <!-- Desktop view selector: moved here from toolbar (omit 'Día' on desktop) -->
+        <div class="desktop-view-group d-flex gap-2 mb-3" role="group" aria-label="Seleccionar vista">
+          <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='week'" (click)="setView('week'); desktopFiltersOpen=false">Semana</button>
+          <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='month'" (click)="setView('month'); desktopFiltersOpen=false">Mes</button>
+        </div>
         <div class="filter-items">
           <button
             *ngFor="let classType of availableClassTypes"
