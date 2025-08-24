@@ -9,11 +9,18 @@
   min-height:100%;
 }
 
+.desktop-list-scroll{
+  display:flex;
+  flex-direction:column;
+  max-height: 55vh;
+}
+
 /* Make the list area grow and scroll on small screens */
 .mobile-list-scroll{
   display:flex;
   flex-direction:column;
-  min-height:0; /* allow child to shrink in a flex column */
+  max-height: 45vh;
+  min-height: 0; /* allow child to shrink in a flex column */
 }
 .mobile-list-scroll .mobile-list-viewport{
   overflow-y:auto;

@@ -21,6 +21,7 @@ export class UsersListComponent implements OnInit, AfterViewInit, OnDestroy {
   private desktopAutoLoadTimer: any = null;
   private desktopAutoLoading = false;
   private lastScrollTs = 0;
+  private lastMobileScrollTs = 0;
   users: User[] = [];
   totalLoaded = 0;
   pageSize = 20;
@@ -211,23 +212,27 @@ export class UsersListComponent implements OnInit, AfterViewInit, OnDestroy {
         deactivatedOnly: this.showDeactivated,
       });
       if (error) throw error;
-  if ((data?.length ?? 0) < this.pageSize) {
+      const fetched = data || [];
+      const fetchedCount = fetched.length;
+      if (fetchedCount < this.pageSize) {
         this.hasMore = false;
       }
-  if ((data?.length ?? 0) > 0 || this.totalLoaded > 0) {
-        // Apply client-side filter on the page fetched
-  const completed = data || []; // backend enforces completeness now
+
+      // Apply client-side filter on the page fetched
+      if (fetchedCount > 0 || this.totalLoaded > 0) {
         const text = this.filterText.trim().toLowerCase();
         const page = !text
-          ? completed
-          : completed.filter((user: any) =>
+          ? fetched
+          : fetched.filter((user: any) =>
               (user.surname || '').toLowerCase().includes(text) ||
               (user.name || '').toLowerCase().includes(text) ||
               (user.email || '').toLowerCase().includes(text)
             );
         this.users = [...this.users, ...page];
-  this.totalLoaded += data.length; // increment by raw page size fetched
-  }
+      }
+
+      // Safely increment totalLoaded by the actual number of records fetched
+      this.totalLoaded += fetchedCount;
     } catch (e: any) {
       this.error = 'Error al cargar usuarios';
     } finally {
@@ -263,6 +268,10 @@ export class UsersListComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!el) return;
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
   if (!nearBottom) return;
+  const now = Date.now();
+  // Debounce mobile scroll to avoid double-triggers at the end
+  if (now - this.lastMobileScrollTs < 200) return;
+  this.lastMobileScrollTs = now;
   // Guard: don't trigger if already loading or no more pages
   if (!this.hasMore || this.loading || this.loadingMore) return;
   this.loadNextPage();
