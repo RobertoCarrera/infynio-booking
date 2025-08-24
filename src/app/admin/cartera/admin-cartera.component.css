@@ -15,6 +15,15 @@
   border-radius: 0.375rem;
 }
 
+/* Card header layout adjustments to keep action button inside */
+.card-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
 .usuario-item {
   padding: 0.75rem;
   border-bottom: 1px solid #e9ecef;
@@ -69,6 +78,84 @@
 
 .table td {
   vertical-align: middle;
+}
+
+/* Make badges tighter and nicer */
+.badge {
+  padding: 0.35em 0.6em;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* Responsive: convert rows to stacked cards on narrow screens */
+@media (max-width: 768px) {
+  .table-responsive table thead { display: none; }
+  .table-responsive table, .table-responsive tbody, .table-responsive tr, .table-responsive td { display: block; width: 100%; }
+  .table-responsive tr { margin-bottom: 12px; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; }
+  .table-responsive td { padding: 6px 12px; }
+  .table-responsive td:nth-child(1) { font-weight: 700; }
+  .btn-group { width: 100%; display: flex; gap: 8px; }
+  .btn-group .btn { flex: 1; }
+  .card-header { align-items: flex-start; }
+}
+
+/* Scroll container for cartera list to keep internal scrolling within the card */
+.cartera-scroll {
+  max-height: calc(60vh);
+  overflow-y: auto;
+  padding-right: 8px; /* small padding so scrollbar doesn't overlap content */
+}
+
+@media (min-width: 992px) {
+  /* on large screens give more vertical space to the cartera list */
+  .cartera-scroll { max-height: calc(70vh); }
+}
+
+/* Add bottom padding on mobile to avoid the mobile bottom nav covering the last item */
+@media (max-width: 991.98px) {
+  /* Use the --bottom-nav-height variable set by MenuComponent when available */
+  .cartera-scroll { padding-bottom: calc(var(--bottom-nav-height, 90px) + 16px); }
+}
+
+/* Mobile: make the two main cards occupy 50% of available height (minus bottom nav) */
+@media (max-width: 991.98px) {
+  /* ensure the variable is available for calculations via MenuComponent at runtime */
+  /* compute usable viewport height minus bottom nav height */
+  .admin-cartera-container {
+    padding-bottom: 0; /* we handle padding inside scrollers */
+  }
+
+  .admin-cartera-container .col-md-4,
+  .admin-cartera-container .col-md-8 {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-cartera-container .card {
+    max-height: calc(50vh - var(--bottom-nav-height, 90px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Make the card body scrollable while header/footer stay fixed */
+  .admin-cartera-container .card .card-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+  }
+
+  /* Ensure internal scrollers retain extra bottom spacing above menu */
+  .admin-cartera-container .card .cartera-scroll {
+    max-height: none;
+    padding-bottom: calc(var(--bottom-nav-height, 90px) + 12px);
+  }
+}
+
+/* Ensure modal backdrop in this component doesn't cover scrollbars on some browsers */
+.modal-backdrop {
+  -webkit-overflow-scrolling: touch;
 }
 
 .progress {
