@@ -32,11 +32,12 @@
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #0d6efd 0%, #0a58ca 100%);
+  background: #e4c4de;
   border: none;
   box-shadow: 0 6px 18px rgba(13,110,253,0.12);
   padding: 10px 14px;
   font-weight: 600;
+  color: #141b2d;
 }
 
 .muted-link {
