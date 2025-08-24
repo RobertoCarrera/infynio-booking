@@ -1,21 +1,29 @@
 <!-- Desktop / large screens: keep existing top navbar (hidden on small screens) -->
 <nav class="navbar navbar-expand-lg navbar-dark menu-navbar ps-3 pe-3 d-none d-lg-flex" *ngIf="isLoggedIn && !needsOnboarding">
-  <div class="container-fluid">
+  <div class="container-fluid d-flex align-items-center justify-content-between">
     <img src="https://mars-studio.es/wp-content/uploads/2025/04/logo_marron-100x100.png" alt="" id="logo">
-    <div class="collapse navbar-collapse d-flex" id="navbarNav">
-      <ul class="navbar-nav ms-auto d-flex align-items-center">
+    <div class="w-50" id="navbarNav">
+      <ul class="navbar-nav d-flex align-items-center justify-content-evenly w-100">
         <ng-container *ngIf="isLoggedIn && !isAdmin">
-          <li class="nav-item">
-            <a routerLink="/calendario" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Clases</a>
+          <li class="nav-item d-flex align-items-center justify-content-around">    
+            <a routerLink="/calendario" class="nav-link d-flex align-items-center justify-content-center" routerLinkActive="active" (click)="closeMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar me-2" viewBox="0 0 16 16">
+                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
+              </svg>  Clases
+            </a>
           </li>
-          <li class="nav-item">
-            <a routerLink="/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Bonos</a>
+          <li class="nav-item d-flex align-items-center justify-content-around">
+            <a routerLink="/cartera" class="nav-link" routerLinkActive="active" (click)="closeMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-ticket-detailed-fill me-2" viewBox="0 0 16 16">
+                <path d="M0 4.5A1.5 1.5 0 0 1 1.5 3h13A1.5 1.5 0 0 1 16 4.5V6a.5.5 0 0 1-.5.5 1.5 1.5 0 0 0 0 3 .5.5 0 0 1 .5.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 11.5V10a.5.5 0 0 1 .5-.5 1.5 1.5 0 1 0 0-3A.5.5 0 0 1 0 6zm4 1a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 0-1h-7a.5.5 0 0 0-.5.5m0 5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 0-1h-7a.5.5 0 0 0-.5.5M4 8a1 1 0 0 0 1 1h6a1 1 0 1 0 0-2H5a1 1 0 0 0-1 1"/>
+              </svg> Bonos
+            </a>
           </li>
-          <li class="nav-item">
+          <li class="nav-item d-flex align-items-center justify-content-around">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
+              <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+            </svg>
             <a routerLink="/perfil" class="nav-link" routerLinkActive="active" (click)="closeMenu()">Mi Perfil</a>
-          </li>
-          <li class="nav-item ms-3">
-            <a (click)="logout(); closeMenu()" class="nav-link bg-danger text-white rounded px-3" style="cursor: pointer;">Cerrar Sesión</a>
           </li>
         </ng-container>
         <ng-container *ngIf="isLoggedIn && isAdmin">
@@ -36,6 +44,15 @@
           </li>
         </ng-container>
       </ul>
+    </div>
+    <div class="div">
+      <ng-container *ngIf="isLoggedIn && !isAdmin">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item ms-3">
+            <a (click)="logout(); closeMenu()" class="nav-link bg-danger text-white rounded px-3" style="cursor: pointer;">Cerrar Sesión</a>
+          </li>
+        </ul> 
+      </ng-container>
     </div>
   </div>
 </nav>
