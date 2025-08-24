@@ -48,20 +48,16 @@
     </div>
 
     <!-- Panel de cartera -->
-    <div class="col-md-8">
+    <div class="col-md-8 bonos-info">
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">
-            <i class="fas fa-ticket-alt me-2"></i>
-            Cartera de Clases
-            <span *ngIf="usuarioSeleccionado" class="text-muted ms-2">
-              - {{ usuarioSeleccionado.full_name || usuarioSeleccionado.email }}
-            </span>
+          <h5 class="mb-0">
+            Bonos
           </h5>
-    <button *ngIf="usuarioSeleccionado" 
-      class="btn btn-primary btn-sm ms-2" 
-      (click)="abrirModalAgregar()">
-            <i class="fas fa-plus me-2"></i>
+          <button *ngIf="usuarioSeleccionado" 
+          class="btn btn-primary btn-sm ms-2" 
+          (click)="abrirModalAgregar()">
+            <i class="bi bi-ticket-perforated"></i>
             Agregar Bono
           </button>
         </div>
@@ -93,17 +89,9 @@
               <div class="cartera-scroll">
                 <div class="table-responsive">
                   <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th>Clases</th>
-                      <th>Progreso</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
                   <tbody>
                     <tr *ngFor="let entrada of carteraUsuario">
-                      <td>
+                      <td class="d-lg-block d-flex align-items-center justify-content-between">
                         <span class="badge" 
                               [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
                           {{ entrada.bono_type }}
@@ -114,7 +102,7 @@
                         </small>
                       </td>
                       <td>
-                        <strong>{{ entrada.clases_disponibles }}</strong> / {{ entrada.clases_totales }}
+                        <strong>{{ entrada.clases_disponibles }}</strong> / {{ entrada.clases_totales }} clases restantes
                       </td>
                       <td>
                         <div class="progress mb-1" style="height: 8px;">
