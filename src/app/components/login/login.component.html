@@ -14,12 +14,17 @@
     
     <div class="form-group mb-3">
       <label for="password">Contraseña</label>
-      <input 
-        type="password" 
-        id="password" 
-        formControlName="password" 
-        class="form-control"
-        required />
+      <div class="input-group">
+        <input
+          [type]="showPassword ? 'text' : 'password'"
+          id="password"
+          formControlName="password"
+          class="form-control"
+          required />
+        <button type="button" class="btn btn-outline-secondary" (click)="toggleShowPassword()" [attr.title]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" aria-label="Mostrar u ocultar contraseña">
+          <i class="bi" [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+        </button>
+      </div>
     </div>
 
     <div *ngIf="error" class="alert alert-danger p-2">

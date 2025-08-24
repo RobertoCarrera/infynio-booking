@@ -15,6 +15,7 @@ export class LoginComponent {
   loginForm: FormGroup;
   error: string = '';
   loading: boolean = false;
+  showPassword: boolean = false;
 
   constructor(
     private fb: FormBuilder,
@@ -45,6 +46,10 @@ export class LoginComponent {
         this.error = 'Error al iniciar sesión, verifica tus credenciales.';
       }
     });
+  }
+
+  toggleShowPassword() {
+    this.showPassword = !this.showPassword;
   }
 
   navigateToForgotPassword() {
