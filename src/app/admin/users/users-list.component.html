@@ -19,7 +19,7 @@
             </div>
         </div>
         <div class="col-12">
-            <div *ngIf="loading">Cargando...</div>
+            <div *ngIf="loading" class="text-center py-4">Cargando...</div>
             <div *ngIf="error">{{ error }}</div>
         </div>
         <!-- Mobile: stacked list with scrollable viewport -->
@@ -52,6 +52,9 @@
                                     Reactivar
                                 </button>
                             </div>
+                                <div *ngIf="loadingMore" class="text-center py-2 w-100">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                </div>
                         </div>
                     </div>
                 </div>
@@ -110,6 +113,9 @@
                     </tr>
                 </tbody>
             </table>
+            <div *ngIf="loadingMore" class="text-center py-2 w-100">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            </div>
         </div>
 
         <!-- Modal de edición de usuario (una sola vez) -->

@@ -11,7 +11,7 @@ import { EditUserModalComponent } from './edit-user-modal.component';
   styleUrls: ['./users-list.component.css'],
   imports: [CommonModule, FormsModule, EditUserModalComponent]
 })
-export class UsersListComponent implements OnInit {
+export class UsersListComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mobileListBlock', { read: ElementRef }) mobileListBlock!: ElementRef<HTMLElement>;
   @ViewChild('tableContainer', { read: ElementRef }) tableContainer!: ElementRef<HTMLElement>;
   private resizeHandler: any;
@@ -20,11 +20,13 @@ export class UsersListComponent implements OnInit {
   private tableScrollHandler: any = null;
   private desktopAutoLoadTimer: any = null;
   private desktopAutoLoading = false;
+  private lastScrollTs = 0;
   users: User[] = [];
   totalLoaded = 0;
   pageSize = 20;
   hasMore = true;
   loading = true;
+  loadingMore = false;
   error: string | null = null;
   filterText: string = '';
   selectedUser: User | null = null;
@@ -60,13 +62,16 @@ export class UsersListComponent implements OnInit {
       const tableEl = this.tableContainer?.nativeElement;
       if (tableEl) {
         this.tableScrollHandler = () => this.onDesktopScroll();
+        // Listen to scrolls on the container itself (desktop uses an internal scrollbar)
+        tableEl.addEventListener('scroll', this.tableScrollHandler, { passive: true });
+        // Also keep window scroll as a fallback for layouts where the page scrolls
         window.addEventListener('scroll', this.tableScrollHandler, { passive: true });
         window.addEventListener('resize', this.tableScrollHandler);
       }
     } catch (e) {}
 
-  // Trigger an initial desktop auto-load check in case first page doesn't fill viewport
-  this.scheduleDesktopAutoLoad();
+  // Note: we intentionally do NOT auto-fill the desktop viewport here.
+  // The list will load the first page and further pages will be loaded on scroll.
   }
 
   ngOnDestroy() {
@@ -80,16 +85,32 @@ export class UsersListComponent implements OnInit {
     if (this.tableScrollHandler) {
       try { window.removeEventListener('scroll', this.tableScrollHandler); } catch (e) {}
       try { window.removeEventListener('resize', this.tableScrollHandler); } catch (e) {}
+      try {
+        const tableEl = this.tableContainer?.nativeElement;
+        if (tableEl) tableEl.removeEventListener('scroll', this.tableScrollHandler);
+      } catch (e) {}
     }
   }
 
   private onDesktopScroll() {
     try {
+  const now = Date.now();
+  if (now - this.lastScrollTs < 200) return; // 200ms debounce
+  this.lastScrollTs = now;
       if (!this.tableContainer) return;
       if (!this.hasMore || this.loading) return;
-      const rect = this.tableContainer.nativeElement.getBoundingClientRect();
+      const tableEl = this.tableContainer.nativeElement as HTMLElement;
+
+      // If the container itself is scrollable (has an internal scrollbar), use its scroll position
+      if (tableEl.scrollHeight > tableEl.clientHeight) {
+        const nearBottom = tableEl.scrollTop + tableEl.clientHeight >= tableEl.scrollHeight - 200;
+        if (nearBottom) this.loadNextPage();
+        return;
+      }
+
+      // Otherwise fall back to checking container position relative to viewport
+      const rect = tableEl.getBoundingClientRect();
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-      // If the bottom of the table container is within 200px of the viewport bottom, load next page
       if (rect.bottom - viewportHeight <= 200) {
         this.loadNextPage();
       }
@@ -111,16 +132,12 @@ export class UsersListComponent implements OnInit {
 
       this.desktopAutoLoading = true;
       const threshold = 200;
-      let rect = tableEl.getBoundingClientRect();
+      const rect = tableEl.getBoundingClientRect();
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
-      // While the table bottom is within viewport + threshold and there are more pages,
-      // keep loading pages. Use await to serialize calls.
-      while (this.hasMore && !this.loading && (rect.bottom <= viewportHeight + threshold)) {
+      // If the table bottom is within viewport + threshold, attempt to load one page only.
+      if (this.hasMore && !this.loading && (rect.bottom <= viewportHeight + threshold)) {
         await this.loadNextPage();
-        // small pause to allow DOM to update
-        await new Promise(r => setTimeout(r, 50));
-        rect = tableEl.getBoundingClientRect();
       }
     } catch (e) {
       // ignore
@@ -173,12 +190,19 @@ export class UsersListComponent implements OnInit {
   this.hasMore = true;
   // Ensure first page isn't blocked by the loading guard
   this.loading = false;
+  this.loadingMore = false;
   this.loadNextPage();
   }
 
   async loadNextPage() {
-    if (this.loading) return;
-    this.loading = true;
+    if (this.loading || this.loadingMore) return;
+    // Use `loading` for the very first page, and `loadingMore` for subsequent pages
+    const isFirstPage = this.totalLoaded === 0;
+    if (isFirstPage) {
+      this.loading = true;
+    } else {
+      this.loadingMore = true;
+    }
     try {
       const { data, error } = await this.supabase.getUsersPaged({
         roleId: 2,
@@ -207,7 +231,9 @@ export class UsersListComponent implements OnInit {
     } catch (e: any) {
       this.error = 'Error al cargar usuarios';
     } finally {
-      this.loading = false;
+  // clear the appropriate flag
+  this.loading = false;
+  this.loadingMore = false;
     }
   }
 
@@ -236,7 +262,10 @@ export class UsersListComponent implements OnInit {
     const el = ev.target as HTMLElement;
     if (!el) return;
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
-    if (nearBottom) this.loadNextPage();
+  if (!nearBottom) return;
+  // Guard: don't trigger if already loading or no more pages
+  if (!this.hasMore || this.loading || this.loadingMore) return;
+  this.loadNextPage();
   }
 
   openEditUser(user: User) {
