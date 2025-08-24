@@ -602,6 +602,19 @@
   max-height: 70vh;
   overflow: auto;
 }
+
+/* Mobile filters panel: ensure it scrolls and leaves space at the bottom for the fixed mobile nav */
+.mobile-filters-panel {
+  max-height: calc(100dvh - 56px); /* leave room for mobile bottom nav (approx 56px) */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 80px; /* extra spacing so last item isn't obscured */
+}
+
+.mobile-filters-backdrop.open + .mobile-filters-panel.open {
+  /* ensure focusable items get proper stacking and visible space */
+  z-index: 1050;
+}
 .mobile-filters-panel .filter-item { display:flex; align-items:center }
 
 /* Calendar view transition classes */

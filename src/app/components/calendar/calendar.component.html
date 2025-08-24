@@ -58,7 +58,7 @@
       <button class="btn btn-sm btn-outline" (click)="mobileFiltersOpen = false">Cerrar</button>
     </div>
     <div class="p-3">
-      <!-- Mobile view selector (no month on mobile) -->
+      <!-- Mobile view selector (moved here from toolbar) -->
       <div class="mobile-view-group d-flex gap-2 mb-3" role="group" aria-label="Seleccionar vista">
         <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='day'" (click)="setView('day'); mobileFiltersOpen=false">Día</button>
         <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='week'" (click)="setView('week'); mobileFiltersOpen=false">Semana</button>

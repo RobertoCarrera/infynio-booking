@@ -10,10 +10,11 @@
     <div class="current-range" aria-live="polite">{{ currentRangeLabel }}</div>
   </div>
 
-  <div class="view-group" role="group" aria-label="Seleccionar vista">
-  <button *ngIf="isMobile" class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='day'" (click)="onChangeView('day')">Día</button>
-  <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='week'" (click)="onChangeView('week')">Semana</button>
-  <button *ngIf="!isMobile" class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='month'" (click)="onChangeView('month')">Mes</button>
+  <!-- Desktop: show view controls in the toolbar. On mobile, views are inside the filters modal. -->
+  <div *ngIf="!isMobile" class="view-group" role="group" aria-label="Seleccionar vista">
+    <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='day'" (click)="onChangeView('day')">Día</button>
+    <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='week'" (click)="onChangeView('week')">Semana</button>
+    <button class="btn btn-sm" type="button" [attr.aria-pressed]="currentView==='month'" (click)="onChangeView('month')">Mes</button>
   </div>
 
   <div class="actions-group" role="group" aria-label="Acciones">
