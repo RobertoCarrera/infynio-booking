@@ -77,7 +77,14 @@
 }
 
 .table td {
-  vertical-align: middle;
+  vertical-align: bottom;
+}
+/* Minimal table styles left intentionally light so the admin can style as needed. */
+
+/* Small utility for expiry days - bold and small spacing */
+.expiry-days {
+  font-weight: 700;
+  margin-left: 0.4rem;
 }
 
 /* Make badges tighter and nicer */

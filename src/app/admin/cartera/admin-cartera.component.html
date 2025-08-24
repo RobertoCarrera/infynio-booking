@@ -91,39 +91,56 @@
                   <table class="table">
                   <tbody>
                     <tr *ngFor="let entrada of carteraUsuario">
-                      <td class="d-lg-block d-flex align-items-center justify-content-between">
-                        <span class="badge" 
-                              [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
-                          {{ entrada.bono_type }}
-                        </span>
-                        <br>
-                        <small class="text-muted">
-                          {{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}
-                        </small>
-                      </td>
+                      <!-- Columna compacta: tipo, subtipo, clases y barra -->
                       <td>
-                        <strong>{{ entrada.clases_disponibles }}</strong> / {{ entrada.clases_totales }} clases restantes
-                      </td>
-                      <td>
-                        <div class="progress mb-1" style="height: 8px;">
-                          <div class="progress-bar" 
-                               [class]="'bg-' + getProgressColor(getProgressPercentage(entrada))"
-                               [style.width.%]="getProgressPercentage(entrada)">
+                        <div class="me-3 d-flex flex-column flex-md-row align-items-start align-items-md-center">
+                          <span class="badge me-2 mb-2" [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
+                            {{ entrada.bono_type }}
+                          </span>
+                          <small class="text-muted">{{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}</small>
+                        </div>
+
+                        <div class="flex-grow-1">
+                          <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                              <strong>{{ entrada.clases_disponibles }}</strong>
+                              / {{ entrada.clases_totales }} clases restantes
+                            </div>
+                          </div>
+                          <div class="mt-1">
+                            <div class="progress" style="height:8px; background-color: rgba(0,0,0,0.06);">
+                              <div class="progress-bar" role="progressbar"
+                                   [style.width.%]="getProgressPercentage(entrada)"
+                                   [style.backgroundColor]="getProgressColorHex(getProgressPercentage(entrada))">
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <small class="text-muted">{{ getProgressPercentage(entrada) }}%</small>
                       </td>
+
+                      <!-- Columna expiración -->
+                      <td>
+                        <ng-container *ngIf="computeDaysUntilExpiration(entrada) as days; else noDate">
+                          <span *ngIf="days < 0" class="fw-bold text-danger">Expirado</span>
+                          <span *ngIf="days >= 0">
+                            Caduca en
+                            <strong [ngStyle]="{ color: getExpirationColorHex(days) }" class="expiry-days ms-0">{{ days }}</strong>
+                            días
+                          </span>
+                        </ng-container>
+                        <ng-template #noDate>
+                          <small class="text-muted">Sin fecha</small>
+                        </ng-template>
+                      </td>
+
+                      <!-- Columna acciones -->
                       <td>
                         <div class="btn-group btn-group-sm">
-                          <button class="btn btn-outline-primary" 
-                                  (click)="abrirModalModificar(entrada)"
-                                  title="Modificar clases disponibles">
+                          <button class="btn btn-outline-primary" (click)="abrirModalModificar(entrada)" title="Modificar clases disponibles">
                             <i class="fas fa-edit me-1"></i>
                             Editar
                           </button>
-                          <button class="btn btn-outline-danger" 
-                                  (click)="eliminarPackage(entrada)"
-                                  title="Eliminar este bono">
+                          <button class="btn btn-outline-danger" (click)="eliminarPackage(entrada)" title="Eliminar este bono">
                             <i class="fas fa-ban me-1"></i>
                             Eliminar
                           </button>

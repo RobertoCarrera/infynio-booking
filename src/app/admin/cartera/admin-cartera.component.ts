@@ -281,6 +281,67 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     return 'danger';
   }
 
+  /**
+   * Devuelve un color en formato rgb() que va de rojo (en los extremos)
+   * a naranja en el 50% para representar visualmente la cantidad restante.
+   * - 50% => naranja (#ff8800)
+   * - 0%  => rojo (#ff0000)
+   * - 100% => rojo (#ff0000)
+   */
+  getProgressColorHex(porcentaje: number): string {
+    // Queremos: 0% -> rojo, 50% -> naranja, 100% -> verde
+    const clamp = (v: number, a = 0, b = 255) => Math.max(a, Math.min(b, Math.round(v)));
+
+    if (porcentaje <= 50) {
+      // interpolate red (255,0,0) -> orange (255,136,0)
+      const t = porcentaje / 50; // 0..1
+      const r = 255;
+      const g = clamp(0 + (136 - 0) * t);
+      const b = 0;
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      // interpolate orange (255,136,0) -> green (0,160,0)
+      const t = (porcentaje - 50) / 50; // 0..1
+      const r = clamp(255 + (0 - 255) * t);
+      const g = clamp(136 + (160 - 136) * t);
+      const b = 0;
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+  }
+
+  /** Devuelve los días restantes hasta `fecha_expiracion`. Devuelve null si no hay fecha */
+  computeDaysUntilExpiration(entrada: CarteraClase): number | null {
+    if (!entrada.fecha_expiracion) return null;
+    const today = new Date();
+    const exp = new Date(entrada.fecha_expiracion);
+    // Normalizar horas para evitar sesgos por zona horaria
+    const diffMs = exp.setHours(0,0,0,0) - today.setHours(0,0,0,0);
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  /** Color para la columna de expiración basada en días restantes
+   * >=12 => verde, 8..11 => naranja, <8 => rojo
+   */
+  getExpirationColorHex(days: number | null): string {
+    if (days === null) return 'rgba(0,0,0,0.5)';
+    if (days >= 12) return '#28a745';
+    if (days >= 8) return '#ff8800';
+    return '#dc3545';
+  }
+
+  /** Devuelve un texto legible para la expiración: 'X días restantes', 'Expirado' o 'Sin fecha' */
+  getExpirationText(entrada: CarteraClase): string {
+    const days = this.computeDaysUntilExpiration(entrada);
+    if (days === null) return 'Sin fecha';
+    if (days < 0) return 'Expirado';
+    return `${days}`;
+  }
+  /** Devuelve color basado directamente en la entrada (evita null checks en la plantilla) */
+  getExpirationColorFromEntrada(entrada: CarteraClase): string {
+    const days = this.computeDaysUntilExpiration(entrada);
+    return this.getExpirationColorHex(days);
+  }
+
   getPackageName(packageId: number): string {
     const package_ = this.packagesDisponibles.find(p => p.id === packageId);
     return package_?.name || 'Package desconocido';

@@ -268,6 +268,59 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     return 'danger';
   }
 
+  // Helpers for shared template
+  getProgressColorHex(porcentaje: number): string {
+    const clamp = (v: number, a = 0, b = 255) => Math.max(a, Math.min(b, Math.round(v)));
+
+    if (porcentaje <= 50) {
+      const t = porcentaje / 50;
+      const r = 255;
+      const g = clamp(0 + (136 - 0) * t);
+      const b = 0;
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      const t = (porcentaje - 50) / 50;
+      const r = clamp(255 + (0 - 255) * t);
+      const g = clamp(136 + (160 - 136) * t);
+      const b = 0;
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+  }
+
+  computeDaysUntilExpiration(entrada: CarteraClase): number | null {
+    if (!entrada.fecha_expiracion) return null;
+    const today = new Date();
+    const exp = new Date(entrada.fecha_expiracion);
+    const diffMs = exp.setHours(0,0,0,0) - today.setHours(0,0,0,0);
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  getExpirationColorHex(days: number | null): string {
+    if (days === null) return 'rgba(0,0,0,0.5)';
+    if (days >= 12) return '#28a745';
+    if (days >= 8) return '#ff8800';
+    return '#dc3545';
+  }
+
+  getExpirationText(entrada: CarteraClase): string {
+    const days = this.computeDaysUntilExpiration(entrada);
+    if (days === null) return 'Sin fecha';
+    if (days < 0) return 'Expirado';
+    return `Caduca en ${days} días`;
+  }
+
+  getExpirationColorFromEntrada(entrada: CarteraClase): string {
+    const days = this.computeDaysUntilExpiration(entrada);
+    return this.getExpirationColorHex(days);
+  }
+
+  // Adapters
+  getPackagesByType(classType: 'MAT_FUNCIONAL' | 'REFORMER'): Package[] {
+    const typeIdMap = { MAT_FUNCIONAL: 2, REFORMER: 3 };
+    return this.packagesDisponibles.filter(p => p.class_type === typeIdMap[classType]);
+  }
+
+
   getPackageName(packageId: number): string {
     const package_ = this.packagesDisponibles.find(p => p.id === packageId);
     return package_?.name || 'Package desconocido';
