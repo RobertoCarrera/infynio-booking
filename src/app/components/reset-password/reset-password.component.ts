@@ -12,17 +12,17 @@ import { SupabaseService } from '../../services/supabase.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   template: `
-    <div class="container mt-5">
+    <div class="container mt-5 responsive-container">
       <div class="row justify-content-center">
         <div class="col-md-6">
-          <div class="card">
+          <div class="card responsive-card">
             <div class="card-header">
               <h4 class="mb-0">{{ isNewUserInvite ? 'Crear tu contraseña' : 'Restablecer contraseña' }}</h4>
               <small class="text-muted" *ngIf="isNewUserInvite">
                 Bienvenido! Crea tu contraseña para acceder al sistema.
               </small>
             </div>
-            <div class="card-body">
+            <div class="card-body responsive-card-body">
               <div *ngIf="processingAuth" class="text-center mb-4">
                 <div class="spinner-border" role="status">
                   <span class="visually-hidden">Cargando...</span>
@@ -88,6 +88,19 @@ import { SupabaseService } from '../../services/supabase.service';
                       El teléfono es requerido
                     </div>
                   </div>
+
+                  <div class="mb-3">
+                    <label for="birthdate">Fecha de nacimiento *</label>
+                    <input
+                      type="date"
+                      id="birthdate"
+                      class="form-control"
+                      formControlName="birthdate"
+                      placeholder="Tu fecha de nacimiento">
+                    <div *ngIf="resetForm.get('birthdate')?.invalid && resetForm.get('birthdate')?.touched" class="text-danger">
+                      La fecha de nacimiento es requerida
+                    </div>
+                  </div>
                   
                   <hr class="mb-3">
                   <h6 class="mb-3 text-muted">Configuración de acceso</h6>
@@ -150,6 +163,17 @@ import { SupabaseService } from '../../services/supabase.service';
       </div>
     </div>
   `
+  ,
+  styles: [
+    `
+    /* Mejoras de usabilidad en móviles pequeños */
+    @media (max-width: 576px) {
+      .responsive-container { padding-left: 0.75rem; padding-right: 0.75rem; }
+      .responsive-card { max-height: calc(100vh - 1.5rem); overflow: hidden; }
+      .responsive-card-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    }
+    `
+  ]
 })
 export class ResetPasswordComponent implements OnInit {
   resetForm: FormGroup;
@@ -185,7 +209,8 @@ export class ResetPasswordComponent implements OnInit {
       confirmPassword: ['', [Validators.required]],
       name: [''],
       surname: [''], 
-      phone: ['']
+  phone: [''],
+  birthdate: ['']
     });
   }
 
@@ -667,16 +692,19 @@ export class ResetPasswordComponent implements OnInit {
       this.resetForm.get('name')?.setValidators([Validators.required]);
       this.resetForm.get('surname')?.setValidators([Validators.required]);
       this.resetForm.get('phone')?.setValidators([Validators.required]);
+      this.resetForm.get('birthdate')?.setValidators([Validators.required]);
     } else {
       // Para recuperación de contraseña, los campos de perfil no son necesarios
       this.resetForm.get('name')?.clearValidators();
       this.resetForm.get('surname')?.clearValidators();
       this.resetForm.get('phone')?.clearValidators();
+      this.resetForm.get('birthdate')?.clearValidators();
     }
     
     // Actualizar validación
     this.resetForm.get('name')?.updateValueAndValidity();
     this.resetForm.get('surname')?.updateValueAndValidity();
     this.resetForm.get('phone')?.updateValueAndValidity();
+    this.resetForm.get('birthdate')?.updateValueAndValidity();
   }
 }
