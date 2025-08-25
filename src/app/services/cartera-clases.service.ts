@@ -155,21 +155,22 @@ export class CarteraClasesService {
    * Agrega un nuevo user_package (usado por administradores)
    */
   agregarPackageAUsuario(createData: CreateUserPackage): Observable<UserPackage> {
-  const now = new Date().toISOString();
-  // Fecha de activación efectiva (proporcionada o ahora)
-  const activation = createData.activation_date ? new Date(createData.activation_date) : new Date();
-  // Caducidad: último día del mismo mes de la activación
-  const eom = new Date(activation.getFullYear(), activation.getMonth() + 1, 0);
-  const expirationDateStr = eom.toISOString().split('T')[0];
-    
-    const newUserPackage = {
-      ...createData,
-      purchase_date: now,
-      activation_date: createData.activation_date || now,
+    const nowIso = new Date().toISOString();
+    // Validación básica: expiration_date requerido (YYYY-MM-DD)
+    const exp = createData.expiration_date;
+    if (!exp || !/^\d{4}-\d{2}-\d{2}$/.test(exp)) {
+      throw new Error('La fecha de caducidad es obligatoria y debe tener formato YYYY-MM-DD');
+    }
+    // Activation es inmediata
+    const newUserPackage: any = {
+      user_id: createData.user_id,
+      package_id: createData.package_id,
+      purchase_date: nowIso,
+      activation_date: nowIso,
       current_classes_remaining: 0, // Se establecerá según el package
       classes_used_this_month: 0,
       rollover_classes_remaining: 0,
-  next_rollover_reset_date: expirationDateStr,
+      next_rollover_reset_date: exp,
       status: 'active'
     };
 
@@ -351,6 +352,109 @@ export class CarteraClasesService {
         // fallback: allow synonyms per group
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
         return personalMatch && typeMatch;
+      });
+    })());
+  }
+
+  /**
+   * Verifica si el usuario tiene clases disponibles del tipo indicado y, además,
+   * que la caducidad del bono coincida con el mes de la sesión.
+   * sessionDateStr: 'YYYY-MM-DD' de la clase a reservar.
+   */
+  tieneClasesDisponiblesEnMes(userId: number, classTypeId: number, isPersonal: boolean, sessionDateStr: string): Observable<boolean> {
+    const sessionDate = new Date(sessionDateStr);
+    if (isNaN(sessionDate.getTime())) {
+      return from([false]);
+    }
+    const sessionYear = sessionDate.getFullYear();
+    const sessionMonth = sessionDate.getMonth(); // 0-based
+
+    // Reutilizar el primer intento con mapping completo
+    return from((async () => {
+      const acceptableTypes = (() => {
+        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 4 || classTypeId === 22) return [4, 22];
+        if (classTypeId === 23) return [23];
+        if (classTypeId === 3) return [3];
+        return [classTypeId];
+      })();
+
+      // Intento 1: con mapping y obtención de next_rollover_reset_date
+      const mapped = await this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          id,
+          current_classes_remaining,
+          status,
+          next_rollover_reset_date,
+          packages!inner (
+            id,
+            is_personal,
+            class_type,
+            package_allowed_class_types!inner ( class_type_id )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      const checkMonthMatch = (dateStr?: string | null) => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        return d.getFullYear() === sessionYear && d.getMonth() === sessionMonth;
+      };
+
+      if (!mapped.error) {
+        const rows = mapped.data || [];
+        const acceptableTypeLegacy = (classTypeId === 9) ? 2 : classTypeId;
+        const ok = rows.some((row: any) => {
+          const pkg = row.packages;
+          if (!pkg) return false;
+          const personalMatch = pkg.is_personal === isPersonal;
+          const mapping = (pkg.package_allowed_class_types || []) as Array<{ class_type_id: number }>;
+          const mappedMatch = mapping.some(m => acceptableTypes.includes(m.class_type_id) || m.class_type_id === acceptableTypeLegacy);
+          const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
+          return personalMatch && (mappedMatch || directMatch) && checkMonthMatch(row.next_rollover_reset_date);
+        });
+        return ok;
+      }
+
+      // Fallback: sin mapping, solo class_type directo y caducidad
+      const acceptableType = (classTypeId === 9) ? 2 : classTypeId;
+      const fallback = await this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          current_classes_remaining,
+          status,
+          next_rollover_reset_date,
+          packages!inner (
+            class_type,
+            is_personal
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      if (fallback.error) {
+        console.error('❌ Error verificando clases por mes (fallback):', fallback.error);
+        return false;
+      }
+      const rows = fallback.data || [];
+      const fallbackTypes = (() => {
+        if (classTypeId === 23) return [23, 3];
+        if (classTypeId === 4 || classTypeId === 22) return [4, 22, 2, 9];
+        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 3) return [3];
+        return acceptableTypes;
+      })();
+      return rows.some((row: any) => {
+        const pkg = row.packages;
+        if (!pkg) return false;
+        const personalMatch = pkg.is_personal === isPersonal;
+        const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
+        return personalMatch && typeMatch && checkMonthMatch(row.next_rollover_reset_date);
       });
     })());
   }

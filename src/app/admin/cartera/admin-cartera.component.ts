@@ -45,7 +45,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.agregarForm = this.fb.group({
       usuario_id: ['', Validators.required],
       package_id: ['', Validators.required],
-      activation_date: ['']
+      expiration_date: ['', Validators.required]
     });
 
     this.modificarForm = this.fb.group({
@@ -142,9 +142,13 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
       this.error = 'Selecciona un usuario primero';
       return;
     }
-    this.showAgregarModal = true;
-    this.agregarForm.reset();
-    this.agregarForm.patchValue({ usuario_id: this.usuarioSeleccionado.id });
+  this.showAgregarModal = true;
+  this.agregarForm.reset();
+  // Prefijar usuario y una caducidad por defecto (último día del mes siguiente)
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0); // día 0 del mes+2 = último día del mes siguiente
+  const defaultExp = nextMonth.toISOString().split('T')[0];
+  this.agregarForm.patchValue({ usuario_id: this.usuarioSeleccionado.id, expiration_date: defaultExp });
   }
 
   cerrarModalAgregar() {
@@ -164,7 +168,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     const createData: CreateUserPackage = {
       user_id: formData.usuario_id,
       package_id: formData.package_id,
-      activation_date: formData.activation_date || undefined
+      expiration_date: formData.expiration_date
     };
 
     const sub = this.carteraService.agregarPackageAUsuario(createData).subscribe({

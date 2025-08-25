@@ -114,7 +114,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
     this.packageForm = this.fb.group({
       package_id: ['', Validators.required],
-      activation_date: ['']
+      expiration_date: ['', Validators.required]
     });
 
   // Configuración del calendario adaptada para admin
@@ -1289,10 +1289,14 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     this.selectedUserForPackage = user;
     this.showAddPackageModal = true;
     
-    // Establecer fecha de activación para el día de la clase
-    const activationDate = this.selectedSession?.schedule_date || new Date().toISOString().split('T')[0];
+    // Establecer fecha de caducidad por defecto: último día del mes siguiente
+    const base = this.selectedSession?.schedule_date
+      ? new Date(this.selectedSession.schedule_date)
+      : new Date();
+    const lastDayNextMonth = new Date(base.getFullYear(), base.getMonth() + 2, 0);
+    const defaultExpiration = lastDayNextMonth.toISOString().split('T')[0];
     this.packageForm.patchValue({
-      activation_date: activationDate
+      expiration_date: defaultExpiration
     });
     
     this.clearMessages();
@@ -1317,7 +1321,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       const createData: CreateUserPackage = {
         user_id: this.selectedUserForPackage.id,
         package_id: formData.package_id,
-        activation_date: formData.activation_date || null
+        expiration_date: formData.expiration_date
       };
 
   await firstValueFrom(this.carteraService.agregarPackageAUsuario(createData));

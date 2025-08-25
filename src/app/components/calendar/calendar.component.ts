@@ -1240,8 +1240,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       isPersonal
     });
 
-    // Verificar si el usuario tiene clases disponibles de este tipo
-    const sub = this.carteraService.tieneClasesDisponibles(this.userNumericId, classTypeId, isPersonal)
+  // Verificar si el usuario tiene clases disponibles del tipo y que caducan en el mismo mes de la sesión
+  const sub = this.carteraService.tieneClasesDisponiblesEnMes(this.userNumericId, classTypeId, isPersonal, session.schedule_date)
       .subscribe({
         next: (hasClasses: boolean) => {
           console.log('✅ Resultado verificación:', hasClasses);
@@ -1250,7 +1250,10 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           this.loadingModal = false;
 
           if (!hasClasses) {
-            this.modalError = `No tienes un paquete disponible para clases de tipo "${session.class_type_name}". Contacta con recepción para adquirir un paquete.`;
+      const d = new Date(session.schedule_date);
+      const month = d.toLocaleString('es-ES', { month: 'long' });
+      const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
+      this.modalError = `No tienes un bono para ${monthCap} para clases de tipo "${session.class_type_name}".`;
           }
         },
         error: (error: any) => {

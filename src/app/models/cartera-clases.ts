@@ -74,7 +74,8 @@ export interface CarteraClase {
 export interface CreateUserPackage {
   user_id: number;
   package_id: number;
-  activation_date?: string;
+  // Activation is now immediate; expiration is mandatory and chosen by admin
+  expiration_date: string; // YYYY-MM-DD
 }
 
 export interface UpdateUserPackage {

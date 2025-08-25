@@ -490,19 +490,18 @@
             </div>
           </div>
 
-          <!-- Fecha de activación -->
+          <!-- Fecha de caducidad -->
           <div class="mb-3">
-            <label for="activation_date" class="form-label">
-              <i class="fa fa-calendar me-2"></i>Fecha de Activación
+            <label for="expiration_date" class="form-label">
+              <i class="fa fa-calendar me-2"></i>Fecha de Caducidad
             </label>
             <input 
               type="date" 
-              id="activation_date" 
+              id="expiration_date" 
               class="form-control" 
-              formControlName="activation_date"
-              [min]="getCurrentDate()">
+              formControlName="expiration_date">
             <small class="form-text text-muted">
-              El bono se activará en esta fecha. Si no se especifica, se activará inmediatamente.
+              La activación es inmediata. Selecciona la fecha de caducidad. Por defecto, se propone el último día del próximo mes.
             </small>
           </div>
 
