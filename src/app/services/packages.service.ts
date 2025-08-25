@@ -82,7 +82,7 @@ export class PackagesService {
   }
 
   // Comprar un paquete (esto se haría normalmente tras el pago)
-  async purchasePackage(userId: number, packageId: number): Promise<UserPackage> {
+  async purchasePackage(userId: number, packageId: number, expirationDate?: string): Promise<UserPackage> {
     try {
       // Primero obtenemos la información del paquete
       const { data: packageData, error: packageError } = await this.supabase.supabase
@@ -99,13 +99,34 @@ export class PackagesService {
       // Calculamos las fechas
       const purchaseDate = new Date().toISOString();
       const activationDate = new Date().toISOString();
-      
-      // Calculamos la fecha de rollover (primer día del siguiente mes)
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      nextMonth.setDate(1);
-      nextMonth.setHours(0, 0, 0, 0);
-      const nextRolloverResetDate = nextMonth.toISOString();
+
+      // Helper para producir YYYY-MM-DD (sin componente horario) usando fecha local
+      const toDateOnly = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      // Helper: last day of month as YYYY-MM-DD (accepts Date or date-string)
+      const endOfMonthDateOnly = (input: Date | string) => {
+        const d = typeof input === 'string' ? new Date(input + 'T00:00:00') : input;
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        return toDateOnly(last);
+      };
+
+      // Si el llamador pasa una expirationDate, úsala (normalizar si viene con time)
+      let nextRolloverResetDate: string;
+      if (expirationDate) {
+        // Accept 'YYYY-MM-DD' or ISO; normalize to EOM date-only
+        const raw = expirationDate.split('T')[0];
+        nextRolloverResetDate = endOfMonthDateOnly(raw);
+      } else {
+        // last day of next month, date-only
+        const now = new Date();
+        const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        nextRolloverResetDate = toDateOnly(lastOfNext);
+      }
 
       const newUserPackage = {
         user_id: userId,
@@ -116,7 +137,7 @@ export class PackagesService {
         monthly_classes_limit: packageData.class_count,
         classes_used_this_month: 0,
         rollover_classes_remaining: 0,
-        next_rollover_reset_date: nextRolloverResetDate,
+  next_rollover_reset_date: nextRolloverResetDate,
         status: 'active' as const
       };
 
@@ -275,7 +296,7 @@ export class PackagesService {
   }
 
   // Métodos de administración para gestionar clases de usuarios
-  async adminAddClasses(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', amount: number): Promise<boolean> {
+  async adminAddClasses(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', amount: number, expirationDate?: string): Promise<boolean> {
     try {
       // Buscar si el usuario ya tiene un paquete activo del tipo especificado
       const userPackages = await this.getUserActivePackages(userId);
@@ -294,6 +315,22 @@ export class PackagesService {
         if (error) throw error;
       } else {
         // Crear un nuevo paquete personalizado
+        const toDateOnly = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+        const endOfMonthDateOnly = (input: Date | string) => {
+          const d = typeof input === 'string' ? new Date(input + 'T00:00:00') : input;
+          const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+          return toDateOnly(last);
+        };
+        const now = new Date();
+        const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        const defaultNext = toDateOnly(lastOfNext);
+        const nextReset = expirationDate ? endOfMonthDateOnly(expirationDate.split('T')[0]) : defaultNext;
+
         const packageData = {
           user_id: userId,
           package_id: null, // No está asociado a un paquete específico
@@ -303,7 +340,7 @@ export class PackagesService {
           monthly_classes_limit: amount,
           classes_used_this_month: 0,
           rollover_classes_remaining: 0,
-          next_rollover_reset_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+          next_rollover_reset_date: nextReset,
           status: 'active' as const
         };
 

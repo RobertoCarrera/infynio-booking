@@ -157,7 +157,18 @@ export class CarteraClasesService {
   agregarPackageAUsuario(createData: CreateUserPackage): Observable<UserPackage> {
     const nowIso = new Date().toISOString();
     // Validación básica: expiration_date requerido (YYYY-MM-DD)
-    const exp = createData.expiration_date;
+  // Normalize expiration date to YYYY-MM-DD (strip time if provided) and normalize to EOM
+  const expRaw = createData.expiration_date;
+  const expDateOnly = expRaw ? expRaw.split('T')[0] : expRaw;
+  const normalizeToEom = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const y = last.getFullYear();
+    const m = String(last.getMonth() + 1).padStart(2, '0');
+    const day = String(last.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const exp = expDateOnly ? normalizeToEom(expDateOnly) : expDateOnly;
     if (!exp || !/^\d{4}-\d{2}-\d{2}$/.test(exp)) {
       throw new Error('La fecha de caducidad es obligatoria y debe tener formato YYYY-MM-DD');
     }
@@ -184,8 +195,10 @@ export class CarteraClasesService {
       switchMap(packageResponse => {
         if (packageResponse.error) throw packageResponse.error;
         
-        newUserPackage.current_classes_remaining = packageResponse.data.class_count;
-        
+  newUserPackage.current_classes_remaining = packageResponse.data.class_count;
+  // ensure date-only and EOM
+  newUserPackage.next_rollover_reset_date = exp;
+
         return from(
           this.supabaseService.supabase
             .from('user_packages')
@@ -196,6 +209,7 @@ export class CarteraClasesService {
       }),
       map(response => {
         if (response.error) throw response.error;
+        console.debug('agregarPackageAUsuario: inserted next_rollover_reset_date=', response.data?.next_rollover_reset_date);
         return response.data;
       })
     );

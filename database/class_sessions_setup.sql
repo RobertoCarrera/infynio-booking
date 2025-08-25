@@ -132,26 +132,27 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION process_monthly_rollover()
 RETURNS VOID AS $$
 BEGIN
-    -- Mover clases no usadas a rollover y resetear el contador mensual
-    UPDATE user_packages 
-    SET 
-        rollover_classes_remaining = rollover_classes_remaining + (monthly_classes_limit - classes_used_this_month),
-        classes_used_this_month = 0,
-        next_rollover_reset_date = DATE_TRUNC('month', NOW() + INTERVAL '1 month')
-    WHERE 
-        status = 'active' 
-        AND next_rollover_reset_date <= NOW()
-        AND package_id IS NOT NULL 
-        AND EXISTS (SELECT 1 FROM packages WHERE id = user_packages.package_id AND NOT is_single_class);
+  -- Mover clases no usadas a rollover y resetear el contador mensual
+  UPDATE user_packages 
+  SET 
+    rollover_classes_remaining = rollover_classes_remaining + (monthly_classes_limit - classes_used_this_month),
+    classes_used_this_month = 0,
+    next_rollover_reset_date = (DATE_TRUNC('month', CURRENT_DATE + INTERVAL '1 month'))::date
+  WHERE 
+    status = 'active' 
+    AND (next_rollover_reset_date IS NULL OR next_rollover_reset_date <= CURRENT_DATE)
+    AND package_id IS NOT NULL 
+    AND EXISTS (SELECT 1 FROM packages WHERE id = user_packages.package_id AND NOT is_single_class);
         
     -- Expirar clases sueltas que han pasado su fecha
-    UPDATE user_packages 
-    SET status = 'expired'
-    WHERE 
-        status = 'active' 
-        AND next_rollover_reset_date <= NOW()
-        AND package_id IS NOT NULL
-        AND EXISTS (SELECT 1 FROM packages WHERE id = user_packages.package_id AND is_single_class);
+  UPDATE user_packages 
+  SET status = 'expired'
+  WHERE 
+    status = 'active' 
+    AND next_rollover_reset_date IS NOT NULL
+    AND next_rollover_reset_date <= CURRENT_DATE
+    AND package_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM packages WHERE id = user_packages.package_id AND is_single_class);
 END;
 $$ LANGUAGE plpgsql;
 

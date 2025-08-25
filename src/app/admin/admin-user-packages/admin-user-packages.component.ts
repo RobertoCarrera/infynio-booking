@@ -437,7 +437,11 @@ export class AdminUserPackagesComponent implements OnInit {
 
   async addClasses(userId: number, classType: 'MAT_FUNCIONAL' | 'REFORMER', amount: number) {
     try {
-      await this.packagesService.adminAddClasses(userId, classType, amount);
+  // Default expiration: last day of next month (date-only)
+  const base = new Date();
+  const lastDayNextMonth = new Date(base.getFullYear(), base.getMonth() + 2, 0);
+  const defaultExp = lastDayNextMonth.toISOString().split('T')[0];
+  await this.packagesService.adminAddClasses(userId, classType, amount, defaultExp);
       await this.loadUsersWithPackages();
     } catch (error: any) {
       alert('Error al añadir clases: ' + error.message);
