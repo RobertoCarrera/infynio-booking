@@ -12,10 +12,13 @@
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0; /* allow children to shrink and scroll internally */
+    background-image: linear-gradient(#f0f7f4f5, #f0f7f4f5), url('https://imgs.mars-studio.es/imgs/mars-studio.jpeg');
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center;
 }
 .app-shell .sticky-top { z-index: 3000; }
 .app-main {
-	flex: 1 1 auto;
 	min-height: 0; /* critical to allow children to be scrollable */
 	overflow: hidden; /* hide page-level scroll; children may overflow internally */
 }

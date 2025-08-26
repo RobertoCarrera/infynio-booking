@@ -1,52 +1,44 @@
 /* Mobile-first: fixed bottom navigation */
 #logo{ max-height: 46px; }
+.menu-navbar{
+    width: 100vw;
+}
 .mobile-bottom-nav {
-    position: fixed;
     left: 12px;
     right: 12px;
     bottom: 12px;
-    min-height: 8dvh;
-    background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98));
-    border-radius: 14px;
     display: flex;
     align-items: center;
-    justify-content: space-around;
+    justify-content: space-between;
     gap: 8px;
-    padding: 6px 8px;
-    box-shadow: 0 18px 40px rgba(2,6,23,0.45);
-    z-index: 4000;
+    /* background-color: #424242; */
+    width: 50vw;
 }
 .mobile-nav-item{
-    color: #E4C4DE;
+    color: #151C2D;
     text-decoration: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     gap: 2px;
-    font-size: 12px;
-    width: 72px;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+    border: 1px solid #e4c4de;
+    border-radius: 5em;
+    padding: 0.5em 1.5em !important;
 }
 .mobile-nav-item svg{ color: inherit; opacity: 0.95; }
 .mobile-nav-item.active, .mobile-nav-item:active, .mobile-nav-item.router-link-active{ 
     background: #e4c4de; 
-    border-radius: 8px; 
     color: #151C2D;
 }
-
-/* Desktop: show top navbar and hide mobile bottom nav */
-@media(min-width: 992px){
-    .mobile-bottom-nav{ display:none; }
-    .menu-navbar{ display:flex; align-items:center; padding:8px 20px; }
-}
-
 /* Desktop top nav tweaks */
-.menu-navbar {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);}
 .menu-navbar .nav-link{ color: #424242; margin-left:10px; }
 .menu-navbar img#logo{ max-height:44px; }
 
-/* Reserve space is now applied by each page/component as needed */
-@media (max-width: 991.98px) {
-    .with-mobile-bottom-nav { padding-bottom: 0; }
+@media (max-width: 768px) {
+
+.mobile-bottom-nav {
+    width: 95vw;
+}
 }

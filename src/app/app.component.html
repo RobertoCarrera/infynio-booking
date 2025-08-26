@@ -1,10 +1,10 @@
 <div class="app-shell container-fluid p-0 m-0 overflow-x-hidden overflow-xxl-hidden with-mobile-bottom-nav">
-    <div class="app-shell-inner">
-        <div class="sticky-top">
+    <div class="app-shell-inner d-flex flex-column align-items-stretch justify-content-around min-vh-100">
+        <div class="order-2 order-lg-1 pb-2 pb-xl-0 d-flex align-items-stretch justify-content-center w-100">
             <app-menu></app-menu>
         </div>
 
-        <main id="mainContent" class="app-main">
+        <main id="mainContent" class="app-main order-1 order-lg-2">
             <router-outlet></router-outlet>
         </main>
     </div>

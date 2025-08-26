@@ -1,12 +1,12 @@
 .cartera-info-container .card{
   border: none;
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
 }
 
 .bonos-list{
   padding-top: 0.2em;
-  max-height: 45dvh;
+  height: 45dvh;
   scrollbar-width: none;
   display: flex;
   flex-direction: column;
@@ -53,6 +53,10 @@
   
   .clases-count {
     font-size: 1.25rem;
+  }
+  
+  .bono-list{
+    height: 100% !important;
   }
 }
 

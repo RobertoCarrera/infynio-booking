@@ -33,9 +33,9 @@
 /* visual container styling for the toolbar */
 .calendar-toolbar {
   padding: 0.5rem 0.75rem;
-  border-radius: 10px;
-  background: linear-gradient(135deg,#ffffff,#f8fafc);
-  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  border-radius: 50em;
+  background-color: #f0f7f4;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 2px 6px 2px;
   margin-bottom: 1rem;
 }
 

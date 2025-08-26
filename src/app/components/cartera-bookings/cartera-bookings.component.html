@@ -35,8 +35,8 @@
     </div>
 
     <!-- List -->
-    <ul class="list-group list-group-flush" *ngIf="!loading && !error && upcoming.length > 0">
-      <li class="list-group-item reservas" *ngFor="let u of upcoming">
+    <ul class="list-group list-group-flush d-flex flex-column align-items-start justify-content-around" *ngIf="!loading && !error && upcoming.length > 0">
+      <li class="list-group-item reservas w-100" *ngFor="let u of upcoming">
         <div class="d-flex flex-column gap-1">
           <div class="d-flex align-items-center justify-content-between">
             <div class="fw-semibold">{{ u.className }}</div>
