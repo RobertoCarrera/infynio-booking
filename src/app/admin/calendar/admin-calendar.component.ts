@@ -124,6 +124,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       selectable: true,
       selectMirror: true,
       select: this.onDateSelect.bind(this),
+  dateClick: this.onDateClick.bind(this),
       eventClick: this.onEventClick.bind(this),
       editable: true,
       eventDrop: this.onEventDrop.bind(this),
@@ -159,6 +160,18 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       // Forzar selección en móvil para admin
       selectAllow: () => true
     };
+  }
+
+  onDateClick(clickInfo: any) {
+    // FullCalendar dateClick fires on tap in many mobile browsers; use it to open create modal
+    try {
+      const dt = new Date(clickInfo.date);
+      const scheduleDate = dt.toISOString().split('T')[0];
+      const scheduleTime = dt.toTimeString().slice(0,5);
+      this.openCreateModal(scheduleDate, scheduleTime);
+    } catch (e) {
+      console.warn('[admin] onDateClick failed', e);
+    }
   }
 
   ngOnInit() {
