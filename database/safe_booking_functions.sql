@@ -207,7 +207,7 @@ BEGIN
     -- Calcular tiempo límite de cancelación (12 horas antes)
     v_cancellation_time := (v_session_data.schedule_date + v_session_data.schedule_time) - INTERVAL '12 hours';
     
-    -- Crear la reserva
+    -- Crear la reserva y registrar el user_package_id usado
     INSERT INTO bookings (
         user_id,
         class_session_id,
@@ -215,7 +215,8 @@ BEGIN
         status,
         cancellation_time,
         is_from_package,
-        payment_id
+        payment_id,
+        user_package_id
     ) VALUES (
         p_user_id,
         p_class_session_id,
@@ -223,7 +224,8 @@ BEGIN
         'confirmed',
         v_cancellation_time,
         true,
-        NULL
+        NULL,
+        (SELECT id FROM user_packages up WHERE up.user_id = p_user_id AND up.status = 'active' AND up.current_classes_remaining >= 0 ORDER BY up.purchase_date ASC LIMIT 1)
     ) RETURNING id INTO v_booking_id;
     
     RETURN json_build_object(
@@ -286,10 +288,18 @@ BEGIN
     UPDATE bookings 
     SET status = 'cancelled'
     WHERE id = p_booking_id;
-    
-    -- Si era de un package, devolver la clase
+
+    -- Si era de un package, devolver la clase al paquete concreto usado
     IF v_booking.is_from_package THEN
-        PERFORM cancel_class(p_user_id, v_booking.class_type_name);
+        IF v_booking.user_package_id IS NOT NULL THEN
+            UPDATE user_packages
+            SET classes_used_this_month = GREATEST(0, classes_used_this_month - 1),
+                current_classes_remaining = current_classes_remaining + 1
+            WHERE id = v_booking.user_package_id;
+        ELSE
+            -- Fallback: devolver a un paquete reciente del mismo tipo
+            PERFORM cancel_class(p_user_id, v_booking.class_type_name);
+        END IF;
     END IF;
     
     RETURN json_build_object(

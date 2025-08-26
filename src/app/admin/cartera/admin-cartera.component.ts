@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
+import { PackagesService } from '../../services/packages.service';
 import { UsersService } from '../../services/users.service';
 import { CarteraClase, Package, CreateUserPackage, UpdateUserPackage } from '../../models/cartera-clases';
 import { Subscription } from 'rxjs';
@@ -40,7 +41,8 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   constructor(
     private carteraService: CarteraClasesService,
     private usersService: UsersService,
-    private fb: FormBuilder
+  private fb: FormBuilder,
+  private packagesService: PackagesService
   ) {
     this.agregarForm = this.fb.group({
       usuario_id: ['', Validators.required],
@@ -242,27 +244,30 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   eliminarPackage(entrada: CarteraClase) {
-    if (!confirm('¿Estás seguro de que quieres desactivar este package?')) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este package y sus reservas asociadas? Esta acción es irreversible.')) {
       return;
     }
 
     this.loading = true;
 
-    const sub = this.carteraService.desactivarUserPackage(entrada.id).subscribe({
-      next: () => {
-        this.successMessage = 'Package desactivado exitosamente';
+    (async () => {
+      try {
+        const res = await this.packagesService.adminDeleteUserPackage(entrada.id);
+        const ok = !!res && (res.success === true || String(res.success) === 't' || String(res.success) === 'true');
+        if (ok) {
+          this.successMessage = 'Package eliminado exitosamente';
+        } else {
+          this.error = 'Error al eliminar el package: ' + (res?.error || JSON.stringify(res));
+        }
+      } catch (err: any) {
+        console.error('Error al eliminar package:', err);
+        this.error = 'Error al eliminar el package';
+      } finally {
         this.cargarCarteraUsuario(entrada.user_id);
         this.loading = false;
-        setTimeout(() => this.successMessage = '', 3000);
-      },
-      error: (err: any) => {
-        console.error('Error al desactivar package:', err);
-        this.error = 'Error al desactivar el package';
-        this.loading = false;
+        setTimeout(() => { this.successMessage = ''; this.error = ''; }, 3000);
       }
-    });
-
-    this.subscriptions.push(sub);
+    })();
   }
 
   // Métodos de utilidad

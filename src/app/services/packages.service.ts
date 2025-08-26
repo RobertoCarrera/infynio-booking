@@ -427,4 +427,16 @@ export class PackagesService {
       throw error;
     }
   }
+
+  // Hard-delete a user_package (admin only) via RPC
+  async adminDeleteUserPackage(userPackageId: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const { data, error } = await this.supabase.supabase.rpc('admin_delete_user_package', { p_user_package_id: userPackageId });
+      if (error) throw error;
+      return data || { success: true, message: 'El paquete fue eliminado' };
+    } catch (err: any) {
+      console.error('Error in adminDeleteUserPackage:', err);
+      throw err;
+    }
+  }
 }

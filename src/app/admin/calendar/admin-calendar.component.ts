@@ -1497,8 +1497,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         booking_date_time: new Date().toISOString(),
         status: 'CONFIRMED',
         is_from_package: true,
-        cancellation_time: null,
+  cancellation_time: null,
         payment_id: null
+  ,
+  user_package_id: userPackage.id
       });
 
     if (bookingError) {
@@ -1585,8 +1587,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
         booking_date_time: new Date().toISOString(),
         status: 'CONFIRMED',
         is_from_package: true,
-        cancellation_time: null,
-        payment_id: null
+  cancellation_time: null,
+  payment_id: null,
+  user_package_id: userPackage.id
       });
 
     if (bookingError) {

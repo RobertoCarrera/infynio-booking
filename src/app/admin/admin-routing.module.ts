@@ -5,6 +5,7 @@ import { UsersListComponent } from './users/users-list.component';
 import { InviteUserComponent } from './users/invite-user.component';
 import { AdminCarteraComponent } from './cartera/admin-cartera.component';
 import { AdminCalendarComponent } from './calendar/admin-calendar.component';
+import { AdminUserPackagesComponent } from './admin-user-packages/admin-user-packages.component';
 import { AdminGuard } from '../guards/admin.guard';
 
 const routes: Routes = [
@@ -13,6 +14,7 @@ const routes: Routes = [
     component: AdminComponent,
     canActivate: [AdminGuard],
     children: [
+  { path: 'user-packages', component: AdminUserPackagesComponent },
       { path: 'users', component: UsersListComponent },
       { path: 'invite', component: InviteUserComponent },
       { path: 'cartera', component: AdminCarteraComponent },

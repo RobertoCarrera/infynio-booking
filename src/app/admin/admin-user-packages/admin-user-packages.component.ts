@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { PackagesService, Package, UserPackage } from '../../services/packages.service';
 import { UsersService } from '../../services/users.service';
 import { SupabaseService } from '../../services/supabase.service';
@@ -124,6 +125,22 @@ interface UserWithPackages {
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- Lista de paquetes individuales y acción de borrado -->
+          <div class="user-packages-list" *ngIf="user.packages && user.packages.length > 0">
+            <h6 style="margin-top:12px;">Paquetes del usuario</h6>
+            <ul class="package-list">
+              <li *ngFor="let up of user.packages" class="package-item">
+                <div class="pkg-info">
+                  <strong>{{ up.package?.name || 'Admin Pack' }}</strong>
+                  <span class="pkg-meta">(clases: {{ up.current_classes_remaining }} | caduca: {{ up.next_rollover_reset_date || '-' }})</span>
+                </div>
+                <div class="pkg-actions">
+                  <button class="delete-btn" (click)="onDeleteUserPackage(up.id)">Eliminar bono</button>
+                </div>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -392,8 +409,8 @@ export class AdminUserPackagesComponent implements OnInit {
     try {
       this.isLoading = true;
       
-      // Obtener todos los usuarios
-      const users = await this.usersService.getAllUsers();
+  // Obtener todos los usuarios (usar UsersService.getAll -> Observable)
+  const users = await firstValueFrom(this.usersService.getAll(1, 1000));
       
       // Para cada usuario, obtener sus paquetes
       const usersWithPackages: UserWithPackages[] = [];
@@ -417,6 +434,36 @@ export class AdminUserPackagesComponent implements OnInit {
       this.filteredUsers = [...this.users];
     } catch (error) {
       console.error('Error loading users with packages:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // Handler para eliminar un user_package desde la UI (admin)
+  async onDeleteUserPackage(userPackageId: number) {
+    if (!confirm('Confirma que deseas eliminar este bono y todas sus reservas asociadas? Esta acción es irreversible.')) {
+      return;
+    }
+
+    try {
+      this.isLoading = true;
+      const res = await this.packagesService.adminDeleteUserPackage(userPackageId);
+      // la RPC devuelve JSON; acomodar mensaje
+      const ok = !!res && (
+        res.success === true ||
+        String(res.success) === 't' ||
+        String(res.success) === 'true' ||
+        String(res.success) === '1'
+      );
+      if (ok) {
+        alert('Bono eliminado correctamente.');
+      } else {
+        alert('Error al eliminar bono: ' + (res?.error || JSON.stringify(res)));
+      }
+      await this.loadUsersWithPackages();
+    } catch (err: any) {
+      console.error('Error deleting user package:', err);
+      alert('Error al eliminar bono: ' + (err?.message || err));
     } finally {
       this.isLoading = false;
     }
