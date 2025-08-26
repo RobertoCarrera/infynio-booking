@@ -50,7 +50,8 @@
 .admin-calendar-container {
   padding: 8px;
   background-color: #f8f9fa;
-  height: 100vh;
+  /* Use dynamic viewport height to avoid mobile chrome issues */
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -86,8 +87,9 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  /* reduce header+footroom so the timeGrid fits fully (08:00-20:00) */
-  max-height: 85vh;
+  /* allow children to flex and the calendar scroller to fill remaining space */
+  height: auto;
+  min-height: 0; /* critical for nested flex scrollers */
 }
 
 /* Attendees Modal Styles */
@@ -222,7 +224,23 @@
 ::ng-deep .fc .fc-scroller {
   /* keep scroller as main area and ensure small bottom padding so last slot is visible */
   box-sizing: border-box !important;
-  overflow: hidden !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Ensure FullCalendar host and wrappers can shrink/grow within flex containers */
+.full-calendar-wrapper,
+full-calendar,
+::ng-deep .fc {
+  min-height: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+::ng-deep .fc-view-harness, ::ng-deep .fc-timegrid, ::ng-deep .fc-timegrid-body {
+  min-height: 0 !important;
+  height: 100% !important;
 }
 
 /* Slightly reduce per-slot min-height so full 12 slots (08:00-20:00) fit in typical viewports */
