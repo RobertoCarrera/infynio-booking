@@ -11,24 +11,20 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
   standalone: true,
   imports: [CommonModule, CarteraInfoComponent, CarteraBookingsComponent],
   template: `
-    <div class="cartera-page-container">
-  <div class="container py-4">
+    <div class="cartera-page-container bg-mars-studio">
+  <div class="container py-4 d-flex flex-column align-items-center justify-content-start justify-content-xl-center">
 
         <!-- Cartera Info Component -->
-        <div class="row">
-          <div class="col-12">
+        <div class="row w-100">
+          <div class="col-12 col-xl-6 mb-4">
             <app-cartera-info></app-cartera-info>
           </div>
-        </div>
-
-        <!-- Bookings list -->
-        <div class="row mt-4">
-          <div class="col-12">
+          <div class="col-12 col-xl-6">
             <app-cartera-bookings></app-cartera-bookings>
           </div>
         </div>
         <!-- Información adicional -->
-        <div class="row mt-4">
+        <div class="row w-100 mt-4">
           <div class="col-md-8">
             <div class="card">
               <div class="card-header">
@@ -39,7 +35,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
               </div>
               <div class="card-body">
                 <div class="row">
-                  <div class="col-md-6">
+                  <div class="col-12">
                     <h6>¿Cómo funcionan los bonos?</h6>
                     <ul class="list-unstyled">
                       <li><i class="fas fa-check text-success me-2"></i>Cada bono incluye un número específico de clases</li>
@@ -51,15 +47,15 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
               </div>
             </div>
           </div>
-          <div class="col-md-4 mt-4">
-            <div class="card bg-light">
+          <div class="col-md-4 mt-4 mt-xl-0 card-contacto">
+            <div class="card bg-light h-100">
               <div class="card-header">
                 <h6 class="mb-0">
                   <i class="fas fa-phone me-2"></i>
                   ¿Necesitas ayuda?
                 </h6>
               </div>
-              <div class="card-body">
+              <div class="card-body d-flex flex-column align-items-stretch justify-content-around">
                 <p class="small mb-2">Si tienes dudas sobre tus bonos o necesitas adquirir más clases:</p>
                 <div class="d-grid gap-2">
                   <a href="tel:+34123456789" class="btn btn-outline-primary btn-sm">
@@ -79,6 +75,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
     </div>
   `,
   styles: [`
+
     :host {
       /* Ensure this route component fills the available height in app-main */
       display: block;
@@ -147,6 +144,13 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
       .cartera-page-container > .container {
         padding-bottom: env(safe-area-inset-bottom);
       }
+    }
+
+    @media (min-width: 1200px){
+      .card-contacto{
+        height: 100%;
+      }
+
     }
   `]
 })

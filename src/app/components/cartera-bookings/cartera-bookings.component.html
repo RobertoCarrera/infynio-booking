@@ -1,5 +1,5 @@
 <div class="cartera-bookings">
-  <div class="card">
+  <div class="card pb-1">
     <div class="card-header d-flex align-items-center justify-content-between">
       <h6 class="mb-0">Tus próximas reservas</h6>
       <span class="badge bg-secondary" *ngIf="!loading && !error">{{ upcoming.length }}</span>
@@ -36,7 +36,7 @@
 
     <!-- List -->
     <ul class="list-group list-group-flush" *ngIf="!loading && !error && upcoming.length > 0">
-      <li class="list-group-item" *ngFor="let u of upcoming">
+      <li class="list-group-item reservas" *ngFor="let u of upcoming">
         <div class="d-flex flex-column gap-1">
           <div class="d-flex align-items-center justify-content-between">
             <div class="fw-semibold">{{ u.className }}</div>

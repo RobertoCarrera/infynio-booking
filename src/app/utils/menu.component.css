@@ -41,8 +41,9 @@
 }
 
 /* Desktop top nav tweaks */
-.menu-navbar { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); }
-.menu-navbar .nav-link{ color: #fff; margin-left:10px; }
+.menu-navbar {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);}
+.menu-navbar .nav-link{ color: #424242; margin-left:10px; }
 .menu-navbar img#logo{ max-height:44px; }
 
 /* Reserve space is now applied by each page/component as needed */
