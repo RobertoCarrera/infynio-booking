@@ -79,7 +79,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
     :host {
       /* Ensure this route component fills the available height in app-main */
       display: block;
-      height: 100%;
+      height: 90vh;
     }
 
     .cartera-page-container {
@@ -92,7 +92,6 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
     /* Make the Bootstrap container the scrollable region within the page */
     .cartera-page-container > .container {
       flex: 1 1 auto;
-      min-height: 0; /* critical for nested flex scrollers */
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }

@@ -13,7 +13,8 @@
 
 /* === ESTRUCTURA BASE === */
 .calendar-container {
-  height: 90dvh;
+  /* Use viewport height variable to avoid mobile chrome address bar resizing issues */
+  height: calc(var(--vh, 1vh) * 90);
   padding: 0; /* we'll let inner elements control spacing */
   box-sizing: border-box;
   display: flex;

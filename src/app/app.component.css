@@ -2,7 +2,8 @@
 /* App shell layout: make a column-flex that fills the viewport and prevents the document/body from scrolling.
 	 Individual pages (like the calendar) should provide their own scrollable containers. */
 .app-shell {
-	height: 100vh; /* full viewport */
+	/* Use CSS variable --vh (set by JS) to avoid mobile address bar issues. Fallback to 100vh. */
+	height: calc(var(--vh, 1vh) * 100);
 	display: flex;
 	flex-direction: column;
 	overflow: hidden; /* prevent page scrollbar */
