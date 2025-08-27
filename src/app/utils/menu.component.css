@@ -96,9 +96,7 @@
     justify-content: space-around;
     gap: 8px;
     z-index: 4000;
-    background-color: #eff5f1;
-    border-bottom-left-radius: 0.5em;
-    border-bottom-right-radius: 0.5em;
+    background-color: linear-gradient(#eff5f1ea, #eff5f1ea);
 }
 .mobile-nav-item{
     color: #191919;
