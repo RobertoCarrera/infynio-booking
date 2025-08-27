@@ -11,8 +11,12 @@
 }
 
 .cartera-bookings ul.list-group{
-  max-height: 30vh;
+  max-height: 45vh;
   overflow-y: auto;
+}
+
+.cartera-bookings .list-group{
+  scrollbar-width: none;
 }
 
 .list-group-item {

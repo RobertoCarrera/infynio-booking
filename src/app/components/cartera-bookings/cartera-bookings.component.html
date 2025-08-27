@@ -1,5 +1,5 @@
-<div class="cartera-bookings">
-  <div class="card">
+<div class="cartera-bookings h-100">
+  <div class="card h-100">
     <div class="card-header d-flex align-items-center justify-content-between">
       <h6 class="mb-0">Tus próximas reservas</h6>
       <span class="badge bg-secondary" *ngIf="!loading && !error">{{ upcoming.length }}</span>
@@ -35,15 +35,15 @@
     </div>
 
     <!-- List -->
-    <ul class="list-group list-group-flush" *ngIf="!loading && !error && upcoming.length > 0">
-      <li class="list-group-item" *ngFor="let u of upcoming">
-        <div class="d-flex flex-column gap-1">
+    <ul class="list-group list-group-flush h-100" *ngIf="!loading && !error && upcoming.length > 0">
+      <li class="list-group-item h-100" *ngFor="let u of upcoming">
+        <div class="d-flex flex-column gap-1 h-100">
           <div class="d-flex align-items-center justify-content-between">
             <div class="fw-semibold">{{ u.className }}</div>
             <span class="badge bg-success" *ngIf="u.status === 'CONFIRMED'">Confirmada</span>
           </div>
           <div class="text-muted small"><i class="far fa-clock me-1"></i>{{ formatWhen(u) }}</div>
-          <div class="d-flex align-items-center gap-2 mt-1">
+          <div class="d-flex align-items-center gap-2 mt-1 h-100">
             <button class="btn btn-sm btn-outline-danger" [disabled]="!canCancel(u) || cancelling[u.id]" (click)="cancel(u)">
               <span *ngIf="!cancelling[u.id]">Cancelar</span>
               <span *ngIf="cancelling[u.id]" class="spinner-border spinner-border-sm"></span>

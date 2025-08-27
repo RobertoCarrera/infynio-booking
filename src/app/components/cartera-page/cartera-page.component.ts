@@ -12,18 +12,14 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
   imports: [CommonModule, CarteraInfoComponent, CarteraBookingsComponent],
   template: `
     <div class="cartera-page-container">
-  <div class="container py-4">
+  <div class="container pb-3 overflow-xl-hidden d-xl-flex flex-column align-items-stretch justify-content-around">
 
         <!-- Cartera Info Component -->
-        <div class="row">
-          <div class="col-12">
+        <div class="row mt-4 mt-xl-0">
+          <div class="col-12 col-xl-6">
             <app-cartera-info></app-cartera-info>
           </div>
-        </div>
-
-        <!-- Bookings list -->
-        <div class="row mt-4">
-          <div class="col-12">
+          <div class="col-12 col-xl-6 mt-4 mt-xl-0">
             <app-cartera-bookings></app-cartera-bookings>
           </div>
         </div>
@@ -39,7 +35,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
               </div>
               <div class="card-body">
                 <div class="row">
-                  <div class="col-md-6">
+                  <div class="col-12">
                     <h6>¿Cómo funcionan los bonos?</h6>
                     <ul class="list-unstyled">
                       <li><i class="fas fa-check text-success me-2"></i>Cada bono incluye un número específico de clases</li>
@@ -51,8 +47,8 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
               </div>
             </div>
           </div>
-          <div class="col-md-4 mt-4">
-            <div class="card bg-light">
+          <div class="col-md-4 mt-4 mt-xl-0">
+            <div class="card bg-light h-100">
               <div class="card-header">
                 <h6 class="mb-0">
                   <i class="fas fa-phone me-2"></i>
