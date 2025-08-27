@@ -808,13 +808,23 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         } catch {}
 
         // If a mobile bottom nav is present, reserve its height from available area
-        // so the calendar fits fully above it, and add a small breathing space.
+        // so the calendar fits fully above it, and add a breathing space equal to
+        // the toolbar's bottom margin to keep visual rhythm consistent.
         try {
           const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
           if (bottomNav) {
             const navRect = bottomNav.getBoundingClientRect();
             const navH = Math.ceil(navRect && navRect.height ? navRect.height : (bottomNav as any).offsetHeight || 0);
-            const extra = 16; // breathing space in px
+            // Compute the toolbar's margin-bottom as the spacing reference
+            let extra = 16; // default fallback
+            try {
+              const tb = document.querySelector('.calendar-toolbar') as HTMLElement | null;
+              if (tb) {
+                const mb = window.getComputedStyle(tb).marginBottom || '0px';
+                const parsed = parseFloat(mb) || 0;
+                if (parsed > 0) extra = Math.round(parsed);
+              }
+            } catch {}
             if (navH > 0) {
               available = Math.max(0, available - navH - extra);
               padBottom = Math.max(padBottom, extra);
