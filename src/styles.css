@@ -105,3 +105,11 @@
 .min-h-0, .min-vh-0 { min-height: 0 !important; }
 
 /* If any component needs a full-height flex child, use .h-100 or min-vh-100 per Bootstrap. */
+.fc-col-header-cell-cushion, .fc-timegrid-slot-label-cushion, .current-range{
+  color: #424242 !important;
+  pointer-events: none !important;
+}
+
+.fc-timegrid-event-harness:hover{
+  cursor: pointer;
+}

@@ -412,29 +412,29 @@ export class ClassSessionsService {
   getClassTypeColors(classTypeName: string): { background: string, border: string, hover: string } {
     const colorMap: { [key: string]: { background: string, border: string, hover: string } } = {
       'Barre': {
-        background: '#f59e0b', // Amber - energético y vibrante
+        background: '#f59e0b', 
         border: '#d97706',
         hover: '#b45309'
       },
       'Mat': {
-        background: '#10b981', // Emerald - relajante y natural
-        border: '#059669',
-        hover: '#047857'
+        background: '#5296A5',
+        border: '#5296A5',
+        hover: '#5296A5'
       },
       'Reformer': {
-        background: '#6366f1', // Indigo - sofisticado y premium
-        border: '#4f46e5',
-        hover: '#5b21b6'
+        background: '#918450', 
+        border: '#918450',
+        hover: '#918450'
       },
       'Personalizada': {
-        background: '#8b5cf6', // Purple - exclusivo y especial
-        border: '#7c3aed',
-        hover: '#6d28d9'
+        background: '#00A9A5', 
+        border: '#00A9A5',
+        hover: '#00A9A5'
       },
       'Funcional': {
-        background: '#ef4444', // Red - dinámico y potente
-        border: '#dc2626',
-        hover: '#b91c1c'
+        background: '#CA3C25', 
+        border: '#CA3C25',
+        hover: '#CA3C25'
       }
     };
 

@@ -10,7 +10,6 @@
 .user-calendar .fc-daygrid-day-frame {
   pointer-events: none;
 }
-/* 🎨 CALENDARIO SÚPER CHULO - VERSIÓN OPTIMIZADA */
 
 /* === ESTRUCTURA BASE === */
 .calendar-container {
@@ -26,7 +25,7 @@
   flex: 1 1 auto;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  background-color: #EFF5F1;
+  background-color: #F0F7F4;
 }
 /* Visual padding so the calendar isn't glued to the bottom/edges */
 .calendar-content.calendar-content-container {
@@ -718,7 +717,7 @@
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .calendar-container {
-    height: 90dvh;
+    height: 92dvh;
     padding: 0.5rem;
   }
   
@@ -805,4 +804,3 @@
 .calendar-content-container .transition-mask {
   pointer-events: none !important;
 }
-

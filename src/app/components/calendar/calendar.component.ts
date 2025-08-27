@@ -106,11 +106,18 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       const weekdayContent = (arg: any) => {
         try {
           const d = (arg && arg.date) ? new Date(arg.date) : new Date();
-          const opts: any = this.isMobile ? { weekday: 'long', day: 'numeric', month: 'short' } : { weekday: 'long', day: 'numeric', month: 'long' };
-          const raw = new Intl.DateTimeFormat('es-ES', opts).format(d);
-          // Capitalize first letter for consistency with other labels
-          if (!raw) return '';
-          return raw.charAt(0).toUpperCase() + raw.slice(1);
+          // Produce: "Lunes 25" (weekday + day number), no month, no comma
+          const parts = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric' }).formatToParts(d);
+          let weekday = '';
+          let daynum = '';
+          for (const p of parts) {
+            if (p.type === 'weekday') weekday = p.value || '';
+            if (p.type === 'day') daynum = p.value || '';
+          }
+          if (!weekday) return '';
+          const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+          const dayStr = daynum ? String(daynum).padStart(2, '0') : '';
+          return `${cap}${dayStr ? ' ' + dayStr : ''}`;
         } catch (e) { return ''; }
       };
       // Always show full weekday in single-day view (mobile and desktop)

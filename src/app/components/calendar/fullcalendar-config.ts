@@ -21,13 +21,11 @@ const formatDayHeader = (date: Date): string => {
     return 'Hoy';
   }
   
-  // Formato: "Lun 01/09"
+  // Formato: "Lun 01" (weekday + day number, sin mes)
   const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const dayName = dayNames[date.getDay()];
   const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  
-  return `${dayName} ${day}/${month}`;
+  return `${dayName} ${day}`;
 };
 
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
@@ -38,8 +36,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   // Formatos personalizados de fecha
   dayHeaderFormat: {
     weekday: 'short',
-    day: '2-digit',
-    month: '2-digit'
+    day: '2-digit'
   },
   dayHeaderContent: (arg) => {
     return formatDayHeader(arg.date);
