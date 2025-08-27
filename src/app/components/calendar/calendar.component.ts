@@ -328,6 +328,14 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         const body = document.body as HTMLElement;
         if (this._prevHtmlOverflow !== null) html.style.overflow = this._prevHtmlOverflow; else html.style.removeProperty('overflow');
         if (this._prevBodyOverflow !== null) body.style.overflow = this._prevBodyOverflow; else body.style.removeProperty('overflow');
+        // Clear any inline sizing we applied to the calendar scroll container
+        try {
+          const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+          if (container) {
+            container.style.removeProperty('height');
+            container.style.removeProperty('padding-bottom');
+          }
+        } catch {}
       }
     } catch (e) {}
   }
@@ -746,7 +754,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!this.calendarApi && this.fullCalRef && this.fullCalRef.nativeElement && typeof this.fullCalRef.nativeElement.getApi === 'function') {
         try { this.calendarApi = this.fullCalRef.nativeElement.getApi(); } catch {}
       }
-      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+  const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
       if (!container) return;
       // Instead of trusting a 100vh-like container height, compute the usable
       // vertical space from the viewport. This handles cases where fixed or
@@ -838,56 +846,20 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   // Note: do not subtract toolbar or top menu heights again here.
   // They are already accounted for in `crect.top` baseline and overlap detection above.
       } catch {}
-      if (!this.calendarApi || typeof this.calendarApi.setOption !== 'function') {
-        return;
+      // Apply height/padding to the actual scroll container so styles cannot block it.
+      // Our layout makes .calendar-content the scroller; ensure its height matches available
+      // and add breathing space at the bottom so content never hides under the bottom nav.
+      if (available > 80) {
+        try { container.style.height = available + 'px'; } catch {}
+        try { container.style.paddingBottom = (padBottom && padBottom > 0 ? padBottom : 0) + 'px'; } catch {}
       }
-      // If the computed height is reasonable, apply it as contentHeight so FullCalendar
-      // sets its internal scroller properly. Avoid updating when value is zero.
-  if (available > 100) {
+
+      // Also inform FullCalendar in case it uses its own scroller in some views.
+      if (this.calendarApi && typeof this.calendarApi.setOption === 'function' && available > 100) {
         try {
           this.calendarApi.setOption('contentHeight', available);
-          // ask FC to re-measure
           if (typeof this.calendarApi.updateSize === 'function') this.calendarApi.updateSize();
-          // Apply the computed bottom padding to FullCalendar internal scrollers so
-          // the last slot appears raised above overlapping fixed elements.
-          // If padBottom is zero we still clear any inline padding set previously.
-          try {
-            const host = this.fullCalRef?.nativeElement as HTMLElement | null;
-            if (host) {
-              const targets = host.querySelectorAll('.fc-scroller, .fc-scroller-liquid-absolute, .fc-timegrid-col-bg, .fc-timegrid-body');
-              targets.forEach((el: Element) => {
-                try {
-                  const he = el as HTMLElement;
-                  if (padBottom && padBottom > 0) {
-                    he.style.paddingBottom = padBottom + 'px';
-                  } else {
-                    he.style.paddingBottom = '0px';
-                  }
-                  // cleanup any stored marker
-                  if (he.dataset && he.dataset['__origPaddingBottomInline']) {
-                    delete he.dataset['__origPaddingBottomInline'];
-                  }
-                } catch {}
-              });
-            }
-          } catch {}
-          // After FC has updated sizes, ensure its internal scroller is scrolled to bottom
-          try {
-            setTimeout(() => {
-              try {
-                const host = this.fullCalRef?.nativeElement as HTMLElement | null;
-                if (!host) return;
-                const scroller = host.querySelector('.fc-scroller, .fc-scroller-liquid-absolute') as HTMLElement | null;
-                if (scroller) {
-                  // if content taller than container, scroll to bottom to reveal last slot
-                  if (scroller.scrollHeight > scroller.clientHeight + 2) {
-                    scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
-                  }
-                }
-              } catch {}
-            }, 80);
-          } catch {}
-        } catch (e) { /* ignore failures */ }
+        } catch {}
       }
     } catch (e) {
       // swallow errors; non-critical
