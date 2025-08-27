@@ -36,7 +36,7 @@
 
 /* Estilo para la franja de descanso - SOLO la primera fila visible */
 .fc .fc-timegrid-slot[data-time="13:00:00"] {
-  background-color: #f8f9fa !important;
+  background-color: #E8EBE8 !important;
   border-top: 2px solid #dee2e6 !important;
   border-bottom: 2px solid #dee2e6 !important;
   /* Hacer que ocupe el espacio de las 3 horas */

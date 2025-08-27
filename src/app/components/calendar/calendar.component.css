@@ -14,7 +14,7 @@
 
 /* === ESTRUCTURA BASE === */
 .calendar-container {
-  height: 95dvh;
+  height: 90dvh;
   padding: 0; /* we'll let inner elements control spacing */
   box-sizing: border-box;
   display: flex;
@@ -26,6 +26,7 @@
   flex: 1 1 auto;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  background-color: #EFF5F1;
 }
 /* Visual padding so the calendar isn't glued to the bottom/edges */
 .calendar-content.calendar-content-container {

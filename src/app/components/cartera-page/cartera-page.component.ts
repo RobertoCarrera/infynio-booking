@@ -90,7 +90,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
       height: 100%;
       display: flex;
       flex-direction: column;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      background: transparent;
     }
 
     /* Make the Bootstrap container the scrollable region within the page */
