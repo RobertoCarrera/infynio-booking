@@ -212,11 +212,31 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
         });
 
         // Also set a minimal fallback on the main element's inline padding so
-        // simple pages without inner scrollers are protected.
-        if (!main.dataset['__origPaddingBottomInline']) {
-          main.dataset['__origPaddingBottomInline'] = main.style.paddingBottom || '';
+        // simple pages without inner scrollers are protected. Use the same
+        // dataset key as other adjusted elements (`origPaddingBottom`).
+        if (!main.dataset['origPaddingBottom']) {
+          main.dataset['origPaddingBottom'] = main.style.paddingBottom || '';
         }
         main.style.paddingBottom = `${height}px`;
+
+        // If the document itself is the primary scroller (common in simple
+        // pages where window scrolls), ensure we also apply padding to the
+        // scrolling element (html/body) so content doesn't flow under the
+        // bottom nav. We check scrollHeight to decide if document scrolling is
+        // active and apply a similar padding there.
+        try {
+          const docScroller = (document.scrollingElement || document.documentElement) as HTMLElement | null;
+          if (docScroller) {
+            const isDocScrollable = docScroller.scrollHeight > docScroller.clientHeight + 1;
+            if (isDocScrollable) {
+              if (!docScroller.dataset['origPaddingBottom']) {
+                docScroller.dataset['origPaddingBottom'] = docScroller.style.paddingBottom || '';
+              }
+              const docComputed = window.getComputedStyle(docScroller).paddingBottom || '0px';
+              docScroller.style.paddingBottom = `calc(${height}px + ${docComputed})`;
+            }
+          }
+        } catch (e) {}
       } else {
         // clear the CSS variable when no mobile nav is present
         try { document.documentElement.style.removeProperty('--bottom-nav-height'); } catch (e) {}
@@ -236,6 +256,15 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
         } else if (main) {
           main.style.paddingBottom = '';
         }
+
+        // restore padding on document scroller if we modified it
+        try {
+          const docScroller = (document.scrollingElement || document.documentElement) as HTMLElement | null;
+          if (docScroller && docScroller.dataset['origPaddingBottom']) {
+            docScroller.style.paddingBottom = docScroller.dataset['origPaddingBottom'] || '';
+            delete docScroller.dataset['origPaddingBottom'];
+          }
+        } catch (e) {}
       }
     } catch (e) {
       // ignore DOM errors
