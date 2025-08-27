@@ -104,3 +104,10 @@
     <span>Clases</span>
   </a>
 </nav>
+
+<!-- Fixed spacer behind the mobile bottom nav to avoid seeing content through transparency.
+     Shows whenever a mobile bottom nav is present (user or admin). -->
+<div
+  class="mobile-bottom-spacer d-lg-none"
+  *ngIf="isLoggedIn && (!needsOnboarding || isAdmin)">
+</div>

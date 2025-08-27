@@ -130,7 +130,8 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
       padding: 0.25rem 0;
     }
 
-    @media (max-width: 768px) {
+  /* Match mobile nav breakpoint: apply bottom padding on devices where the nav shows */
+  @media (max-width: 991.98px) {
       .page-header {
         padding: 1rem;
         text-align: center;
@@ -145,6 +146,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
          If your mobile nav has a different height, adjust the 72px value or
          set the CSS variable --mobile-bottom-nav-height on the nav element. */
       .cartera-page-container > .container {
+        /* Reserve space for the fixed mobile bottom nav (approx 72px) + safe area */
         padding-bottom: calc(env(safe-area-inset-bottom) + 72px);
       }
     }
