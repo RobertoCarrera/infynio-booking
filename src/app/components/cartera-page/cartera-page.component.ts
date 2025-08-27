@@ -140,8 +140,12 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
         font-size: 1.5rem;
       }
       /* Minimal safe-area padding; menu script will add extra bottom padding dynamically */
+      /* Ensure content never scrolls under the fixed mobile bottom nav.
+         We add the device safe-area inset plus a default nav height (72px).
+         If your mobile nav has a different height, adjust the 72px value or
+         set the CSS variable --mobile-bottom-nav-height on the nav element. */
       .cartera-page-container > .container {
-        padding-bottom: env(safe-area-inset-bottom);
+        padding-bottom: calc(env(safe-area-inset-bottom) + 72px);
       }
     }
   `]

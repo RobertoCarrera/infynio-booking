@@ -163,8 +163,9 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
             if (!isScrollable) return;
 
             // store original inline padding-bottom if not stored
-            if (!el.dataset['__origPaddingBottomInline']) {
-              el.dataset['__origPaddingBottomInline'] = el.style.paddingBottom || '';
+            if (!el.dataset['origPaddingBottom']) {
+              // store under dataset.origPaddingBottom -> attribute becomes data-orig-padding-bottom
+              el.dataset['origPaddingBottom'] = el.style.paddingBottom || '';
             }
 
             const computedPadding = window.getComputedStyle(el).paddingBottom || '0px';
@@ -186,18 +187,18 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
         // clear the CSS variable when no mobile nav is present
         try { document.documentElement.style.removeProperty('--bottom-nav-height'); } catch (e) {}
         // restore inline padding-bottom on any elements we modified
-        const adjusted = Array.from(document.querySelectorAll<HTMLElement>('[data-__orig-padding-bottom-inline]')) as HTMLElement[];
+        const adjusted = Array.from(document.querySelectorAll<HTMLElement>('[data-orig-padding-bottom]')) as HTMLElement[];
         adjusted.forEach(el => {
           try {
-            el.style.paddingBottom = el.dataset['__origPaddingBottomInline'] || '';
-            delete el.dataset['__origPaddingBottomInline'];
+            el.style.paddingBottom = el.dataset['origPaddingBottom'] || '';
+            delete el.dataset['origPaddingBottom'];
           } catch (e) {}
         });
 
         // ensure main also gets restored
-        if (main && main.dataset['__origPaddingBottomInline']) {
-          main.style.paddingBottom = main.dataset['__origPaddingBottomInline'] || '';
-          delete main.dataset['__origPaddingBottomInline'];
+        if (main && main.dataset['origPaddingBottom']) {
+          main.style.paddingBottom = main.dataset['origPaddingBottom'] || '';
+          delete main.dataset['origPaddingBottom'];
         } else if (main) {
           main.style.paddingBottom = '';
         }
