@@ -20,58 +20,11 @@
     </div>
 
     <div class="card-body" *ngIf="!loading && !error">
-      <!-- Resumen de clases disponibles -->
-      <div class="row mb-4">
-        <div class="col-md-3 col-6 mb-2">
-          <div class="stats-card mat-funcional">
-            <div class="stats-icon">
-            </div>
-            <div class="stats-content">
-              <h6>MAT-Funcional</h6>
-              <span class="stats-number">{{ resumenClases.matFuncional }}</span>
-              <small>clases</small>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3 col-6 mb-2">
-          <div class="stats-card reformer">
-            <div class="stats-icon">
-            </div>
-            <div class="stats-content">
-              <h6>Reformer</h6>
-              <span class="stats-number">{{ resumenClases.reformer }}</span>
-              <small>clases</small>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3 col-6 mb-2">
-          <div class="stats-card personalizada">
-            <div class="stats-icon">
-            </div>
-            <div class="stats-content">
-              <h6>{{ isMobile ? 'MAT-Func. Pers.' : 'MAT-Funcional Personal' }}</h6>
-              <span class="stats-number">{{ resumenClases.matPersonalizada }}</span>
-              <small>clases</small>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3 col-6 mb-2">
-          <div class="stats-card personalizada">
-            <div class="stats-icon">
-            </div>
-            <div class="stats-content">
-              <h6>{{ isMobile ? 'Reformer Pers.' : 'Reformer Personal' }}</h6>
-              <span class="stats-number">{{ resumenClases.reformerPersonalizada }}</span>
-              <small>clases</small>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Detalle de bonos -->
       <div *ngIf="carteraClases.length > 0">
         <h6 class="mb-3">Detalle de tus bonos:</h6>
-        <div class="bonos-list overflow-y-auto">
+        <div class="bonos-list overflow-y-auto pt-1">
           <div *ngFor="let entrada of carteraClases" class="bono-item card mb-3">
             <div class="card-body">
               <div class="row align-items-center">
