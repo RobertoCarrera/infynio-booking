@@ -20,6 +20,8 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
   needsOnboarding = false;
   private subscriptions: Subscription[] = [];
   private resizeHandler: any;
+  private _vvResizeHandler: any;
+  private _vvScrollHandler: any;
 
   constructor(private supabase: SupabaseService, private auth: AuthService, private router: Router) {}
 
@@ -90,6 +92,29 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
     this.syncMobileNavPadding();
     this.resizeHandler = () => this.syncMobileNavPadding();
     window.addEventListener('resize', this.resizeHandler);
+    // visualViewport handling: keep a CSS var with the usable viewport height
+    try {
+      const updateViewportVar = () => {
+        try {
+          const vv = (window as any).visualViewport;
+          const h = vv && vv.height ? Math.round(vv.height) : window.innerHeight;
+          document.documentElement.style.setProperty('--app-viewport-height', `${h}px`);
+          // keep padding synced when viewport changes (URL bar / keyboard)
+          this.syncMobileNavPadding();
+        } catch (e) {}
+      };
+      updateViewportVar();
+      const vv = (window as any).visualViewport;
+      if (vv) {
+        this._vvResizeHandler = () => updateViewportVar();
+        this._vvScrollHandler = () => updateViewportVar();
+        vv.addEventListener('resize', this._vvResizeHandler);
+        vv.addEventListener('scroll', this._vvScrollHandler);
+      } else {
+        // fallback: update on orientation change
+        window.addEventListener('orientationchange', updateViewportVar);
+      }
+    } catch (e) {}
   }
 
   ngOnDestroy() {
@@ -97,6 +122,15 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
     }
+    try {
+      const vv = (window as any).visualViewport;
+      if (vv) {
+        if (this._vvResizeHandler) vv.removeEventListener('resize', this._vvResizeHandler);
+        if (this._vvScrollHandler) vv.removeEventListener('scroll', this._vvScrollHandler);
+      } else {
+        window.removeEventListener('orientationchange', () => {});
+      }
+    } catch (e) {}
   }
 
   logout() {
