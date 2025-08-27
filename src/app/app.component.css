@@ -35,9 +35,9 @@
     .app-main {
         padding-bottom: calc(env(safe-area-inset-bottom) + 72px);
     }
-    /* If the calendar (FullCalendar) is present, remove outer padding and let the
-       calendar component manage its own height/scrolling like it already does */
-    .app-main:has(.fc) {
+     /* If the calendar is active, remove outer padding and let the
+         calendar component manage its own height/scrolling */
+     .app-main.calendar-active {
         padding-bottom: 0;
         overflow: hidden;
     }

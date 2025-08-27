@@ -65,6 +65,12 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  /* On small devices, let the page-level scroller handle overflow to avoid nested scrolls */
+  .bonos-list,
+  .bonos-list.list-group {
+    max-height: none;
+    overflow: visible;
+  }
   .stats-card {
     margin-bottom: 1rem;
   }

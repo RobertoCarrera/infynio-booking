@@ -96,6 +96,11 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit() {
+    // mark the main app container as calendar-active (for layout CSS)
+    try {
+      const main = document.getElementById('mainContent');
+      if (main) main.classList.add('calendar-active');
+    } catch {}
     // detect mobile based on viewport width
     try { this.isMobile = (typeof window !== 'undefined') && window.innerWidth < 992; } catch {}
     // Ensure FullCalendar shows full weekday names where requested:
@@ -288,6 +293,11 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy() {
+    // remove the calendar-active marker from main container
+    try {
+      const main = document.getElementById('mainContent');
+      if (main) main.classList.remove('calendar-active');
+    } catch {}
     this.subscriptions.forEach(sub => sub.unsubscribe());
     if (typeof window !== 'undefined' && this.keyboardHandlerBound) {
       window.removeEventListener('keydown', this.globalKeyHandler as any);
