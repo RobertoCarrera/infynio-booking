@@ -71,7 +71,6 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(role => {
       if (role !== null) {
-        const wasAdmin = this.isAdmin;
         this.isAdmin = role === 'admin';
       }
     });
@@ -148,8 +147,8 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
     if (navCollapse) {
       navCollapse.classList.toggle('show', this.isMenuOpen);
     }
-  // keep padding in sync if the menu affects layout
-  setTimeout(() => this.syncMobileNavPadding(), 50);
+    // keep padding in sync if the menu affects layout
+    setTimeout(() => this.syncMobileNavPadding(), 50);
   }
 
   closeMenu() {
@@ -163,79 +162,12 @@ export class MenuComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private syncMobileNavPadding() {
     try {
-  const mobileNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
-  const main = document.getElementById('mainContent') as HTMLElement | null;
-  // If the calendar is active on the page, let the calendar component
-  // manage bottom padding/height itself to avoid double adjustments
-  const hasCalendar = !!document.querySelector('app-calendar, .fc');
-      if (!main) return;
-  if (mobileNav && window.innerWidth < 992 && !hasCalendar) {
-        const height = mobileNav.offsetHeight + 12; // small extra gap
-        // expose bottom nav height as a CSS variable for pages to consume
-        try { document.documentElement.style.setProperty('--bottom-nav-height', `${height}px`); } catch (e) {}
-
-        // Prefer applying padding to scrollable elements inside main so we don't
-        // mutate heights globally (safer for libraries like FullCalendar).
-        const scrollers = Array.from(main.querySelectorAll<HTMLElement>('*')) as HTMLElement[];
-
-        // Always include the main container itself as a fallback target
-        scrollers.unshift(main);
-
-        scrollers.forEach(el => {
-          // Skip any element that is part of a FullCalendar instance. FullCalendar
-          // manages its own scrollers and we must not mutate its inline styles
-          // (it was adding `padding-bottom: calc(...)` which causes layout issues).
-          // We detect FullCalendar by the presence of a parent/ancestor with
-          // the root `.fc` class.
-          if (el.closest && el.closest('.fc')) {
-            return; // don't touch FullCalendar internals
-          }
-          try {
-            const cs = window.getComputedStyle(el);
-            const overflowY = (cs.overflowY || '').toLowerCase();
-            const isScrollable = overflowY === 'auto' || overflowY === 'scroll' || el.scrollHeight > el.clientHeight + 1;
-            if (!isScrollable) return;
-
-            // store original inline padding-bottom if not stored
-            if (!el.dataset['origPaddingBottom']) {
-              // store under dataset.origPaddingBottom -> attribute becomes data-orig-padding-bottom
-              el.dataset['origPaddingBottom'] = el.style.paddingBottom || '';
-            }
-
-            const computedPadding = window.getComputedStyle(el).paddingBottom || '0px';
-            // Set padding-bottom to ensure content isn't hidden behind the bottom nav.
-            // Use calc to preserve existing computed padding.
-            el.style.paddingBottom = `calc(${height}px + ${computedPadding})`;
-          } catch (e) {
-            // ignore individual element errors
-          }
-        });
-
-        // Also set a minimal fallback on the main element's inline padding so
-        // simple pages without inner scrollers are protected.
-        if (!main.dataset['__origPaddingBottomInline']) {
-          main.dataset['__origPaddingBottomInline'] = main.style.paddingBottom || '';
-        }
-        main.style.paddingBottom = `${height}px`;
+      const mobileNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
+      if (mobileNav && window.innerWidth < 992) {
+        const height = mobileNav.offsetHeight; // real nav height
+        try { document.documentElement.style.setProperty('--bottom-nav-height', `${height}px`); } catch {}
       } else {
-        // clear the CSS variable when no mobile nav is present
-        try { document.documentElement.style.removeProperty('--bottom-nav-height'); } catch (e) {}
-        // restore inline padding-bottom on any elements we modified
-        const adjusted = Array.from(document.querySelectorAll<HTMLElement>('[data-orig-padding-bottom]')) as HTMLElement[];
-        adjusted.forEach(el => {
-          try {
-            el.style.paddingBottom = el.dataset['origPaddingBottom'] || '';
-            delete el.dataset['origPaddingBottom'];
-          } catch (e) {}
-        });
-
-        // ensure main also gets restored
-        if (main && main.dataset['origPaddingBottom']) {
-          main.style.paddingBottom = main.dataset['origPaddingBottom'] || '';
-          delete main.dataset['origPaddingBottom'];
-        } else if (main) {
-          main.style.paddingBottom = '';
-        }
+        try { document.documentElement.style.removeProperty('--bottom-nav-height'); } catch {}
       }
     } catch (e) {
       // ignore DOM errors

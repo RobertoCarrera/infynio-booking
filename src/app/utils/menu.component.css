@@ -140,7 +140,8 @@
     right: 0;
     /* place just above the safe area bottom and match nav bottom offset */
     bottom: 0;
-    height: 120px; /* a bit taller than the nav to cover shadows/rounding */
+    /* cover the area under the nav (its height) + the 12px offset + safe area */
+    height: calc(env(safe-area-inset-bottom) + var(--bottom-nav-height, 72px) + 12px);
     background-color: #eff5f1; /* fallback */
     background: linear-gradient(#eff5f1ea, #eff5f1ea);
     z-index: 3500; /* below nav (4000), above content */

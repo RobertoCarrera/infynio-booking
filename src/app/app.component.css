@@ -27,18 +27,23 @@
     -webkit-overflow-scrolling: touch;
 }
 
+/* When the calendar is active, prevent page-level scrolling at all sizes.
+   FullCalendar manages its own internal scroller. */
+.app-main.calendar-active {
+    overflow: hidden;
+}
+
 /* Padding for mobile bottom nav is now handled contextually by pages/components */
 .with-mobile-bottom-nav { padding-bottom: 0; }
 
 /* On mobile, reserve space at the bottom so content never hides under the fixed nav */
 @media (max-width: 991.98px) {
     .app-main {
-        padding-bottom: calc(env(safe-area-inset-bottom) + 72px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + var(--bottom-nav-height, 72px));
     }
      /* If the calendar is active, remove outer padding and let the
          calendar component manage its own height/scrolling */
      .app-main.calendar-active {
-        padding-bottom: 0;
-        overflow: hidden;
+    padding-bottom: 0;
     }
 }
