@@ -775,7 +775,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         // info panels) that may sit above the calendar area even if they don't affect
         // the container's height. We look for visible elements with position fixed/sticky/absolute
         // and subtract their vertical intersection with the calendar area.
-        try {
+  try {
           const elems = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
           let totalOverlap = 0;
           const containerBottom = crect.top + available;
@@ -804,6 +804,24 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
             padBottom = Math.ceil(totalOverlap + 8); // 8px safety margin
             // clamp to reasonable maximum to avoid absurd padding
             if (padBottom > 300) padBottom = 300;
+          }
+        } catch {}
+
+        // If a mobile bottom nav is present, reserve its height from available area
+        // so the calendar fits fully above it, and add a small breathing space.
+        try {
+          const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
+          if (bottomNav) {
+            const navRect = bottomNav.getBoundingClientRect();
+            const navH = Math.ceil(navRect && navRect.height ? navRect.height : (bottomNav as any).offsetHeight || 0);
+            const extra = 16; // breathing space in px
+            if (navH > 0) {
+              available = Math.max(0, available - navH - extra);
+              padBottom = Math.max(padBottom, extra);
+            } else {
+              // fallback: still ensure a minimal breathing space
+              padBottom = Math.max(padBottom, 16);
+            }
           }
         } catch {}
 
