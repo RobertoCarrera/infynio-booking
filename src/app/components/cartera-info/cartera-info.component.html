@@ -16,6 +16,7 @@
         </button>
       </div>
     </div>
+<<<<<<< HEAD
     <div class="card-header">
       <h6 class="mb-0">Bonos</h6>
       </div>
@@ -23,6 +24,15 @@
       <!-- Detalle de bonos -->
       <div *ngIf="carteraClases.length > 0">
         <div class="bonos-list overflow-y-auto">
+=======
+
+    <div class="card-body" *ngIf="!loading && !error">
+
+      <!-- Detalle de bonos -->
+      <div *ngIf="carteraClases.length > 0">
+        <h6 class="mb-3">Detalle de tus bonos:</h6>
+        <div class="bonos-list overflow-y-auto pt-1">
+>>>>>>> new-menu
           <div *ngFor="let entrada of carteraClases" class="bono-item card mb-3">
             <div class="card-body">
               <div class="row d-flex align-items-center justify-content-between">

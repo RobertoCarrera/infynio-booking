@@ -87,6 +87,10 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
       height: 100%;
       display: flex;
       flex-direction: column;
+<<<<<<< HEAD
+=======
+      background: transparent;
+>>>>>>> new-menu
     }
 
     /* Make the Bootstrap container the scrollable region within the page */

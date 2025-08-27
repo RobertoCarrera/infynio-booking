@@ -16,6 +16,11 @@
   border-radius: 12px 12px 0 0 !important;
 }
 
+.cartera-bookings ul.list-group{
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
 .list-group-item {
   padding: 0.5rem 1rem;
 }

@@ -1,16 +1,112 @@
+<<<<<<< HEAD
 /* Mobile-first: fixed bottom navigation */
 #logo{ max-height: 46px; }
 .menu-navbar{
     width: 100vw;
 }
+=======
+.menu-navbar{
+    color: #191919;
+    background-color: transparent !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.menu-navbar img#logo{ max-height:44px; }
+
+.navbar-nav .nav-item .nav-link{
+    min-width: 10vw;
+    border: 1px solid #e4c4de;
+    padding: 0em 1em;
+    border-radius: 50em;
+    /* smooth hover animation using a left-to-right background fill */
+    background-image: linear-gradient(90deg, rgba(228,196,222,0.95) 0%, rgba(228,196,222,0.95) 100%);
+    background-size: 0% 100%;
+    background-repeat: no-repeat;
+    background-position: left center;
+    transition: background-size 450ms ease, color 180ms ease;
+    will-change: background-size, box-shadow;
+box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;}
+
+.navbar-nav .nav-item .nav-link:hover{
+    /* expand the gradient from left to right to create a fill effect */
+    background-size: 100% 100%;
+    color: #151C2D;
+}
+
+/* Make active/focus visible and work reliably on touch devices */
+.navbar-nav .nav-item,
+.navbar-nav .nav-item .nav-link {
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    touch-action: manipulation; /* improve tap responsiveness */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Support keyboard focus and persistent active state via .active class */
+.navbar-nav .nav-item:active,
+.navbar-nav .nav-item:focus,
+.navbar-nav .nav-item:focus-visible,
+.navbar-nav .nav-item.active,
+.navbar-nav .nav-item .nav-link:active,
+.navbar-nav .nav-item .nav-link:focus,
+.navbar-nav .nav-item .nav-link:focus-visible,
+.navbar-nav .nav-item .nav-link.active {
+    /* keep the progressive fill visible for active/focus states */
+    background-size: 100% 100%;
+    color: #151C2D;
+    border-radius: 50em;
+}
+
+/* Ensure link fills the nav-item so clicking anywhere inside triggers :active */
+.navbar-nav .nav-item > .nav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0.5em 1em;
+    border-radius: 50em;
+    color: inherit;
+    text-decoration: none;
+}
+
+
+.logout i{
+    /* reserve space and avoid layout shift: keep icon as inline-block with fixed width
+       hide it visually with opacity and move it with transform (no reflow) */
+    display: inline-block;
+    width: 2em; /* reserve room for the icon so text doesn't move; tweak if needed */
+    text-align: center;
+    vertical-align: middle;
+    color: red !important; /* visible color when shown */
+    opacity: 0;
+    transform: translateX(-0.25em); /* slight inset when hidden */
+    transition: opacity 250ms ease, transform 250ms ease;
+}
+
+.logout:hover i{
+    opacity: 1;
+    transform: translateX(0);
+}
+
+>>>>>>> new-menu
 .mobile-bottom-nav {
     left: 12px;
     right: 12px;
+<<<<<<< HEAD
     /* bottom: 12px; */
+=======
+    bottom: 12px;
+    min-height: 8dvh;
+>>>>>>> new-menu
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+<<<<<<< HEAD
     /* background-color: #424242; */
     width: 50vw;
 }
@@ -26,15 +122,41 @@
     border: 1px solid #e4c4de;
     border-radius: 5em;
     padding: 0.5em 1.5em !important;
+=======
+    z-index: 4000;
+}
+.mobile-nav-item{
+    color: #191919;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 5em;
+    gap: 2px;
+    font-size: 1em;
+    padding: 0.5em 1em !important;
+    min-width: 25vw;
+    border: 1px solid #e4c4de;
+
+>>>>>>> new-menu
 }
 .mobile-nav-item svg{ color: inherit; opacity: 0.95; }
 .mobile-nav-item.active, .mobile-nav-item:active, .mobile-nav-item.router-link-active{ 
     background: #e4c4de; 
     color: #151C2D;
 }
+<<<<<<< HEAD
 /* Desktop top nav tweaks */
 .menu-navbar .nav-link{ color: #424242; margin-left:10px; }
 .menu-navbar img#logo{ max-height:44px; }
+=======
+
+/* Desktop: show top navbar and hide mobile bottom nav */
+@media(min-width: 992px){
+    .mobile-bottom-nav{ display:none; }
+}
+
+>>>>>>> new-menu
 
 @media (max-width: 768px) {
 

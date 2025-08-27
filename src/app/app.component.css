@@ -9,6 +9,7 @@
 	overflow: hidden; /* prevent page scrollbar */
 }
 .app-shell-inner {
+<<<<<<< HEAD
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 auto;
@@ -17,6 +18,17 @@
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: center;
+=======
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    /* Se añade el gradiente blanco semitransparente antes de la URL */
+    background-image: linear-gradient(#eff5f1ea, #eff5f1ea), url('https://imgs.mars-studio.es/imgs/mars-studio.jpeg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+>>>>>>> new-menu
 }
 .app-shell .sticky-top { z-index: 3000; }
 .app-main {
