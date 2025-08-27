@@ -1,36 +1,39 @@
-/* Mobile-first: fixed bottom navigation */
-#logo{ max-height: 46px; }
+.menu-navbar{
+    color: #191919;
+    background-color: transparent !important;
+}
+
+.menu-navbar img#logo{ max-height:44px; }
+
 .mobile-bottom-nav {
     position: fixed;
     left: 12px;
     right: 12px;
     bottom: 12px;
     min-height: 8dvh;
-    background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98));
-    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: space-around;
     gap: 8px;
-    padding: 6px 8px;
-    box-shadow: 0 18px 40px rgba(2,6,23,0.45);
     z-index: 4000;
 }
 .mobile-nav-item{
-    color: #E4C4DE;
+    color: #191919;
     text-decoration: none;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    border-radius: 5em;
     gap: 2px;
-    font-size: 12px;
-    width: 72px;
+    font-size: 1em;
+    padding: 0.5em 1em !important;
+    min-width: 25vw;
+    border: 1px solid #e4c4de;
+
 }
 .mobile-nav-item svg{ color: inherit; opacity: 0.95; }
 .mobile-nav-item.active, .mobile-nav-item:active, .mobile-nav-item.router-link-active{ 
     background: #e4c4de; 
-    border-radius: 8px; 
     color: #151C2D;
 }
 
@@ -40,10 +43,6 @@
     .menu-navbar{ display:flex; align-items:center; padding:8px 20px; }
 }
 
-/* Desktop top nav tweaks */
-.menu-navbar { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); }
-.menu-navbar .nav-link{ color: #fff; margin-left:10px; }
-.menu-navbar img#logo{ max-height:44px; }
 
 /* Reserve space is now applied by each page/component as needed */
 @media (max-width: 991.98px) {
