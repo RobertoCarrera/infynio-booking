@@ -1,6 +1,6 @@
 <div class="container-fluid">
   <div class="row p-3">
-      <div class="col-12 col-md-6 col-lg-5 col-xxl-4 profile-container">
+      <div class="col-12 col-md-6 col-lg-5 col-xxl-4 profile-container d-flex d-xl-block flex-column align-items-stretch justify-content-between">
         <div class="row">
           <h2>Perfil del Cliente</h2>
         </div>
@@ -16,7 +16,8 @@
       </div>
       <!-- Mobile: quick logout button fixed at bottom of profile for easy access -->
       <div class="row d-lg-none text-center d-flex align-items-center justify-content-center">
-        <button class="btn btn-danger w-75" (click)="logout()">Cerrar sesión</button>
+            <a (click)="logout();" class="text-danger fw-bold fs-6 text-decoration-none rounded p-2 logout d-flex align-items-center justify-content-center"style="cursor: pointer;">
+              Salir<i class="bi bi-box-arrow-right ps-2"></i></a>
       </div>
       </div>
     </div>
