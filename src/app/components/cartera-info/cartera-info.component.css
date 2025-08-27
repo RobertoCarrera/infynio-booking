@@ -2,15 +2,27 @@
   max-width: 100%;
 }
 
+.cartera-info .card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.cartera-info .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 12px 12px 0 0 !important;
+}
+
 .bonos-list{
   max-height: 45vh;
   scrollbar-width: none;
 }
 
-.bono-item {
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* When bonos-list is a list-group, enable proper scrolling like cartera-bookings */
+.bonos-list.list-group{
+  max-height: 45vh;
+  overflow-y: auto;
 }
 
 .bono-item:hover {

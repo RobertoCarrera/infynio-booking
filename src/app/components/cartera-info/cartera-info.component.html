@@ -1,6 +1,9 @@
 <div class="cartera-info-container">
   <div class="card">
-    
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h6 class="mb-0">Tus bonos</h6>
+    </div>
+
     <div class="card-body" *ngIf="loading">
       <div class="d-flex justify-content-center">
         <div class="spinner-border text-primary" role="status">
@@ -21,53 +24,54 @@
 
     <div class="card-body" *ngIf="!loading && !error">
 
-      <!-- Detalle de bonos -->
+      <!-- Detalle de bonos (estandarizado a list-group como CarteraBookings) -->
       <div *ngIf="carteraClases.length > 0">
-        <h6 class="mb-3">Detalle de tus bonos:</h6>
-        <div class="bonos-list overflow-y-auto pt-1">
-          <div *ngFor="let entrada of carteraClases" class="bono-item card mb-3">
-            <div class="card-body">
-              <div class="row align-items-center">
-                <div class="col-md-4">
-                  <h6 class="mb-1">
-                    <span class="badge" 
-                          [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
-                      {{ entrada.bono_type }}
-                    </span>
-                  </h6>
-                  <small class="text-muted">
-                    {{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Bono de ' + entrada.clases_totales + ' clases' }}
-                  </small>
-                </div>
-                <div class="col-md-3">
-                  <div class="progress-info">
-                    <div class="d-flex justify-content-between mb-1">
-                      <small>Disponibles</small>
-                      <small>{{ entrada.clases_disponibles }}/{{ entrada.clases_totales }}</small>
-                    </div>
-                    <div class="progress">
-                      <div class="progress-bar" 
-                           [class]="'bg-' + getProgressColor(getProgressPercentage(entrada))"
-                           [style.width.%]="getProgressPercentage(entrada)">
+        <ul class="list-group list-group-flush bonos-list pt-1" aria-label="Lista de bonos">
+          <li *ngFor="let entrada of carteraClases" class="list-group-item p-0 border-0 mb-3 bono-item">
+            <div class="card">
+              <div class="card-body">
+                <div class="row align-items-center">
+                  <div class="col-md-4">
+                    <h6 class="mb-1">
+                      <span class="badge" 
+                            [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
+                        {{ entrada.bono_type }}
+                      </span>
+                    </h6>
+                    <small class="text-muted">
+                      {{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Bono de ' + entrada.clases_totales + ' clases' }}
+                    </small>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="progress-info">
+                      <div class="d-flex justify-content-between mb-1">
+                        <small>Disponibles</small>
+                        <small>{{ entrada.clases_disponibles }}/{{ entrada.clases_totales }}</small>
+                      </div>
+                      <div class="progress">
+                        <div class="progress-bar" 
+                             [class]="'bg-' + getProgressColor(getProgressPercentage(entrada))"
+                             [style.width.%]="getProgressPercentage(entrada)">
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="col-md-3">
-                  <small class="text-muted">
-                    <i class="fas fa-calendar me-1"></i>
-                    Comprado: {{ formatearFecha(entrada.fecha_compra) }}
-                  </small>
-                  <br>
-                  <small class="text-muted" *ngIf="entrada.fecha_expiracion">
-                    <i class="fas fa-clock me-1"></i>
-                    Expira: {{ formatearFecha(entrada.fecha_expiracion) }}
-                  </small>
+                  <div class="col-md-3">
+                    <small class="text-muted">
+                      <i class="fas fa-calendar me-1"></i>
+                      Comprado: {{ formatearFecha(entrada.fecha_compra) }}
+                    </small>
+                    <br>
+                    <small class="text-muted" *ngIf="entrada.fecha_expiracion">
+                      <i class="fas fa-clock me-1"></i>
+                      Expira: {{ formatearFecha(entrada.fecha_expiracion) }}
+                    </small>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </li>
+        </ul>
       </div>
 
       <!-- Estado vacío -->
