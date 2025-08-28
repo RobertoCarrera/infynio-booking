@@ -94,6 +94,7 @@
     display: flex;
     align-items: center;
     justify-content: space-around;
+    overflow-x: auto;
     gap: 8px;
     z-index: 4000;
     /* Ensure the bar is not transparent so content doesn't show underneath */
@@ -101,6 +102,8 @@
     background: linear-gradient(#eff5f1ea, #eff5f1ea);
     border-radius: 20px;
     box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    padding-left: 0.5em;
+    padding-right: 0.5em;
 }
 .mobile-nav-item{
     color: #191919;
