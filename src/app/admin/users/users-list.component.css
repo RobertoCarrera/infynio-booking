@@ -8,5 +8,10 @@
 
 .tabla-usuarios{
     max-height: 78vh;
-    overflow-y: auto;
+	overflow-y: auto;
+}
+
+/* Ensure the module root doesn't force an internal vertical scroll; allow page to scroll instead */
+:host {
+	overflow-y: visible; /* remove forced scrolling on the main container */
 }

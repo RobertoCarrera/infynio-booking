@@ -20,6 +20,13 @@ export class AdminComponent implements OnInit {
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
       const url = event.urlAfterRedirects;
+      // Generic admin route marker so CSS can target any admin page
+      if (url.startsWith('/admin')) {
+        document.body.classList.add('route-admin');
+      } else {
+        document.body.classList.remove('route-admin');
+      }
+
       if (url.includes('/admin/users')) {
         this.activeTab = 'users';
       } else if (url.includes('/admin/invite')) {
@@ -31,6 +38,9 @@ export class AdminComponent implements OnInit {
 
     // Establecer pestaña inicial basada en la URL actual
     const currentUrl = this.router.url;
+    if (currentUrl.startsWith('/admin')) {
+      document.body.classList.add('route-admin');
+    }
     if (currentUrl.includes('/admin/users')) {
       this.activeTab = 'users';
     } else if (currentUrl.includes('/admin/invite')) {

@@ -19,14 +19,17 @@
 .mobile-list-scroll{
   display:flex;
   flex-direction:column;
-  max-height: 45vh;
+  max-height: 60vh;
   min-height: 0; /* allow child to shrink in a flex column */
 }
 .mobile-list-scroll .mobile-list-viewport{
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
-  max-height:60vh; /* fallback */
+  max-height:60vh;
+  padding-bottom: 4em;
+  scrollbar-width: none;
 }
+
 
 @media (min-width: 768px){
   /* On md+ we show the table; no special scroll needed */

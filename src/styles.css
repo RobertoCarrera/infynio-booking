@@ -113,3 +113,42 @@
 .fc-timegrid-event-harness:hover{
   cursor: pointer;
 }
+
+/* --- Admin: disable page-level vertical scrolling for admin routes --- */
+/* Add .route-admin to <body> when on any admin route; these rules completely
+   disable document-level vertical scrolling while allowing internal scrollable
+   regions (like .tabla-usuarios and .mobile-list-viewport) to keep their own
+   scrollbars and scrolling behaviour. */
+html.route-admin, body.route-admin {
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
+/* Ensure the app shell/main don't introduce page-level scrolling */
+body.route-admin .app-shell,
+body.route-admin .app-main {
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
+/* Explicitly enable internal scrollable containers used in admin views */
+body.route-admin .tabla-usuarios,
+body.route-admin .mobile-list-viewport,
+body.route-admin .mobile-list-scroll {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keep internal scrollbars visible/usable (fallback to default behaviour) */
+body.route-admin .tabla-usuarios,
+body.route-admin .mobile-list-viewport {
+  scrollbar-width: auto;
+  -ms-overflow-style: auto;
+}
+
+body.route-admin .tabla-usuarios::-webkit-scrollbar,
+body.route-admin .mobile-list-viewport::-webkit-scrollbar {
+  display: block;
+  width: 10px;
+  height: 10px;
+}

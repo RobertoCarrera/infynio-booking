@@ -2,10 +2,11 @@
 /* App shell layout: make a column-flex that fills the viewport and prevents the document/body from scrolling.
 	 Individual pages (like the calendar) should provide their own scrollable containers. */
 .app-shell {
-	height: 100vh; /* full viewport */
-	display: flex;
-	flex-direction: column;
-	overflow: hidden; /* prevent page scrollbar */
+    height: 100vh; /* full viewport */
+    display: flex;
+    flex-direction: column;
+    /* Allow document/page scrolling instead of forcing internal app scrolling */
+    overflow: visible;
 }
 .app-shell-inner {
     display: flex;
@@ -22,9 +23,8 @@
 .app-main {
     flex: 1 1 auto;
     min-height: 0; /* critical to allow children to be scrollable */
-    /* Default: let pages scroll inside app-main */
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    /* Do not force an internal scroll on app-main; let the page/document handle scrolling */
+    overflow-y: visible;
 }
 
 /* When the calendar is active, prevent page-level scrolling at all sizes.
@@ -32,6 +32,8 @@
 .app-main.calendar-active {
     overflow: hidden;
 }
+
+/* Admin/global scroll rules moved to src/styles.css */
 
 /* Padding for mobile bottom nav is now handled contextually by pages/components */
 .with-mobile-bottom-nav { padding-bottom: 0; }
