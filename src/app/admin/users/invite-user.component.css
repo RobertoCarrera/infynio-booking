@@ -12,7 +12,24 @@
 .desktop-list-scroll{
   display:flex;
   flex-direction:column;
-  max-height: 55vh;
+  max-height: 50vh;
+  overflow-y: auto; /* allow the container to scroll while header stays fixed */
+  scrollbar-width: auto;
+  border-radius: 0.5em;
+}
+
+/* Keep the table layout but make the header sticky so only the body scrolls
+   inside the .desktop-list-scroll container. This preserves column alignment. */
+.desktop-list-scroll table{ 
+  width:100%;
+  margin-bottom: 0; /* avoid extra gap that makes scroll awkward */
+}
+
+.desktop-list-scroll thead th{
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bs-body-bg, #fff);
 }
 
 /* Make the list area grow and scroll on small screens */
