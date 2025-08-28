@@ -47,8 +47,8 @@
       </div>
     </div>
 
-    <!-- Panel de cartera -->
-    <div class="col-md-8 bonos-info">
+  <!-- Panel de cartera -->
+  <div class="col-md-4 bonos-info">
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0">
@@ -85,12 +85,12 @@
               <p class="text-muted">Este usuario no tiene bonos de clases activos</p>
             </div>
 
-            <div *ngIf="carteraUsuario.length > 0">
+      <div *ngIf="carteraUsuario.length > 0">
               <div class="cartera-scroll">
                 <div class="table-responsive">
                   <table class="table">
                   <tbody>
-                    <tr *ngFor="let entrada of carteraUsuario">
+        <tr *ngFor="let entrada of carteraUsuario" [class.selected]="entrada.id === selectedPackageId" (click)="abrirDetalleBono(entrada)">
                       <!-- Columna compacta: tipo, subtipo, clases y barra -->
                       <td>
                         <div class="me-3 d-flex flex-column flex-md-row align-items-start align-items-md-center">
@@ -155,6 +155,11 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Nueva columna: clases asociadas al bono seleccionado -->
+    <div class="col-md-4">
+      <app-admin-package-classes [userPackageId]="selectedPackageId"></app-admin-package-classes>
     </div>
   </div>
 

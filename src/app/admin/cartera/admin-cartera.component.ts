@@ -5,12 +5,13 @@ import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { PackagesService } from '../../services/packages.service';
 import { UsersService } from '../../services/users.service';
 import { CarteraClase, Package, CreateUserPackage, UpdateUserPackage } from '../../models/cartera-clases';
+import { AdminPackageClassesComponent } from './admin-package-classes.component';
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-admin-cartera',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, AdminPackageClassesComponent],
   templateUrl: './admin-cartera.component.html',
   styleUrls: ['./admin-cartera.component.css']
 })
@@ -37,6 +38,8 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   entradaParaModificar: CarteraClase | null = null;
   
   private subscriptions: Subscription[] = [];
+  // Selected package id to show classes in the new column
+  selectedPackageId: number | null = null;
 
   constructor(
     private carteraService: CarteraClasesService,
@@ -117,6 +120,12 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.usuarioSeleccionado = usuario;
     this.cargarCarteraUsuario(usuario.id);
     this.agregarForm.patchValue({ usuario_id: usuario.id });
+    // reset selected package when switching user
+    this.selectedPackageId = null;
+  }
+
+  abrirDetalleBono(entrada: CarteraClase) {
+    this.selectedPackageId = entrada?.id ?? null;
   }
 
   cargarCarteraUsuario(userId: number) {
