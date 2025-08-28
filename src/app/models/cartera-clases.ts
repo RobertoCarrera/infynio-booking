@@ -22,6 +22,7 @@ export interface UserPackage {
   classes_used_this_month: number;
   rollover_classes_remaining: number;
   next_rollover_reset_date?: string;
+  expires_at?: string;
   status: 'active' | 'inactive' | 'expired' | 'pending';
   
   // Relación con package (para cuando hagamos JOIN)
@@ -103,12 +104,12 @@ export function mapUserPackageToCarteraClase(userPackage: UserPackageDetailed): 
     clases_disponibles: userPackage.current_classes_remaining,
     clases_totales: userPackage.package_class_count,
     fecha_compra: userPackage.purchase_date,
-    fecha_expiracion: userPackage.next_rollover_reset_date,
+  fecha_expiracion: userPackage.expires_at || userPackage.next_rollover_reset_date,
     activo: userPackage.status === 'active',
     monthly_classes_limit: userPackage.monthly_classes_limit,
     classes_used_this_month: userPackage.classes_used_this_month,
     rollover_classes_remaining: userPackage.rollover_classes_remaining,
-    next_rollover_reset_date: userPackage.next_rollover_reset_date,
+  next_rollover_reset_date: userPackage.next_rollover_reset_date,
     status: userPackage.status,
     package_name: userPackage.package_name,
     package_price: userPackage.package_price

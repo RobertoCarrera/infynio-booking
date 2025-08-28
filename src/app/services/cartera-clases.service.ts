@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, switchMap, forkJoin } from 'rxjs';
+import { Observable, from, map, switchMap, forkJoin, firstValueFrom } from 'rxjs';
 import { SupabaseService } from './supabase.service';
+import { ClassTypesService } from './class-types.service';
 import { 
   CarteraClase, 
   UserPackage, 
@@ -17,7 +18,7 @@ import {
 })
 export class CarteraClasesService {
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(private supabaseService: SupabaseService, private classTypesService: ClassTypesService) {}
 
   /**
    * MAPA DE CONVERSIÓN CORREGIDO - class_type números a strings
@@ -77,6 +78,7 @@ export class CarteraClasesService {
         .from('user_packages')
         .select(`
           *,
+          expires_at,
           packages (
             id,
             name,
@@ -97,9 +99,10 @@ export class CarteraClasesService {
         return (response.data || []).map(item => {
           const packageData = item.packages as any;
           
-          // Calcular días hasta rollover
-          const daysUntilRollover = item.next_rollover_reset_date 
-            ? Math.ceil((new Date(item.next_rollover_reset_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+          // Calcular días hasta expiración/rollover: usar expires_at si existe; si no, usar next_rollover_reset_date
+          const deadlineStr: string | null = item.expires_at || item.next_rollover_reset_date || null;
+          const daysUntilRollover = deadlineStr
+            ? Math.ceil((new Date(deadlineStr).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
             : null;
 
           return {
@@ -157,18 +160,10 @@ export class CarteraClasesService {
   agregarPackageAUsuario(createData: CreateUserPackage): Observable<UserPackage> {
     const nowIso = new Date().toISOString();
     // Validación básica: expiration_date requerido (YYYY-MM-DD)
-  // Normalize expiration date to YYYY-MM-DD (strip time if provided) and normalize to EOM
+  // Normalize expiration date to YYYY-MM-DD (strip time if provided)
   const expRaw = createData.expiration_date;
   const expDateOnly = expRaw ? expRaw.split('T')[0] : expRaw;
-  const normalizeToEom = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    const y = last.getFullYear();
-    const m = String(last.getMonth() + 1).padStart(2, '0');
-    const day = String(last.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
-  const exp = expDateOnly ? normalizeToEom(expDateOnly) : expDateOnly;
+  const exp = expDateOnly;
     if (!exp || !/^\d{4}-\d{2}-\d{2}$/.test(exp)) {
       throw new Error('La fecha de caducidad es obligatoria y debe tener formato YYYY-MM-DD');
     }
@@ -181,7 +176,7 @@ export class CarteraClasesService {
       current_classes_remaining: 0, // Se establecerá según el package
       classes_used_this_month: 0,
       rollover_classes_remaining: 0,
-      next_rollover_reset_date: exp,
+  expires_at: exp,
       status: 'active'
     };
 
@@ -196,8 +191,7 @@ export class CarteraClasesService {
         if (packageResponse.error) throw packageResponse.error;
         
   newUserPackage.current_classes_remaining = packageResponse.data.class_count;
-  // ensure date-only and EOM
-  newUserPackage.next_rollover_reset_date = exp;
+  newUserPackage.expires_at = exp;
 
         return from(
           this.supabaseService.supabase
@@ -289,13 +283,8 @@ export class CarteraClasesService {
    */
   tieneClasesDisponibles(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<boolean> {
     return from((async () => {
-      const acceptableTypes = (() => {
-        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
-        if (classTypeId === 4 || classTypeId === 22) return [4, 22];
-        if (classTypeId === 23) return [23];
-        if (classTypeId === 3) return [3];
-        return [classTypeId];
-      })();
+  // Obtain acceptable equivalent types from ClassTypesService (handles legacy groupings)
+  const acceptableTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
       // Intento 1: usar mapeo explícito
       const mapped = await this.supabaseService.supabase
         .from('user_packages')
@@ -316,7 +305,7 @@ export class CarteraClasesService {
 
       if (!mapped.error) {
         const rows = mapped.data || [];
-        const acceptableTypeLegacy = (classTypeId === 9) ? 2 : classTypeId; // keep legacy for 2<->9 only
+  const acceptableTypeLegacy = acceptableTypes[0] || classTypeId;
         return rows.some((row: any) => {
           const pkg = row.packages;
           if (!pkg) return false;
@@ -331,7 +320,7 @@ export class CarteraClasesService {
       console.warn('⚠️ Fallback disponibilidad (sin mapeo por RLS?):', mapped.error);
 
       // Intento 2 (fallback): usar solamente el class_type del paquete
-  const acceptableType = (classTypeId === 9) ? 2 : classTypeId; // legacy single-type fallback
+  const acceptableType = (await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId)))[0] || classTypeId;
       const fallback = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
@@ -394,12 +383,13 @@ export class CarteraClasesService {
       })();
 
       // Intento 1: con mapping y obtención de next_rollover_reset_date
-      const mapped = await this.supabaseService.supabase
+    const mapped = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
           id,
           current_classes_remaining,
           status,
+      expires_at,
           next_rollover_reset_date,
           packages!inner (
             id,
@@ -418,6 +408,16 @@ export class CarteraClasesService {
         if (isNaN(d.getTime())) return false;
         return d.getFullYear() === sessionYear && d.getMonth() === sessionMonth;
       };
+      const checkExpiryOrMonth = (row: any) => {
+        // Si hay expires_at, válida si la sesión es anterior o igual a expires_at
+        if (row.expires_at) {
+          const exp = new Date(row.expires_at);
+          if (isNaN(exp.getTime())) return false;
+          return sessionDate <= exp;
+        }
+        // Si no hay expires_at, usar la comprobación de mes por next_rollover_reset_date
+        return checkMonthMatch(row.next_rollover_reset_date);
+      };
 
       if (!mapped.error) {
         const rows = mapped.data || [];
@@ -429,18 +429,19 @@ export class CarteraClasesService {
           const mapping = (pkg.package_allowed_class_types || []) as Array<{ class_type_id: number }>;
           const mappedMatch = mapping.some(m => acceptableTypes.includes(m.class_type_id) || m.class_type_id === acceptableTypeLegacy);
           const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
-          return personalMatch && (mappedMatch || directMatch) && checkMonthMatch(row.next_rollover_reset_date);
+          return personalMatch && (mappedMatch || directMatch) && checkExpiryOrMonth(row);
         });
         return ok;
       }
 
       // Fallback: sin mapping, solo class_type directo y caducidad
       const acceptableType = (classTypeId === 9) ? 2 : classTypeId;
-      const fallback = await this.supabaseService.supabase
+    const fallback = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
           current_classes_remaining,
           status,
+      expires_at,
           next_rollover_reset_date,
           packages!inner (
             class_type,
@@ -456,19 +457,14 @@ export class CarteraClasesService {
         return false;
       }
       const rows = fallback.data || [];
-      const fallbackTypes = (() => {
-        if (classTypeId === 23) return [23, 3];
-        if (classTypeId === 4 || classTypeId === 22) return [4, 22, 2, 9];
-        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
-        if (classTypeId === 3) return [3];
-        return acceptableTypes;
-      })();
+  // Expand fallback types using equivalentGroup as well
+  const fallbackTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
       return rows.some((row: any) => {
         const pkg = row.packages;
         if (!pkg) return false;
         const personalMatch = pkg.is_personal === isPersonal;
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
-        return personalMatch && typeMatch && checkMonthMatch(row.next_rollover_reset_date);
+        return personalMatch && typeMatch && (row.expires_at ? (sessionDate <= new Date(row.expires_at)) : checkMonthMatch(row.next_rollover_reset_date));
       });
     })());
   }

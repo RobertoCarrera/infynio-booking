@@ -109,6 +109,39 @@
             </div>
           </div>
 
+          <!-- Selector de usuario para sesiones personalizadas -->
+          <div class="row" *ngIf="selectedTypeIsPersonal">
+            <div class="col-md-12">
+              <div class="mb-3">
+                <label class="form-label">Usuario (obligatorio para sesiones personalizadas):</label>
+                <select class="form-select" formControlName="user_id">
+                  <option value="">Seleccionar usuario...</option>
+                  <option *ngFor="let u of availableUsers" [value]="u.id">{{ u.name }} {{ u.surname }} — {{ u.email }}</option>
+                </select>
+                <div *ngIf="!sessionForm.get('user_id')?.value" class="form-text text-muted small mt-1">
+                  Debes seleccionar un usuario para crear una sesión personalizada.
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Inline helper when selected user has no valid package -->
+          <div *ngIf="selectedTypeIsPersonal" class="row">
+            <div class="col-md-12">
+              <div *ngIf="checkingPackageAvailability" class="alert alert-info small">
+                Comprobando si el usuario tiene un bono válido...
+              </div>
+              <div *ngIf="selectedUserHasValidPackage === false" class="alert alert-warning d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="fas fa-exclamation-circle me-2"></i>
+                  El usuario seleccionado no tiene un bono válido para esta sesión. Debes añadirle uno antes de crear la sesión.
+                </div>
+                <div>
+                  <button class="btn btn-sm btn-primary" type="button" (click)="openAddPackageModal(getSelectedUser(), getClassTypeName(sessionForm.get('class_type_id')?.value))">Añadir bono</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Recurring options -->
           <div class="mb-3" *ngIf="!isEditing">
             <div class="form-check">
@@ -180,9 +213,9 @@
             Eliminar
           </button>
           
-          <button type="submit" 
-                  class="btn btn-primary" 
-                  [disabled]="sessionForm.invalid || loading">
+    <button type="submit" 
+      class="btn btn-primary" 
+      [disabled]="sessionForm.invalid || loading || (selectedTypeIsPersonal && (!sessionForm.get('user_id')?.value || selectedUserHasValidPackage !== true))">
             <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
             <i *ngIf="!loading && !isEditing" class="fas fa-plus me-1"></i>
             <i *ngIf="!loading && isEditing" class="fas fa-save me-1"></i>
@@ -475,19 +508,29 @@
             <label for="package_id" class="form-label">
               <i class="fa fa-box me-2"></i>Seleccionar Bono
             </label>
-            <select id="package_id" class="form-select" formControlName="package_id" required>
-              <option value="">Selecciona un bono...</option>
-              <option 
-                *ngFor="let pkg of getPackagesByClassType(getClassTypeName(selectedSession?.class_type_id || 0))" 
-                [value]="pkg.id">
-                {{ pkg.name }} 
-                <span *ngIf="pkg.class_count">- {{ pkg.class_count }} clases</span>
-                <span *ngIf="pkg.price"> - €{{ pkg.price }}</span>
-              </option>
-            </select>
-            <div class="invalid-feedback" *ngIf="packageForm.get('package_id')?.invalid && packageForm.get('package_id')?.touched">
-              Por favor selecciona un bono.
-            </div>
+            <ng-container *ngIf="!packagePreselected; else preselectedPkg">
+              <select id="package_id" class="form-select" formControlName="package_id" required>
+                <option value="">Selecciona un bono...</option>
+                <option 
+                  *ngFor="let pkg of getPackagesByClassType(getClassTypeName(selectedSession?.class_type_id || 0))" 
+                  [value]="pkg.id">
+                  {{ pkg.name }} 
+                  <span *ngIf="pkg.class_count">- {{ pkg.class_count }} clases</span>
+                  <span *ngIf="pkg.price"> - €{{ pkg.price }}</span>
+                </option>
+              </select>
+              <div class="invalid-feedback" *ngIf="packageForm.get('package_id')?.invalid && packageForm.get('package_id')?.touched">
+                Por favor selecciona un bono.
+              </div>
+            </ng-container>
+            <ng-template #preselectedPkg>
+              <div class="card p-3 bg-white border">
+                <strong>Se ha seleccionado automáticamente el bono recomendado.</strong>
+                <div class="mt-2 small text-muted">
+                  {{ getPreselectedPackageName() }}
+                </div>
+              </div>
+            </ng-template>
           </div>
 
           <!-- Fecha de caducidad -->

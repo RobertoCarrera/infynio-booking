@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FullCalendarModule, FullCalendarComponent } from '@fullcalendar/angular';
@@ -18,7 +18,7 @@ import { Subscription, forkJoin, firstValueFrom } from 'rxjs';
   templateUrl: './admin-calendar.component.html',
   styleUrls: ['./admin-calendar.component.css']
 })
-export class AdminCalendarComponent implements OnInit, OnDestroy {
+export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('calendar') calendarComponent!: FullCalendarComponent;
   
   calendarOptions: CalendarOptions;
@@ -44,6 +44,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   selectedUserForPackage: any = null;
   packageForm: FormGroup;
   packagesDisponibles: Package[] = [];
+  packagePreselected = false;
   
   // Form
   sessionForm: FormGroup;
@@ -52,6 +53,9 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   loading = false;
   error = '';
   successMessage = '';
+  // Package availability check for personal sessions
+  selectedUserHasValidPackage: boolean | null = null; // null = unknown/not-checked, true/false = result
+  checkingPackageAvailability = false;
   
   // Toast notification system
   showToast = false;
@@ -109,7 +113,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   capacity: [8, [Validators.required, Validators.min(1), Validators.max(10)]], // se recalibra en onClassTypeChange
       recurring: [false],
       recurring_type: [''],
-      recurring_end_date: ['']
+  recurring_end_date: [''],
+  user_id: ['']
     });
 
     this.packageForm = this.fb.group({
@@ -176,6 +181,80 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
   this.loadData();
+  }
+
+  ngAfterViewInit() {
+    // Observe relevant form controls so we can validate package availability for personal sessions
+    try {
+      const classTypeCtrl = this.sessionForm.get('class_type_id');
+      const userCtrl = this.sessionForm.get('user_id');
+      const dateCtrl = this.sessionForm.get('schedule_date');
+
+      if (classTypeCtrl) {
+        const sub = classTypeCtrl.valueChanges.subscribe(() => this.onSelectedUserOrTypeOrDateChange());
+        this.subscriptions.push(sub);
+      }
+      if (userCtrl) {
+        const sub = userCtrl.valueChanges.subscribe(() => this.onSelectedUserOrTypeOrDateChange());
+        this.subscriptions.push(sub);
+      }
+      if (dateCtrl) {
+        const sub = dateCtrl.valueChanges.subscribe(() => this.onSelectedUserOrTypeOrDateChange());
+        this.subscriptions.push(sub);
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+  }
+
+  private async onSelectedUserOrTypeOrDateChange() {
+    // Reset cached flag and run check only when relevant
+    this.selectedUserHasValidPackage = null;
+    // Only check when the selected class type is personal and a user is chosen
+    const classTypeId = this.sessionForm.get('class_type_id')?.value;
+    if (!this.isPersonalType(classTypeId)) return;
+
+    const userIdRaw = this.sessionForm.get('user_id')?.value;
+    const scheduleDate = this.sessionForm.get('schedule_date')?.value;
+    if (!userIdRaw || !scheduleDate) {
+      this.selectedUserHasValidPackage = null;
+      return;
+    }
+
+    const userId = Number(userIdRaw);
+    if (!userId) {
+      this.selectedUserHasValidPackage = null;
+      return;
+    }
+
+    try {
+      this.checkingPackageAvailability = true;
+      const isPersonal = true;
+      const available = await firstValueFrom(this.carteraService.tieneClasesDisponiblesEnMes(userId, Number(classTypeId), isPersonal, scheduleDate));
+      this.selectedUserHasValidPackage = !!available;
+    } catch (err) {
+      console.warn('Error checking package availability:', err);
+      this.selectedUserHasValidPackage = false;
+    } finally {
+      this.checkingPackageAvailability = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  getSelectedUser(): any | null {
+    const userIdRaw = this.sessionForm.get('user_id')?.value;
+    if (!userIdRaw) return null;
+    const id = Number(userIdRaw);
+    // prefer availableUsers list (recent search) then fallback to allUsers
+    const found = (this.availableUsers || []).find(u => Number(u.id) === id) || (this.allUsers || []).find(u => Number(u.id) === id);
+    return found || null;
+  }
+
+  getPreselectedPackageName(): string {
+    const id = this.packageForm.get('package_id')?.value;
+    if (!id) return '';
+    const p = (this.packagesDisponibles || []).find(x => Number(x.id) === Number(id));
+    return p ? (p.name || '') : '';
   }
 
   ngOnDestroy() {
@@ -367,8 +446,13 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       });
     }
     
-    this.showModal = true;
+  // Load users for potential personalized sessions
+  this.sessionForm.patchValue({ user_id: '' });
+  this.loadAllUsers().catch(e => console.warn('No se pudieron cargar usuarios:', e));
+  this.showModal = true;
     this.clearMessages();
+  // Ensure availability state is fresh
+  try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
   }
 
   openEditModal(session: ClassSession) {
@@ -474,21 +558,30 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   }
 
   private createSingleSession(formData: any) {
-    const newSession = {
+    const newSession: any = {
       class_type_id: formData.class_type_id,
       schedule_date: formData.schedule_date,
       schedule_time: formData.schedule_time,
       capacity: formData.capacity
     };
+    // If personalized type, include personal_user_id (DB column name)
+    if (this.isPersonalType(formData.class_type_id)) {
+      newSession['personal_user_id'] = formData.user_id || null;
+    }
 
-    const sub = this.classSessionsService.createSession(newSession).subscribe({
+    const createObs = newSession.personal_user_id
+      ? this.classSessionsService.createSessionWithPersonalBooking(newSession)
+      : this.classSessionsService.createSession(newSession);
+
+    const sub = createObs.subscribe({
       next: (created: any) => {
         this.successMessage = 'Sesión creada correctamente';
         this.closeModal();
         // Añadir el evento al calendario sin recargar todo
         const createdSession = Array.isArray(created) ? created[0] : created;
         if (createdSession && createdSession.id) {
-          const bookingCount = 0;
+          // If the session was created with a personal_user_id, treat it as an immediate confirmed booking
+          const bookingCount = createdSession.personal_user_id ? 1 : 0;
           const classTypeId = createdSession.class_type_id;
           const className = this.getClassTypeName(classTypeId);
           const start = `${createdSession.schedule_date}T${createdSession.schedule_time}`;
@@ -502,7 +595,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             backgroundColor: color,
             borderColor: color,
             textColor: '#ffffff',
-            extendedProps: {
+              extendedProps: {
               session: createdSession,
               capacity: createdSession.capacity,
               bookings: bookingCount
@@ -510,6 +603,15 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
           };
           this.events = [...this.events, event];
           this.applyEventsPreservingView(this.events);
+            // If we used the RPC, it will return the booking linked; handle both shapes
+            if (createdSession && createdSession.booking_row) {
+              try {
+                const booking = createdSession.booking_row;
+                // Update local counts
+                this.updateCalendarEventCounts(createdSession.session_row.id, 1);
+                this.showToastNotification('Sesión y reserva creadas correctamente', 'success');
+              } catch {}
+            }
         }
         try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
         this.loading = false;
@@ -550,11 +652,22 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
     // Crear todas las sesiones y agregar al calendario sin recargar todo
     sessions.forEach((sessionReq, index) => {
-      const sub = this.classSessionsService.createSession(sessionReq).subscribe({
+      // If personalized type, ensure personal_user_id is attached (shouldn't happen for recurring but defensive)
+      if (this.isPersonalType(formData.class_type_id)) {
+        sessionReq.personal_user_id = formData.user_id || null;
+      }
+      const createObs = sessionReq.personal_user_id
+        ? this.classSessionsService.createSessionWithPersonalBooking(sessionReq)
+        : this.classSessionsService.createSession(sessionReq);
+
+      const sub = createObs.subscribe({
         next: (created: any) => {
-          const createdSession = Array.isArray(created) ? created[0] : created;
+          // When using the RPC, payload may include session_row and booking_row
+          let createdSession: any = Array.isArray(created) ? created[0] : created;
+          if (createdSession && createdSession.session_row) createdSession = createdSession.session_row;
           if (createdSession && createdSession.id) {
-            const bookingCount = 0;
+            // Honor personal_user_id as an occupied spot for recurring/personalized creations
+            const bookingCount = createdSession.personal_user_id ? 1 : 0;
             const classTypeId = createdSession.class_type_id;
             const className = this.getClassTypeName(classTypeId);
             const start = `${createdSession.schedule_date}T${createdSession.schedule_time}`;
@@ -576,6 +689,22 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
             };
             this.events = [...this.events, event];
             this.applyEventsPreservingView(this.events);
+            // If personalized, attempt to create a real booking
+            if (createdSession.personal_user_id) {
+              this.classSessionsService.createBooking({
+                user_id: createdSession.personal_user_id,
+                class_session_id: createdSession.id,
+                class_type: className
+              }).subscribe({
+                next: () => {
+                  // increment local count conservatively
+                  this.updateCalendarEventCounts(createdSession.id, bookingCount);
+                },
+                error: (err: any) => {
+                  console.warn('No se pudo crear reserva automática en creación recurrente:', err);
+                }
+              });
+            }
           }
 
           createdCount++;
@@ -705,21 +834,64 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
 
   console.log(`Capacidad automática establecida: ${capacity} para ${this.getClassTypeName(classTypeId)}`);
     }
+    // If the selected type is a personalized one (4,22,23), show user selector and disable recurring
+    if (this.isPersonalType(classTypeId)) {
+      // Force capacity to 1 for personalized
+      this.sessionForm.patchValue({ capacity: 1 });
+      // Disable recurring options
+      this.sessionForm.patchValue({ recurring: false, recurring_type: '', recurring_end_date: '' });
+    }
+  // Re-evaluate package availability when class type changes
+  try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
   }
 
   getClassTypeCapacity(classTypeId: number): number {
-    // Capacidades por defecto según el tipo de clase
-    // La capacidad real se establece individualmente en cada class_session
-    const capacityMap: { [key: number]: number } = {
-  1: 2,   // Barre
-  2: 8,   // Mat
-  3: 2,   // Reformer
-  4: 1,   // Mat Personalizada
-  9: 10,  // Funcional
-  22: 1,  // Funcional Personalizada
-  23: 1   // Reformer Personalizada
+    // Try to find capacity on runtime-loaded classTypes; fall back to sensible defaults.
+    const ct = this.classTypes?.find(c => Number(c.id) === Number(classTypeId));
+    if (ct && (ct as any).default_capacity) return Number((ct as any).default_capacity);
+    // sensible defaults when metadata is missing
+    const fallback = {
+      personal: 1,
+      reformer: 2,
+      barre: 2,
+      mat: 8,
+      funcional: 10,
     };
-    return capacityMap[classTypeId] || 8; // Default 8 si no se encuentra
+    const name = (ct && (ct as any).name) ? String((ct as any).name).toLowerCase() : '';
+    if (/personal|personalizada|individual/.test(name)) return fallback.personal;
+    if (/reformer/.test(name)) return fallback.reformer;
+    if (/barre/.test(name)) return fallback.barre;
+    if (/mat/.test(name)) return fallback.mat;
+    if (/funcional/.test(name)) return fallback.funcional;
+    return 8; // default
+  }
+
+  /**
+   * Determina si un tipo de clase es "personalizado" consultando los datos cargados
+   * Preferimos una bandera explícita `is_personal` si existe en la fila; si no,
+   * hacemos un fallback por heurística sobre el nombre ('personal', 'personalizada', 'individual').
+   */
+  isPersonalType(classTypeId: number | string | null | undefined): boolean {
+    if (!classTypeId) return false;
+    const id = Number(classTypeId);
+    const ct = this.classTypes.find(c => Number(c.id) === id);
+    if (!ct) return false;
+    // Prefer explicit flag when available
+    const anyCt: any = ct as any;
+    if (anyCt.is_personal !== undefined && anyCt.is_personal !== null) {
+      return !!anyCt.is_personal;
+    }
+    // If packagesDisponibles contains a personal package for this class type, treat as personal
+    try {
+      if (this.packagesDisponibles && this.packagesDisponibles.length > 0) {
+        const hasPersonalPackage = this.packagesDisponibles.some(p => {
+          try { return !!p && !!p.is_personal && Number(p.class_type) === id; } catch { return false; }
+        });
+        if (hasPersonalPackage) return true;
+      }
+    } catch {}
+    const name = (ct as any).name || '';
+    return /personal|individual/i.test(name);
   }
 
   onRecurringChange() {
@@ -1029,7 +1201,37 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     }
 
     this.sessionAttendees = data || [];
-    
+
+    // If no bookings but the session itself has a personal_user_id, synthesize a confirmed booking
+    if ((this.sessionAttendees.length === 0) && this.selectedSession && this.selectedSession.personal_user_id) {
+      try {
+        const { data: udata } = await this.supabaseService.supabase
+          .from('users')
+          .select('id, name, surname, email')
+          .eq('id', this.selectedSession.personal_user_id)
+          .limit(1)
+          .single();
+        if (udata) {
+          const synthetic = [{
+            id: 0,
+            user_id: udata.id,
+            class_session_id: this.selectedSession.id,
+            booking_date_time: new Date().toISOString(),
+            cancellation_time: null,
+            status: 'CONFIRMED',
+            users: {
+              name: udata.name,
+              surname: udata.surname,
+              email: udata.email
+            }
+          }];
+          this.sessionAttendees = synthetic;
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar usuario personal para sesión personal:', e);
+      }
+    }
+
     // Actualizar también la sesión seleccionada con el conteo real
     if (this.selectedSession) {
       this.selectedSession.bookings = this.sessionAttendees;
@@ -1054,6 +1256,12 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       user.surname?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
+  }
+
+  // Template-friendly computed property for checking whether the currently selected class type is personal
+  get selectedTypeIsPersonal(): boolean {
+    const ct = this.sessionForm.get('class_type_id')?.value;
+    return this.isPersonalType(ct);
   }
 
   get availableUsers() {
@@ -1105,12 +1313,71 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       if (sessionId != null) {
         this.updateCalendarEventCounts(sessionId, this.sessionAttendees.length);
       }
+      // Close attendees modal and refresh calendar immediately so user sees the change
+      try { this.closeAttendeesModal(); } catch {}
+      try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
       // Incrementar available_spots si lo tenemos en selectedSession
       if (this.selectedSession && typeof this.selectedSession.available_spots === 'number') {
         this.selectedSession.available_spots = Math.max(0, (this.selectedSession.available_spots || 0) + 1);
       }
-      
-      // Recargar asistentes desde la BD de forma asíncrona para confirmar
+
+      // If this was a personal session and we removed the performing user, delete the session immediately
+      try {
+        const isPersonal = this.isPersonalType(this.selectedSession?.class_type_id);
+        // Ensure we have the authoritative personal_user_id from DB in case the calendar event lacked it
+        let personalUserId: number | null | undefined = this.selectedSession?.personal_user_id;
+        if (isPersonal && booking.user_id && (personalUserId == null)) {
+          try {
+            const { data: sessionRow, error: sessionErr } = await this.supabaseService.supabase
+              .from('class_sessions')
+              .select('id, personal_user_id')
+              .eq('id', sessionId)
+              .maybeSingle();
+            if (!sessionErr && sessionRow) {
+              personalUserId = sessionRow.personal_user_id;
+              // Update local selectedSession for future checks
+              if (this.selectedSession) this.selectedSession.personal_user_id = personalUserId;
+            }
+          } catch (fetchErr) {
+            console.warn('No se pudo obtener personal_user_id desde DB:', fetchErr);
+          }
+        }
+
+        if (isPersonal && booking.user_id && personalUserId === booking.user_id) {
+          try {
+            console.debug('[admin] Calling safeDeleteSession RPC for session', sessionId);
+            const delRes = await firstValueFrom(this.classSessionsService.safeDeleteSession(sessionId));
+            console.debug('[admin] safeDeleteSession result:', delRes);
+            // If RPC returned truthy, remove event and close modal
+            if (delRes) {
+              this.showToastNotification('Sesión personalizada eliminada tras borrar al usuario', 'success');
+              // Close attendees modal (we're in the attendees flow) and remove event from calendar
+              try { this.closeAttendeesModal(); } catch {}
+              try { const api = this.calendarComponent?.getApi?.(); const fcEvent = api?.getEventById(String(sessionId)); if (fcEvent) fcEvent.remove(); api?.refetchEvents?.(); } catch {}
+              // Also remove locally from events array
+              this.events = (this.events || []).filter(e => e && e.id !== String(sessionId));
+              // Done — no need to reload attendees
+              this.loading = false;
+              return;
+            } else {
+              console.warn('[admin] safeDeleteSession returned falsy, not attempting REST delete to avoid 409.');
+              this.showToastNotification('No se pudo eliminar la sesión en servidor (RPC returned false). Revisa migraciones.', 'error');
+            }
+          } catch (rpcErr: any) {
+            console.error('safeDeleteSession failed:', rpcErr);
+            // Surface clearer message when RPC is missing or forbidden
+            const msg = rpcErr?.message || rpcErr?.statusText || 'RPC safe_delete_session no disponible o falló';
+            this.showToastNotification(`Error eliminando la sesión en servidor: ${msg}. Asegúrate de que la función SQL 'safe_delete_session' esté desplegada y tenga permisos.`, 'error');
+            // Do not fall back to REST delete (409 risk). Stop here.
+            this.loading = false;
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Recargar asistentes desde la BD de forma asíncrona para confirmar (normal flow)
       setTimeout(async () => {
         if (sessionId != null) {
           await this.loadSessionAttendees(sessionId);
@@ -1174,7 +1441,7 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
       // Verificar si el usuario tiene bono para este tipo de clase
   const classTypeName = this.getClassTypeName(classTypeIdCtx);
     // Verificar usando servicio que conoce los mapeos (2<->9 y 4<->22) y personales
-    const isPersonal = [4, 22, 23].includes(this.selectedSession.class_type_id);
+  const isPersonal = this.isPersonalType(this.selectedSession.class_type_id);
       const hasPackage = await new Promise<boolean>((resolve) => {
         const sub = this.carteraService
   .tieneClasesDisponibles(user.id, classTypeIdCtx, isPersonal)
@@ -1298,9 +1565,10 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
   // GESTIÓN DEL MODAL DE PAQUETES
   // ==============================================
 
-  openAddPackageModal(user: any, classTypeName: string) {
+  async openAddPackageModal(user: any, classTypeName: string) {
     this.selectedUserForPackage = user;
     this.showAddPackageModal = true;
+  this.packagePreselected = false;
     
     // Establecer fecha de caducidad por defecto: último día del mes siguiente
     const base = this.selectedSession?.schedule_date
@@ -1313,6 +1581,36 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     });
     
     this.clearMessages();
+
+    // Try to auto-select a matching package for this class type (personal)
+    try {
+      // Prefer selectedSession (when adding to an existing session), otherwise use form value (create modal)
+      const classTypeId = this.selectedSession?.class_type_id || this.sessionForm.get('class_type_id')?.value || null;
+      // Ensure packagesDisponibles is loaded
+      if ((!this.packagesDisponibles || this.packagesDisponibles.length === 0) && this.carteraService) {
+        try {
+          const pkgs = await firstValueFrom(this.carteraService.getPackages());
+          this.packagesDisponibles = pkgs || [];
+        } catch {}
+      }
+      if (classTypeId && this.packagesDisponibles && this.packagesDisponibles.length > 0) {
+        const acceptable = await firstValueFrom(this.classTypesService.equivalentGroup(Number(classTypeId)));
+        // Find personal packages that match by class_type or equivalent group
+        let matches = this.packagesDisponibles.filter(p => !!p && !!p.is_personal && (acceptable.includes(Number(p.class_type)) || Number(p.class_type) === Number(classTypeId)));
+        // If none found by direct match, allow personal packages that are marked as personal regardless of class_type
+        if (matches.length === 0) {
+          matches = this.packagesDisponibles.filter(p => !!p && !!p.is_personal);
+        }
+        if (matches.length >= 1) {
+          // Heuristic: pick the package with largest class_count (more general)
+          matches.sort((a,b) => (Number(b.class_count)||0) - (Number(a.class_count)||0));
+          this.packageForm.patchValue({ package_id: matches[0].id });
+          this.packagePreselected = true;
+        }
+      }
+    } catch (e) {
+      // Non-fatal
+    }
   }
 
   closeAddPackageModal() {
@@ -1320,6 +1618,8 @@ export class AdminCalendarComponent implements OnInit, OnDestroy {
     this.selectedUserForPackage = null;
     this.packageForm.reset();
     this.clearMessages();
+  // Re-run availability check in case admin just added a package
+  try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
   }
 
   async addPackageToUser() {

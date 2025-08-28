@@ -13,6 +13,7 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 DECLARE
+  v_session record;
   v_capacity INTEGER;
   v_current_bookings INTEGER;
   v_user_package_id INTEGER;
@@ -20,6 +21,9 @@ DECLARE
   v_classes_remaining INTEGER;
   v_classes_used INTEGER;
   v_new_status TEXT;
+  v_is_personal boolean;
+  v_is_personal_flag boolean;
+  v_ct_name text;
 BEGIN
   IF EXISTS (
     SELECT 1 FROM bookings 
@@ -31,24 +35,70 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT capacity INTO v_capacity FROM class_sessions WHERE id = p_class_session_id;
+  -- Load session and capacity
+  SELECT id, class_type_id, capacity, schedule_date
+    INTO v_session
+  FROM class_sessions
+  WHERE id = p_class_session_id;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT FALSE, NULL::INTEGER, 'Sesión no encontrada'::TEXT;
+    RETURN;
+  END IF;
+
   SELECT COUNT(*) INTO v_current_bookings FROM bookings WHERE class_session_id = p_class_session_id AND status = 'CONFIRMED';
-  IF v_current_bookings >= v_capacity THEN
+  IF v_current_bookings >= COALESCE(v_session.capacity, 0) THEN
     RETURN QUERY SELECT FALSE, NULL::INTEGER, 'La clase está completa'::TEXT;
     RETURN;
   END IF;
 
-  SELECT id, current_classes_remaining, classes_used_this_month
-  INTO v_user_package_id, v_classes_remaining, v_classes_used
-  FROM user_packages
-  WHERE user_id = p_target_user_id
-    AND status = 'active'
-    AND current_classes_remaining > 0
-  ORDER BY purchase_date ASC
-  LIMIT 1;
+  -- Determine personalness from class_types if available; otherwise use a name heuristic
+  SELECT ct.is_personal, ct.name INTO v_is_personal_flag, v_ct_name
+  FROM class_types ct
+  WHERE ct.id = v_session.class_type_id;
+
+  IF v_is_personal_flag IS NOT NULL THEN
+    v_is_personal := v_is_personal_flag;
+  ELSE
+    v_is_personal := (v_ct_name ILIKE '%personal%' OR v_ct_name ILIKE '%personalizada%' OR v_ct_name ILIKE '%personalizado%');
+  END IF;
+
+  -- Prefer packages tied to the same month/year as the session (next_rollover_reset_date logic)
+  WITH candidates AS (
+    SELECT
+      up.id,
+      up.current_classes_remaining,
+      up.next_rollover_reset_date,
+      up.purchase_date,
+      pa.class_type,
+      pa.is_personal,
+      EXISTS (
+        SELECT 1 FROM package_allowed_class_types pact
+        WHERE pact.package_id = pa.id AND pact.class_type_id = v_session.class_type_id
+      ) AS has_mapping
+    FROM user_packages up
+    JOIN packages pa ON pa.id = up.package_id
+    WHERE up.user_id = p_target_user_id
+      AND up.status = 'active'
+      AND up.current_classes_remaining > 0
+      AND pa.is_personal = v_is_personal
+      AND up.next_rollover_reset_date IS NOT NULL
+      AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
+      AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
+  ), filtered AS (
+    SELECT c.*
+    FROM candidates c
+    WHERE (
+      c.class_type = v_session.class_type_id
+      OR c.has_mapping
+    )
+    ORDER BY c.purchase_date ASC
+    LIMIT 1
+  )
+  SELECT id, current_classes_remaining INTO v_user_package_id, v_classes_remaining FROM filtered;
 
   IF v_user_package_id IS NULL THEN
-    RETURN QUERY SELECT FALSE, NULL::INTEGER, 'Usuario no tiene bonos disponibles'::TEXT;
+    RETURN QUERY SELECT FALSE, NULL::INTEGER, 'Usuario no tiene bonos válidos para este mes y tipo de clase'::TEXT;
     RETURN;
   END IF;
 
@@ -110,6 +160,8 @@ DECLARE
   v_new_status text;
   v_booking_id int;
   v_is_personal boolean;
+  v_is_personal_flag boolean; -- nullable flag from class_types
+  v_ct_name text; -- class type name for heuristic fallback
 BEGIN
   SELECT id, class_type_id, capacity, schedule_date, schedule_time
     INTO v_session
@@ -130,7 +182,16 @@ BEGIN
     RETURN;
   END IF;
 
-  v_is_personal := v_session.class_type_id IN (4,22,23);
+  -- Determine personalness from class_types if available; otherwise use a name heuristic
+  SELECT ct.is_personal, ct.name INTO v_is_personal_flag, v_ct_name
+  FROM class_types ct
+  WHERE ct.id = v_session.class_type_id;
+
+  IF v_is_personal_flag IS NOT NULL THEN
+    v_is_personal := v_is_personal_flag;
+  ELSE
+    v_is_personal := (v_ct_name ILIKE '%personal%' OR v_ct_name ILIKE '%personalizada%' OR v_ct_name ILIKE '%personalizado%');
+  END IF;
 
   WITH candidates AS (
     SELECT
@@ -159,9 +220,6 @@ BEGIN
     WHERE (
       c.class_type = v_session.class_type_id
       OR c.has_mapping
-      OR (v_session.class_type_id IN (2,9) AND c.class_type IN (2,9))
-      OR (v_session.class_type_id IN (4,22) AND c.class_type IN (4,22))
-      OR (v_session.class_type_id = 23 AND c.class_type IN (23,3))
     )
     ORDER BY c.purchase_date ASC
     LIMIT 1
@@ -315,6 +373,9 @@ DECLARE
   v_is_personal BOOLEAN;
   v_personal_user_id INTEGER;
   v_refund_pkg_id INTEGER;
+  -- previously missing: variables used in SELECT INTO below
+  v_is_personal_flag BOOLEAN;
+  v_ct_name TEXT;
 BEGIN
   SELECT user_id, class_session_id, user_package_id
   INTO v_user_id, v_session_id, v_refund_pkg_id
@@ -328,9 +389,21 @@ BEGIN
   UPDATE bookings SET status = 'CANCELLED', cancellation_time = NOW() WHERE id = p_booking_id;
 
   IF v_refund_pkg_id IS NOT NULL THEN
-    UPDATE user_packages
-    SET current_classes_remaining = current_classes_remaining + 1
-    WHERE id = v_refund_pkg_id;
+  -- compute new remaining deterministically
+  UPDATE user_packages
+  SET current_classes_remaining = current_classes_remaining + 1,
+    classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
+    status = CASE WHEN (coalesce(current_classes_remaining, 0) + 1) > 0 THEN 'active' ELSE 'expired' END,
+    updated_at = now()
+  WHERE id = v_refund_pkg_id;
+    -- Log refund action for audit
+    BEGIN
+      INSERT INTO package_claim_logs(user_id, user_package_id, session_id, booking_id, outcome, message)
+      VALUES (v_user_id, v_refund_pkg_id, v_session_id, p_booking_id, 'refund', 'Admin forced refund to recorded package');
+    EXCEPTION WHEN OTHERS THEN
+      -- Ignore logging errors
+      NULL;
+    END;
   ELSE
     WITH to_update AS (
       SELECT id
@@ -339,25 +412,46 @@ BEGIN
       ORDER BY purchase_date ASC
       LIMIT 1
     )
-    UPDATE user_packages
-    SET current_classes_remaining = current_classes_remaining + 1
-    FROM to_update
-    WHERE user_packages.id = to_update.id;
+  UPDATE user_packages
+  SET current_classes_remaining = current_classes_remaining + 1,
+    classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
+    status = CASE WHEN (coalesce(current_classes_remaining, 0) + 1) > 0 THEN 'active' ELSE 'expired' END,
+    updated_at = now()
+  FROM to_update
+  WHERE user_packages.id = to_update.id;
+    -- Log refund to the selected package (if any)
+    BEGIN
+      INSERT INTO package_claim_logs(user_id, user_package_id, session_id, booking_id, outcome, message)
+      SELECT v_user_id, id, v_session_id, p_booking_id, 'refund', 'Admin forced refund to fallback package' FROM to_update;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
   END IF;
 
-  SELECT (class_type_id IN (4,22,23)) AS is_personal, personal_user_id INTO v_is_personal, v_personal_user_id
-  FROM class_sessions WHERE id = v_session_id;
+  -- Determine if the session's class type is personal via class_types flag or name heuristic
+  SELECT ct.is_personal, cs.personal_user_id, ct.name INTO v_is_personal_flag, v_personal_user_id, v_ct_name
+  FROM class_sessions cs
+  JOIN class_types ct ON ct.id = cs.class_type_id
+  WHERE cs.id = v_session_id;
+
+  IF v_is_personal_flag IS NOT NULL THEN
+    v_is_personal := v_is_personal_flag;
+  ELSE
+    v_is_personal := (v_ct_name ILIKE '%personal%' OR v_ct_name ILIKE '%personalizada%' OR v_ct_name ILIKE '%personalizado%');
+  END IF;
 
   IF v_is_personal THEN
-    IF v_personal_user_id = v_user_id THEN
-      IF NOT EXISTS (
-        SELECT 1 FROM bookings WHERE class_session_id = v_session_id AND status = 'CONFIRMED'
-      ) THEN
+      IF v_personal_user_id = v_user_id THEN
+        -- Delete any remaining bookings (should be none with status CONFIRMED, but remove any lingering rows)
+        DELETE FROM bookings WHERE class_session_id = v_session_id;
+        -- Now safe to delete the session
         DELETE FROM class_sessions WHERE id = v_session_id;
       END IF;
     END IF;
-  END IF;
 
   RETURN QUERY SELECT TRUE, 'Reserva cancelada'::TEXT;
 END;
 $function$;
+
+-- Allow authenticated users to call the admin RPC (SECURITY DEFINER handles privileges inside)
+GRANT EXECUTE ON FUNCTION public.admin_cancel_booking_force(INTEGER) TO authenticated;

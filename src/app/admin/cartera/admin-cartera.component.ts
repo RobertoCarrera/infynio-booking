@@ -244,7 +244,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   eliminarPackage(entrada: CarteraClase) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este package y sus reservas asociadas? Esta acción es irreversible.')) {
+  if (!confirm('¿Confirmas restar 1 clase de este bono (acción reversible en el historial) en lugar de borrarlo?')) {
       return;
     }
 
@@ -255,9 +255,9 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
         const res = await this.packagesService.adminDeleteUserPackage(entrada.id);
         const ok = !!res && (res.success === true || String(res.success) === 't' || String(res.success) === 'true');
         if (ok) {
-          this.successMessage = 'Package eliminado exitosamente';
+          this.successMessage = 'Se ha restado 1 clase del bono (soft-update)';
         } else {
-          this.error = 'Error al eliminar el package: ' + (res?.error || JSON.stringify(res));
+          this.error = 'Error al actualizar el bono: ' + (res?.error || JSON.stringify(res));
         }
       } catch (err: any) {
         console.error('Error al eliminar package:', err);
@@ -365,19 +365,17 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   getRolloverStatus(entrada: CarteraClase): string {
-    if (!entrada.next_rollover_reset_date) return 'Sin fecha de rollover';
-    
+    // Preferir fecha_expiracion (que ya resuelve expires_at || next_rollover_reset_date)
+    const deadline = entrada.fecha_expiracion || entrada.next_rollover_reset_date;
+    if (!deadline) return 'Sin fecha de caducidad';
+
     const today = new Date();
-    const rolloverDate = new Date(entrada.next_rollover_reset_date);
-    const daysLeft = Math.ceil((rolloverDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysLeft > 0) {
-      return `${daysLeft} días hasta rollover`;
-    } else if (daysLeft === 0) {
-      return 'Rollover hoy';
-    } else {
-      return 'Rollover vencido';
-    }
+    const d = new Date(deadline);
+    const daysLeft = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft > 0) return `${daysLeft} días restantes`;
+    if (daysLeft === 0) return 'Vence hoy';
+    return 'Vencido';
   }
 
   clearMessages() {

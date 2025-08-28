@@ -26,6 +26,8 @@ export interface ClassSession {
   is_self_booked?: boolean;
   self_booking_id?: number | null;
   self_cancellation_time?: string | null;
+  // For personalized sessions: optional FK to users
+  personal_user_id?: number | null;
 }
 
 export interface Booking {
@@ -488,6 +490,31 @@ export class ClassSessionsService {
     return from(this.performCreateSession(sessionData));
   }
 
+  /**
+   * Create session and, if personal_user_id is provided, atomically create booking linked to a user_package.
+   */
+  public createSessionWithPersonalBooking(sessionData: Partial<ClassSession>): Observable<any> {
+    return from(this.performCreateSessionWithPersonalBooking(sessionData));
+  }
+
+  private async performCreateSessionWithPersonalBooking(sessionData: Partial<ClassSession>): Promise<any> {
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('create_session_with_personal_booking', {
+        p_class_type_id: sessionData.class_type_id,
+        p_schedule_date: sessionData.schedule_date,
+        p_schedule_time: sessionData.schedule_time,
+        p_capacity: sessionData.capacity,
+        p_personal_user_id: (sessionData as any).personal_user_id || null
+      });
+
+    if (error) {
+      console.error('Error create_session_with_personal_booking:', error);
+      throw error;
+    }
+
+    return data || null;
+  }
+
   private async performCreateSession(sessionData: Partial<ClassSession>): Promise<any> {
     const { data, error } = await this.supabaseService.supabase
       .from('class_sessions')
@@ -572,6 +599,29 @@ export class ClassSessionsService {
     }
     return data;
   }
+
+  /**
+   * Call the server RPC safe_delete_session to remove bookings then delete the session.
+   * Returns the RPC result observable. Caller should handle errors and UI updates.
+   */
+  public safeDeleteSession(sessionId: number): Observable<any> {
+    return from(this.performSafeDeleteSession(sessionId));
+  }
+
+  private async performSafeDeleteSession(sessionId: number): Promise<any> {
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('safe_delete_session', { p_session_id: sessionId });
+    if (error) {
+      console.error('Error safe_delete_session:', error);
+      throw error;
+    }
+    return data;
+  }
+
+  /**
+   * Safe delete a session via RPC which deletes bookings first then session to avoid FK issues
+   */
+  // (implemented above) use the single safeDeleteSession implementation
 
   /**
    * Genera sesiones recurrentes para un tipo de clase, día de la semana y rango de fechas

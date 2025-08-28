@@ -1222,7 +1222,14 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
   // Si está completa y no está reservado => lista de espera (excepto personalizadas)
-  const isPersonalClass = [4, 22, 23].includes(session.class_type_id);
+  // Determine if class type is personal using loaded metadata (availableClassTypes/classTypes) or name heuristic
+  let isPersonalClass = false;
+  try {
+  // Use session.class_type_name when explicit metadata isn't available for the calendar
+  isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
+  } catch (e) {
+    isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
+  }
   if (confirmedCount >= (session.capacity || 0) && !isPersonalClass && !session.is_self_booked) {
       this.handleWaitingList(session);
       return;
@@ -1247,8 +1254,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
   const classTypeId = session.class_type_id; // Usar el ID numérico
-  // Detectar personal por IDs conocidos (4, 22, 23) en lugar del nombre
-  const isPersonal = [4, 22, 23].includes(classTypeId);
+  let isPersonal = false;
+  isPersonal = /personal|individual/i.test(String(session.class_type_name || ''));
 
     console.log('🔍 Verificando disponibilidad:', {
       userId: this.userNumericId,
@@ -1470,7 +1477,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ¿Es personalizada la sesión seleccionada?
   isSelectedSessionPersonal(): boolean {
-    return !!this.selectedSession && [4, 22, 23].includes(this.selectedSession.class_type_id);
+  return !!this.selectedSession && /personal|individual/i.test(String(this.selectedSession.class_type_name || ''));
   }
 
   // Método para unirse a la lista de espera

@@ -24,6 +24,7 @@ export interface UserPackage {
   classes_used_this_month: number;
   rollover_classes_remaining: number;
   next_rollover_reset_date?: string;
+  expires_at?: string; // new explicit expiry
   status: 'active' | 'expired' | 'suspended';
   package?: Package;
 }
@@ -62,11 +63,12 @@ export class PackagesService {
       const { data, error } = await this.supabase.supabase
         .from('user_packages')
         .select(`
-          *,
-          package:packages(*)
-        `)
+            *,
+            package:packages(*)
+          `)
         .eq('user_id', userId)
-        .eq('status', 'active')
+        // Include both active and expired packages so a bono reduced to 0 is still visible in the cartera
+        .in('status', ['active', 'expired'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -108,27 +110,30 @@ export class PackagesService {
         return `${y}-${m}-${day}`;
       };
 
-      // Helper: last day of month as YYYY-MM-DD (accepts Date or date-string)
+      // Date helpers
+      const toDateOnlyFromAny = (val?: string) => val ? val.split('T')[0] : undefined;
       const endOfMonthDateOnly = (input: Date | string) => {
         const d = typeof input === 'string' ? new Date(input + 'T00:00:00') : input;
         const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         return toDateOnly(last);
       };
 
-      // Si el llamador pasa una expirationDate, úsala (normalizar si viene con time)
-      let nextRolloverResetDate: string;
-      if (expirationDate) {
-        // Accept 'YYYY-MM-DD' or ISO; normalize to EOM date-only
-        const raw = expirationDate.split('T')[0];
-        nextRolloverResetDate = endOfMonthDateOnly(raw);
-      } else {
-        // last day of next month, date-only
-        const now = new Date();
-        const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-        nextRolloverResetDate = toDateOnly(lastOfNext);
+      // Build payload depending on single-class vs monthly
+      const isSingle = !!packageData.is_single_class;
+      const expiresAt = isSingle ? toDateOnlyFromAny(expirationDate) : undefined;
+      let nextRolloverResetDate: string | undefined;
+      if (!isSingle) {
+        // monthly: keep monthly EOM behaviour unless caller overrides
+        if (expirationDate) {
+          nextRolloverResetDate = endOfMonthDateOnly(expirationDate.split('T')[0]);
+        } else {
+          const now = new Date();
+          const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+          nextRolloverResetDate = toDateOnly(lastOfNext);
+        }
       }
 
-      const newUserPackage = {
+      const newUserPackage: any = {
         user_id: userId,
         package_id: packageId,
         purchase_date: purchaseDate,
@@ -137,7 +142,7 @@ export class PackagesService {
         monthly_classes_limit: packageData.class_count,
         classes_used_this_month: 0,
         rollover_classes_remaining: 0,
-  next_rollover_reset_date: nextRolloverResetDate,
+        ...(isSingle ? { expires_at: expiresAt } : { next_rollover_reset_date: nextRolloverResetDate }),
         status: 'active' as const
       };
 
@@ -340,7 +345,7 @@ export class PackagesService {
           monthly_classes_limit: amount,
           classes_used_this_month: 0,
           rollover_classes_remaining: 0,
-          next_rollover_reset_date: nextReset,
+          expires_at: expirationDate ? expirationDate.split('T')[0] : defaultNext,
           status: 'active' as const
         };
 
@@ -357,7 +362,7 @@ export class PackagesService {
           class_type: classType,
           class_count: amount,
           price: 0,
-          is_single_class: false,
+          is_single_class: true, // treat admin custom packages as single-type with explicit expiry
           is_personal: true
         };
 
@@ -415,7 +420,7 @@ export class PackagesService {
       if (newRemaining === 0) {
         const { error: statusError } = await this.supabase.supabase
           .from('user_packages')
-          .update({ status: 'expired' })
+          .update({ status: 'inactive' })
           .eq('id', packageToUpdate.id);
 
         if (statusError) throw statusError;

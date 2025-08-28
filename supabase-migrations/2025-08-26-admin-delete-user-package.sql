@@ -14,13 +14,36 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'user_package no encontrado');
   END IF;
 
-  -- Primero, eliminar las reservas asociadas a este user_package para liberar plazas
-  DELETE FROM bookings WHERE user_package_id = p_user_package_id;
+  -- Antes esta función borraba el row de user_packages; eso causa pérdida de historial.
+  -- Ahora la función aplicará una acción segura: restar 1 clase (no bajar de 0),
+  -- marcar como 'expired' si queda a 0 y registrar la acción en package_claim_logs.
 
-  -- Luego borrar el user_package físicamente
-  DELETE FROM user_packages WHERE id = p_user_package_id;
+  -- Obtener el estado actual para auditar
+  PERFORM 1 FROM user_packages WHERE id = p_user_package_id;
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'error', 'user_package no encontrado');
+  END IF;
 
-  RETURN json_build_object('success', true, 'message', 'user_package y reservas asociadas eliminadas');
+  -- Decrementar 1 clase de forma segura
+  -- Compute new remaining in a single expression to derive status deterministically
+  UPDATE user_packages
+  SET current_classes_remaining = greatest(0, coalesce(current_classes_remaining, 0) - 1),
+      status = CASE WHEN greatest(0, coalesce(current_classes_remaining, 0) - 1) > 0 THEN 'active' ELSE 'expired' END,
+      updated_at = now()
+  WHERE id = p_user_package_id;
+
+  -- Registrar la acción para auditoría
+  BEGIN
+    INSERT INTO package_claim_logs(user_id, user_package_id, session_id, booking_id, outcome, message)
+    SELECT up.user_id, up.id, NULL::integer, NULL::integer, 'admin_removed', 'Admin removed package (soft) — decremented 1 class instead of deleting'
+    FROM user_packages up
+    WHERE up.id = p_user_package_id;
+  EXCEPTION WHEN OTHERS THEN
+    -- ignore logging failures
+    NULL;
+  END;
+
+  RETURN json_build_object('success', true, 'message', 'user_package actualizado: 1 clase restada (soft-delete behavior)');
 EXCEPTION WHEN OTHERS THEN
   RETURN json_build_object('success', false, 'error', SQLERRM);
 END;
