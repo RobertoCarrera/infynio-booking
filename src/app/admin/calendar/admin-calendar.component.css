@@ -252,6 +252,50 @@
   }
 }
 
+/* Mobile: ensure modals are scrollable on very small viewports */
+@media (max-width: 768px) {
+  .admin-calendar-container .modal {
+    align-items: flex-start !important; /* let modal start near top to reveal header */
+    padding-top: 0.75rem !important;
+  }
+
+  .admin-calendar-container .modal-dialog {
+    max-height: 90vh !important;
+    margin: 0.5rem !important;
+    width: calc(100% - 1rem) !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-calendar-container .modal-content {
+    max-height: 90vh !important;
+    overflow: auto !important; /* allow scrolling interior */
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Modal body should allow scroll independently when content is long */
+  .admin-calendar-container .modal-body {
+    overflow: auto !important;
+    max-height: calc(90vh - 140px) !important; /* leave room for header/footer */
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Ensure modals appear above the mobile bottom nav (z-index:4000) on small screens up to tablet width */
+@media (max-width: 991.98px) {
+  .admin-calendar-container .modal {
+    z-index: 4200 !important; /* above bottom nav (4000) */
+  }
+  .admin-calendar-container .modal-backdrop {
+    z-index: 4190 !important;
+  }
+
+  /* Give the dialog extra bottom margin so footer buttons sit above the nav visually */
+  .admin-calendar-container .modal-dialog {
+    margin-bottom: calc(env(safe-area-inset-bottom) + 96px) !important;
+  }
+}
+
 /* Ensure FullCalendar scroller uses remaining space and last slot is not clipped */
 ::ng-deep .fc .fc-scroller {
   /* keep scroller as main area and ensure small bottom padding so last slot is visible */

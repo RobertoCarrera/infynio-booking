@@ -416,10 +416,9 @@ BEGIN
   WHERE id = v_refund_pkg_id;
     -- Log refund action for audit
     BEGIN
-      INSERT INTO package_claim_logs(user_id, user_package_id, session_id, booking_id, outcome, message)
-      VALUES (v_user_id, v_refund_pkg_id, v_session_id, p_booking_id, 'refund', 'Admin forced refund to recorded package');
+      -- Logging to package_claim_logs removed per cleanup decision.
     EXCEPTION WHEN OTHERS THEN
-      -- Ignore logging errors
+      -- ignore logging failures
       NULL;
     END;
   ELSE
@@ -439,8 +438,7 @@ BEGIN
   WHERE user_packages.id = to_update.id;
     -- Log refund to the selected package (if any)
     BEGIN
-      INSERT INTO package_claim_logs(user_id, user_package_id, session_id, booking_id, outcome, message)
-      SELECT v_user_id, id, v_session_id, p_booking_id, 'refund', 'Admin forced refund to fallback package' FROM to_update;
+      -- Logging to package_claim_logs removed per cleanup decision.
     EXCEPTION WHEN OTHERS THEN
       NULL;
     END;

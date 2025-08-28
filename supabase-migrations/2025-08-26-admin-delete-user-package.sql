@@ -39,10 +39,7 @@ BEGIN
 
   -- Registrar la acción para auditoría
   BEGIN
-    INSERT INTO package_claim_logs(user_id, user_package_id, session_id, booking_id, outcome, message)
-    SELECT up.user_id, up.id, NULL::integer, NULL::integer, 'admin_removed', 'Admin removed package (soft) — decremented 1 class instead of deleting'
-    FROM user_packages up
-    WHERE up.id = p_user_package_id;
+  -- Logging to package_claim_logs removed per cleanup decision. Previously recorded audit entries here.
   EXCEPTION WHEN OTHERS THEN
     -- ignore logging failures
     NULL;

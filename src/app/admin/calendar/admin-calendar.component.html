@@ -556,11 +556,7 @@
                 <h6><i class="fa fa-info-circle me-2"></i>Información del Bono</h6>
                 <ul class="list-unstyled mb-0">
                   <li><strong>Nombre:</strong> {{ pkg.name }}</li>
-                  <li *ngIf="pkg.class_count"><strong>Clases:</strong> {{ pkg.class_count }}</li>
-                  <li *ngIf="pkg.price"><strong>Precio:</strong> €{{ pkg.price }}</li>
                   <li *ngIf="pkg.class_type"><strong>Tipo de clase:</strong> {{ getClassTypeName(pkg.class_type) }}</li>
-                  <li *ngIf="pkg.is_single_class"><strong>Clase única:</strong> {{ pkg.is_single_class ? 'Sí' : 'No' }}</li>
-                  <li *ngIf="pkg.is_personal"><strong>Personal:</strong> {{ pkg.is_personal ? 'Sí' : 'No' }}</li>
                 </ul>
               </div>
             </ng-container>

@@ -1,33 +1,6 @@
 -- Create audit table for package claims
-BEGIN;
-
-CREATE TABLE IF NOT EXISTS package_claim_logs (
-  id BIGSERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  user_package_id INTEGER,
-  class_type_id INTEGER,
-  session_id INTEGER,
-  booking_id INTEGER,
-  outcome TEXT,
-  message TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- Optional FK constraints
--- Add FK only if it doesn't exist to make migration idempotent
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-    WHERE tc.table_name = 'package_claim_logs' AND tc.constraint_type = 'FOREIGN KEY' AND kcu.column_name = 'user_package_id'
-  ) THEN
-    ALTER TABLE package_claim_logs
-      ADD CONSTRAINT fk_pcl_user_packages FOREIGN KEY (user_package_id) REFERENCES user_packages(id) ON DELETE SET NULL;
-  END IF;
-END$$;
-
-COMMIT;
+-- package_claim_logs table creation removed: logging table deprecated and dropped by later migration.
+-- If you need to restore it, recreate with the original schema or use the archive backup.
 
 -- Safe delete RPC: deletes booking(s) linked to a session and then the session in a transaction
 -- Create or replace the safe_delete_session function (idempotent via CREATE OR REPLACE)
