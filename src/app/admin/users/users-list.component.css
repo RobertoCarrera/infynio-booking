@@ -7,8 +7,27 @@
 }
 
 .tabla-usuarios{
-    max-height: 78vh;
+    max-height: 72vh;
 	overflow-y: auto;
+	border-radius: 0.5em !important;
+}
+
+/* Make the table header stick to the top of the scrolling container so only the body scrolls */
+.tabla-usuarios table{
+	width: 100%;
+	margin-bottom: 0; /* avoid extra gap below table that can affect scrolling */
+}
+
+.tabla-usuarios thead th{
+	position: sticky;
+	top: 0;
+	z-index: 3; /* above rows */
+	background: var(--bs-body-bg, #fff);
+}
+
+/* Ensure internal scrollbars behave smoothly on touch devices */
+.tabla-usuarios{
+	-webkit-overflow-scrolling: touch;
 }
 
 /* Ensure the module root doesn't force an internal vertical scroll; allow page to scroll instead */
