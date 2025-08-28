@@ -1,7 +1,7 @@
 <!-- Desktop / large screens: keep existing top navbar (hidden on small screens) -->
 <nav class="navbar-expand-lg menu-navbar ps-3 pe-3 d-none d-lg-flex py-4" *ngIf="isLoggedIn && !needsOnboarding">
   <div class="container-fluid d-flex align-items-center justify-content-between">
-    <img src="https://mars-studio.es/wp-content/uploads/2025/04/logo_marron-100x100.png" alt="" id="logo">
+    <img src="https://imgs.mars-studio.es/assets/icons/icon-96x96.webp" alt="" id="logo" class="rounded-circle">
     <div class="w-50" id="navbarNav">
       <ul class="navbar-nav d-flex align-items-center justify-content-evenly w-100">
         <ng-container *ngIf="isLoggedIn && !isAdmin">
