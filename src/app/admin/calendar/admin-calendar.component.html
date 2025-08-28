@@ -52,9 +52,9 @@
             <h6 class="mb-1">Sesión Actual:</h6>
             <p class="mb-0">
               <strong>{{ getClassTypeName(selectedSession.class_type_id) }}</strong><br>
-              <small>
+                <small>
                 {{ selectedSession.schedule_date }}<br>
-                {{ selectedSession.schedule_time | date:'HH:mm' }}
+                {{ formatTimeForTemplate(selectedSession.schedule_time) | date:'HH:mm' }}
               </small>
             </p>
           </div>
@@ -130,10 +130,11 @@
               <div *ngIf="checkingPackageAvailability" class="alert alert-info small">
                 Comprobando si el usuario tiene un bono válido...
               </div>
-              <div *ngIf="selectedUserHasValidPackage === false" class="alert alert-warning d-flex justify-content-between align-items-center">
+              <div *ngIf="selectedUserHasValidPackage === false || selectedUserHasPackageButNotForMonth" class="alert alert-warning d-flex justify-content-between align-items-center">
                 <div>
                   <i class="fas fa-exclamation-circle me-2"></i>
-                  El usuario seleccionado no tiene un bono válido para esta sesión. Debes añadirle uno antes de crear la sesión.
+                  <span *ngIf="selectedUserHasValidPackage === false">El usuario seleccionado no tiene un bono válido para esta sesión. Debes añadirle uno antes de crear la sesión.</span>
+                  <span *ngIf="selectedUserHasPackageButNotForMonth">El usuario tiene un bono, pero no coincide con el mes de esta sesión. Puedes añadirle un bono válido para este mes antes de crear la sesión.</span>
                 </div>
                 <div>
                   <button class="btn btn-sm btn-primary" type="button" (click)="openAddPackageModal(getSelectedUser(), getClassTypeName(sessionForm.get('class_type_id')?.value))">Añadir bono</button>
@@ -304,7 +305,7 @@
                     <span>{{ selectedSession.schedule_date | date:'dd/MM/yyyy' }}</span>
                     <br>
                     <strong>Hora:</strong><br>
-                    <span>{{ selectedSession.schedule_time | date:'HH:mm' }}</span>
+                    <span>{{ formatTimeForTemplate(selectedSession.schedule_time) | date:'HH:mm' }}</span>
                   </div>
                   <div class="col-md-3">
                     <strong>Capacidad:</strong><br>

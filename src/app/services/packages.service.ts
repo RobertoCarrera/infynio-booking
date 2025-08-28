@@ -437,8 +437,13 @@ export class PackagesService {
   async adminDeleteUserPackage(userPackageId: number): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const { data, error } = await this.supabase.supabase.rpc('admin_delete_user_package', { p_user_package_id: userPackageId });
-      if (error) throw error;
-      return data || { success: true, message: 'El paquete fue eliminado' };
+      if (error) {
+        // Surface RPC transport errors
+        console.error('RPC error adminDeleteUserPackage:', error);
+        return { success: false, error: error.message || String(error) };
+      }
+      // RPC returns JSON already describing success or failure
+      return Array.isArray(data) ? data[0] : (data || { success: true, message: 'Operación completada' });
     } catch (err: any) {
       console.error('Error in adminDeleteUserPackage:', err);
       throw err;

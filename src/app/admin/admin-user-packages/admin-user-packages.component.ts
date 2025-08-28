@@ -455,10 +455,10 @@ export class AdminUserPackagesComponent implements OnInit {
         String(res.success) === 'true' ||
         String(res.success) === '1'
       );
-      if (ok) {
-        alert('Se restó 1 clase del bono (soft-update) correctamente.');
+      if (res?.success === true || String(res?.success) === 't' || String(res?.success) === 'true') {
+        alert(res.message || 'Se restó 1 clase del bono (soft-update) correctamente.');
       } else {
-        alert('Error al actualizar bono: ' + (res?.error || JSON.stringify(res)));
+        alert('Error al actualizar bono: ' + (res?.error || res?.message || JSON.stringify(res)));
       }
       await this.loadUsersWithPackages();
     } catch (err: any) {

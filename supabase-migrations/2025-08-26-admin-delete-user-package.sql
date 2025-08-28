@@ -24,6 +24,11 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'user_package no encontrado');
   END IF;
 
+  -- If there are active bookings using this user_package, refuse to decrement/delete
+  IF EXISTS (SELECT 1 FROM bookings WHERE user_package_id = p_user_package_id AND status = 'CONFIRMED') THEN
+    RETURN json_build_object('success', false, 'error', 'No se puede modificar el bono: hay reservas activas usando este bono');
+  END IF;
+
   -- Decrementar 1 clase de forma segura
   -- Compute new remaining in a single expression to derive status deterministically
   UPDATE user_packages

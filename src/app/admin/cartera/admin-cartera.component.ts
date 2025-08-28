@@ -253,11 +253,11 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     (async () => {
       try {
         const res = await this.packagesService.adminDeleteUserPackage(entrada.id);
-        const ok = !!res && (res.success === true || String(res.success) === 't' || String(res.success) === 'true');
-        if (ok) {
-          this.successMessage = 'Se ha restado 1 clase del bono (soft-update)';
+        if (res?.success === true || String(res?.success) === 't' || String(res?.success) === 'true') {
+          this.successMessage = res.message || 'Se ha restado 1 clase del bono (soft-update)';
         } else {
-          this.error = 'Error al actualizar el bono: ' + (res?.error || JSON.stringify(res));
+          // Show RPC-level error (e.g., active bookings using this package)
+          this.error = res?.error || res?.message || 'Error al actualizar el bono';
         }
       } catch (err: any) {
         console.error('Error al eliminar package:', err);

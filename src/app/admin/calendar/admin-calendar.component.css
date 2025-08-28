@@ -197,6 +197,40 @@
   z-index: 1040;
 }
 
+/* Ensure admin calendar modals are centered on desktop and sit above the main menu (menu z-index: 4000).
+   Keep mobile behaviour unchanged (margins on small screens). We use !important to override
+   inline styles that set z-index on some modal instances. */
+@media (min-width: 992px) {
+  .admin-calendar-container .modal {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 4200 !important; /* above menu (4000) */
+    pointer-events: auto !important;
+    background: rgba(0,0,0,0.45); /* ensure backdrop look when using custom centering */
+  }
+
+  .admin-calendar-container .modal-backdrop {
+    z-index: 4190 !important; /* slightly below modal */
+    background: rgba(0,0,0,0.45) !important;
+  }
+
+  /* remove default margins that may push dialog away from center */
+  .admin-calendar-container .modal-dialog {
+    margin: 0 !important;
+    max-width: 900px; /* keep modal-lg reasonably wide */
+    width: calc(100% - 48px) !important;
+  }
+
+  /* ensure package modal content sits above other modal layers */
+  .admin-calendar-container .package-modal-content {
+    position: relative;
+    z-index: 4201 !important;
+  }
+}
+
 /* Higher z-index for edit modal when opened from attendees modal */
 .modal.show + .modal {
   z-index: 1060;

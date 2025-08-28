@@ -82,9 +82,19 @@ BEGIN
       AND up.status = 'active'
       AND up.current_classes_remaining > 0
       AND pa.is_personal = v_is_personal
-      AND up.next_rollover_reset_date IS NOT NULL
-      AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
-      AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
+      -- package is considered valid for the session month if either its next_rollover_reset_date
+      -- or its explicit expires_at falls within the same month/year as the session
+      AND (
+        (up.next_rollover_reset_date IS NOT NULL
+          AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
+          AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
+        )
+        OR (
+          up.expires_at IS NOT NULL
+          AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
+          AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
+        )
+      )
   ), filtered AS (
     SELECT c.*
     FROM candidates c
@@ -211,9 +221,17 @@ BEGIN
       AND up.status = 'active'
       AND up.current_classes_remaining > 0
       AND pa.is_personal = v_is_personal
-      AND up.next_rollover_reset_date IS NOT NULL
-      AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
-      AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
+      AND (
+        (up.next_rollover_reset_date IS NOT NULL
+          AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
+          AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
+        )
+        OR (
+          up.expires_at IS NOT NULL
+          AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
+          AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
+        )
+      )
   ), filtered AS (
     SELECT c.*
     FROM candidates c

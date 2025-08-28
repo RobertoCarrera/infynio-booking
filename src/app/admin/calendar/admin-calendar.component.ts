@@ -56,6 +56,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   // Package availability check for personal sessions
   selectedUserHasValidPackage: boolean | null = null; // null = unknown/not-checked, true/false = result
   checkingPackageAvailability = false;
+  // If user has any package but none matching the session month
+  selectedUserHasPackageButNotForMonth = false;
   
   // Toast notification system
   showToast = false;
@@ -207,6 +209,25 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     }
   }
 
+  // Helper: normalize time-only strings like '09:00:00' to a Date for template formatting
+  formatTimeForTemplate(timeValue: string | Date | null | undefined): Date | null {
+    if (!timeValue) return null;
+    if (timeValue instanceof Date) return timeValue;
+    // Accept formats like 'HH:mm' or 'HH:mm:ss'
+    const t = String(timeValue).trim();
+    const parts = t.split(':');
+    if (parts.length >= 2) {
+      const hh = parseInt(parts[0], 10) || 0;
+      const mm = parseInt(parts[1], 10) || 0;
+      const d = new Date();
+      d.setHours(hh, mm, 0, 0);
+      return d;
+    }
+    // Fallback: try Date parse
+    const parsed = new Date(t);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
   private async onSelectedUserOrTypeOrDateChange() {
     // Reset cached flag and run check only when relevant
     this.selectedUserHasValidPackage = null;
@@ -230,11 +251,14 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     try {
       this.checkingPackageAvailability = true;
       const isPersonal = true;
-      const available = await firstValueFrom(this.carteraService.tieneClasesDisponiblesEnMes(userId, Number(classTypeId), isPersonal, scheduleDate));
-      this.selectedUserHasValidPackage = !!available;
+      // Use new helper that returns whether user has any matching package and whether one matches the session month
+      const res = await firstValueFrom(this.carteraService.tienePaqueteYCoincideMes(userId, Number(classTypeId), isPersonal, scheduleDate));
+      this.selectedUserHasValidPackage = !!res.matchesMonth;
+      this.selectedUserHasPackageButNotForMonth = !!(res.hasAny && !res.matchesMonth);
     } catch (err) {
       console.warn('Error checking package availability:', err);
       this.selectedUserHasValidPackage = false;
+      this.selectedUserHasPackageButNotForMonth = false;
     } finally {
       this.checkingPackageAvailability = false;
       this.cdr.detectChanges();

@@ -40,6 +40,127 @@ export class CarteraClasesService {
   }
 
   /**
+   * Devuelve si el usuario tiene algún paquete aplicable y si alguno de ellos
+   * coincide con el mes/año de la sesión. Útil para distinguir entre "no tiene
+   * bono" y "tiene bono, pero para otro mes".
+   */
+  tienePaqueteYCoincideMes(userId: number, classTypeId: number, isPersonal: boolean, sessionDateStr: string): Observable<{ hasAny: boolean; matchesMonth: boolean }> {
+    const sessionDate = new Date(sessionDateStr);
+    if (isNaN(sessionDate.getTime())) {
+      return from([{ hasAny: false, matchesMonth: false }]);
+    }
+
+    return from((async () => {
+      const acceptableTypes = (() => {
+        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 4 || classTypeId === 22) return [4, 22];
+        if (classTypeId === 23) return [23];
+        if (classTypeId === 3) return [3];
+        return [classTypeId];
+      })();
+
+      const mapped = await this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          id,
+          current_classes_remaining,
+          status,
+          expires_at,
+          next_rollover_reset_date,
+          packages!inner (
+            id,
+            is_personal,
+            class_type,
+            package_allowed_class_types!inner ( class_type_id )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      const checkMonthMatch = (dateStr?: string | null) => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        return d.getFullYear() === sessionDate.getFullYear() && d.getMonth() === sessionDate.getMonth();
+      };
+      const checkExpiryOrMonth = (row: any) => {
+        if (row.expires_at) {
+          const exp = new Date(row.expires_at);
+          if (isNaN(exp.getTime())) return false;
+          // Require same month/year as the expires_at and also that the session is not after the expiry day
+          return (exp.getFullYear() === sessionDate.getFullYear() && exp.getMonth() === sessionDate.getMonth()) && (sessionDate <= exp);
+        }
+        return checkMonthMatch(row.next_rollover_reset_date);
+      };
+
+      let hasAny = false;
+      let matchesMonth = false;
+
+      if (!mapped.error) {
+        const rows = mapped.data || [];
+        const acceptableTypeLegacy = (classTypeId === 9) ? 2 : classTypeId;
+        for (const row of rows) {
+          const pkg = row.packages as any;
+          if (!pkg) continue;
+          const personalMatch = pkg.is_personal === isPersonal;
+          const mapping = (pkg.package_allowed_class_types || []) as Array<{ class_type_id: number }>;
+          const mappedMatch = mapping.some(m => acceptableTypes.includes(m.class_type_id) || m.class_type_id === acceptableTypeLegacy);
+          const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
+          if (personalMatch && (mappedMatch || directMatch)) {
+            hasAny = true;
+            if (checkExpiryOrMonth(row)) {
+              matchesMonth = true;
+              break; // already ok
+            }
+          }
+        }
+        return { hasAny, matchesMonth };
+      }
+
+      // Fallback path
+      const fallback = await this.supabaseService.supabase
+        .from('user_packages')
+        .select(`
+          current_classes_remaining,
+          status,
+          expires_at,
+          next_rollover_reset_date,
+          packages!inner (
+            class_type,
+            is_personal
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .gt('current_classes_remaining', 0);
+
+      if (fallback.error) {
+        console.error('❌ Error verificando paquetes (fallback):', fallback.error);
+        return { hasAny: false, matchesMonth: false };
+      }
+
+      const rows = fallback.data || [];
+      const fallbackTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
+
+      for (const row of rows) {
+        const pkg = row.packages as any;
+        if (!pkg) continue;
+        const personalMatch = pkg.is_personal === isPersonal;
+        const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === ((classTypeId === 9) ? 2 : classTypeId);
+        if (personalMatch && typeMatch) {
+          hasAny = true;
+          if (row.expires_at ? (sessionDate <= new Date(row.expires_at)) : checkMonthMatch(row.next_rollover_reset_date)) {
+            matchesMonth = true;
+            break;
+          }
+        }
+      }
+
+      return { hasAny, matchesMonth };
+    })());
+  }
+  /**
    * CONVERSIÓN INVERSA - strings a números
    */
   private mapStringToClassType(classType: string): number {
@@ -409,11 +530,11 @@ export class CarteraClasesService {
         return d.getFullYear() === sessionYear && d.getMonth() === sessionMonth;
       };
       const checkExpiryOrMonth = (row: any) => {
-        // Si hay expires_at, válida si la sesión es anterior o igual a expires_at
+        // Si hay expires_at, exigir que la sesión sea del mismo mes/año y no posterior al día de expiración
         if (row.expires_at) {
           const exp = new Date(row.expires_at);
           if (isNaN(exp.getTime())) return false;
-          return sessionDate <= exp;
+          return (exp.getFullYear() === sessionYear && exp.getMonth() === sessionMonth) && (sessionDate <= exp);
         }
         // Si no hay expires_at, usar la comprobación de mes por next_rollover_reset_date
         return checkMonthMatch(row.next_rollover_reset_date);
