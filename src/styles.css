@@ -178,3 +178,25 @@ body.route-admin .mobile-list-scroll {
     font-size: 0.85rem;
   }
 }
+
+/* Hide the 13:00, 14:00 and 15:00 rows (midday break) in the user calendar
+   Targets FullCalendar's timeGrid rows which expose a data-time attribute. */
+.p-wrapper .fc .fc-timegrid-slots tr[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-slots tr[data-time="14:00:00"],
+.p-wrapper .fc .fc-timegrid-slots tr[data-time="15:00:00"] {
+  display: none !important;
+}
+
+/* Also hide any slot elements that expose the same data-time attribute */
+.p-wrapper .fc .fc-timegrid-slot[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-slot[data-time="14:00:00"],
+.p-wrapper .fc .fc-timegrid-slot[data-time="15:00:00"] {
+  display: none !important;
+}
+
+/* Hide the corresponding axis labels if present */
+.p-wrapper .fc .fc-timegrid-axis tr[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-axis tr[data-time="14:00:00"],
+.p-wrapper .fc .fc-timegrid-axis tr[data-time="15:00:00"] {
+  display: none !important;
+}
