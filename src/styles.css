@@ -205,10 +205,30 @@ body.route-admin .mobile-list-scroll {
   height: 45px !important;
   min-height: 45px !important;
   background-color: gray;
+  color: transparent;
 }
 
-.fc-timegrid-bg-harness{
-  background-color: red;
+/* Prevent a global bg-harness color from covering slot-specific styles. */
+.p-wrapper .fc .fc-timegrid-bg-harness{
+  background-color: transparent !important;
+}
+
+/* If FullCalendar renders background events (.fc-bg-event) inside the harness,
+   neutralize them so they don't override the per-slot background we set. */
+.p-wrapper .fc .fc-timegrid-bg-harness .fc-bg-event,
+.p-wrapper .fc .fc-timegrid-bg-harness .fc-bg {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+/* Ensure the 13:00 slot lane(s) get the grey background and match the
+   explicit 45px height previously configured. */
+.p-wrapper .fc .fc-timegrid-slots tr[data-time="13:00:00"] td,
+.p-wrapper .fc .fc-timegrid-slot[data-time="13:00:00"] > .fc-timegrid-slot-lane,
+.p-wrapper .fc .fc-timegrid-slots td[data-time="13:00:00"] {
+  background-color: gray !important;
+  height: 45px !important;
+  min-height: 45px !important;
 }
 
 /* Also hide axis/label cells that may show the hour text */
