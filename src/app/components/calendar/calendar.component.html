@@ -1,3 +1,15 @@
 <div class="calendar-page p-wrapper">
-	<full-calendar [options]="calendarOptions"></full-calendar>
+		<app-calendar-toolbar
+			[currentRangeLabel]="currentRangeLabel"
+			[currentView]="currentView"
+			[isMobile]="isMobile"
+			[filtersCollapsed]="desktopFiltersCollapsed"
+			(prev)="onPrev()"
+			(next)="onNext()"
+			(today)="goToday()"
+			(changeView)="setView($event)"
+			(toggleFilters)="onToolbarToggleFilters()"
+		></app-calendar-toolbar>
+
+	<full-calendar #calendar [options]="calendarOptions"></full-calendar>
 </div>

@@ -13,11 +13,8 @@ const CONTENT_HEIGHT = typeof window !== 'undefined' ? Math.max(400, Math.round(
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
   locale: esLocale,
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'timeGridDay,timeGridWeek,dayGridMonth'
-  },
+  // headerToolbar removed — using custom toolbar component instead
+  headerToolbar: false,
   initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
   slotMinTime: '07:00:00',
   slotMaxTime: '21:00:00',
