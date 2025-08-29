@@ -1,0 +1,174 @@
+/* Calendar component local styles (avoid targeting FullCalendar global DOM) */
+
+.calendar-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.mobile-filters-panel {
+	position: fixed;
+}
+
+/* Desktop offcanvas tweaks to make it behave visually like a left modal */
+:host ::ng-deep .offcanvas.offcanvas-start {
+	width: 320px;
+	max-width: 85vw;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+	border-right: 1px solid rgba(0,0,0,0.06);
+	transition: transform .24s ease-in-out;
+}
+
+:host ::ng-deep .offcanvas.offcanvas-start:not(.show) {
+	transform: translateX(-100%);
+}
+
+:host ::ng-deep .offcanvas.offcanvas-start.show {
+	transform: translateX(0%);
+}
+
+/* Backdrop mimic using Bootstrap modal-backdrop */
+
+/* Backdrop should overlay everything (logo, menus). Use very high z-index to be safe. */
+:host ::ng-deep .modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.5);
+	z-index: 20050; /* intentionally high so it covers global UI */
+	pointer-events: auto;
+}
+
+/* Offcanvas base: position fixed; specific side handled by .offcanvas-start / .offcanvas-end */
+:host ::ng-deep .offcanvas {
+	position: fixed !important;
+	top: 0;
+	left: auto;
+	right: auto;
+	height: 100vh;
+	overflow: auto;
+	z-index: 20060; /* higher than backdrop */
+}
+
+/* Filter items: make it visually clear these rows are interactive */
+.filter-items .form-check {
+	background: var(--bs-body-bg, #fff);
+	cursor: pointer;
+	transition: background-color .14s ease, box-shadow .14s ease;
+    color: white;
+}
+.filter-items .form-check:hover {
+	background: rgba(13,110,253,0.04);
+	box-shadow: 0 1px 6px rgba(13,110,253,0.06);
+}
+.filter-items .form-check .form-check-input {
+	cursor: pointer;
+}
+
+/* The color badge is informational - not a control */
+.filter-items .form-check .badge {
+	width: 28px;
+	height: 18px;
+	display: inline-block;
+	pointer-events: none; /* clarify non-interactive */
+	opacity: 0.95;
+	border-radius: 6px;
+	box-shadow: 0 0 0 1px rgba(0,0,0,0.04) inset;
+}
+
+.filter-controls { font-weight: 600; }
+
+/* Make view buttons clearly actionable and show active state */
+:host ::ng-deep .btn-group .btn.active,
+:host ::ng-deep .btn-group .btn:active {
+	background-color: var(--bs-primary, #0d6efd) !important;
+	color: #fff !important;
+	border-color: var(--bs-primary, #0d6efd) !important;
+}
+
+:host ::ng-deep .btn-outline-primary.active {
+	background-color: var(--bs-primary, #0d6efd) !important;
+	color: #fff !important;
+	border-color: var(--bs-primary, #0d6efd) !important;
+}
+
+/* Ensure close button is visible and focusable */
+:host ::ng-deep .offcanvas .btn-close {
+	outline-offset: 2px;
+}
+
+/* Reuse toolbar filters button styles for view buttons */
+.filters-btn {
+	background: var(--bs-light, #f8f9fa);
+	border: 1px solid rgba(0,0,0,0.06);
+	color: var(--bs-body-color, #212529);
+	padding: 0.35rem 0.6rem;
+}
+.filters-btn .bi, .filters-btn .fas { font-size: 0.9rem; }
+.filters-btn.ripple { position: relative; overflow: hidden; }
+
+/* Filter row: use class color as background (inline style). Provide transition and active visuals. */
+.filter-row {
+	transition: background-color .14s ease, border-color .14s ease;
+	border: 1px solid rgba(0,0,0,0.06);
+}
+.filter-row.active {
+	/* active state: inline background applied; add subtle inset shadow */
+	box-shadow: 0 1px 4px rgba(0,0,0,0.06) inset;
+}
+.filter-row {
+	width: 100%;
+	text-align: left;
+	background-clip: padding-box;
+	appearance: none;
+	-webkit-appearance: none;
+	border-radius: 6px;
+}
+.filter-row:focus {
+	outline: 3px solid rgba(13,110,253,0.12);
+	outline-offset: 2px;
+}
+.filter-row:hover {
+	cursor: pointer;
+	filter: brightness(0.98);
+}
+.filter-row .filter-name {
+	font-weight: 600;
+}
+
+.type-pill {
+	width: 28px;
+	height: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 6px;
+}
+.check-mark {
+	font-size: 12px;
+	line-height: 1;
+}
+
+/* Mobile filters panel (slide from right) */
+/* Offcanvas appearing from the right (mobile) */
+:host ::ng-deep .offcanvas.offcanvas-end {
+	right: 0;
+	left: auto;
+	width: min(92vw, 420px);
+	transform: translateX(110%);
+	transition: transform .22s cubic-bezier(.2,.9,.2,1);
+	box-shadow: -8px 0 24px rgba(0,0,0,0.12);
+}
+:host ::ng-deep .offcanvas.offcanvas-end.show {
+	transform: translateX(0%);
+}
+
+/* Hide the checkbox visually but keep it accessible */
+.visually-hidden { 
+	position: absolute !important; 
+	width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0;
+}
+
+/* Ensure labels have readable color over class background; prefer dark text if background is light */
+.filter-row { color: rgba(0,0,0,0.85); }
+.filter-row[style*="#000"], .filter-row[style*="rgb(0,0,0)"] { color: #fff; }
+

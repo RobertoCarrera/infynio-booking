@@ -8,8 +8,8 @@ import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { WaitingListService } from '../../services/waiting-list.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { FULLCALENDAR_OPTIONS } from './fullcalendar-config';
+import { CalendarToolbarComponent } from './calendar-toolbar.component';
 import { Subscription } from 'rxjs';
-import { CalendarToolbarComponent } from './calendar-toolbar/calendar-toolbar.component';
 
 @Component({
   selector: 'app-calendar',
@@ -79,6 +79,15 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   private _boundTransitionHandlers: Array<{ el: Element; handler: (e: Event)=>void }>=[];
   private _mutationObserver: MutationObserver | null = null;
   private _vvHandlers: Array<{ type: string; handler: any }> = [];
+  // Escape key handler for desktop offcanvas
+  private _escapeListener = (e: KeyboardEvent) => {
+    try {
+      if (e.key === 'Escape' && this.desktopFiltersOpen) {
+        this.desktopFiltersOpen = false;
+        try { this.adjustCalendarHeight(); } catch {}
+      }
+    } catch {}
+  };
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -90,8 +99,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       eventClick: this.onEventClick.bind(this),
-	  datesSet: this.onDatesSet.bind(this),
-	  events: this.events
+  datesSet: this.onDatesSet.bind(this),
+  events: this.events
     };
   }
 
@@ -169,6 +178,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     try {
       if (typeof window !== 'undefined') {
         window.addEventListener('resize', this.onResizeBound as any);
+  // escape handler for offcanvas
+  window.addEventListener('keydown', this._escapeListener as any);
       }
     } catch {}
 
@@ -236,8 +247,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         el.addEventListener('transitionend', handler);
         this._boundTransitionHandlers.push({ el, handler });
       };
-      watchTransition('.mobile-filters-panel');
-      watchTransition('.filters-backdrop');
+  watchTransition('.mobile-filters-panel');
+  watchTransition('.modal-backdrop');
       watchTransition('.offcanvas');
     } catch {}
   }
@@ -284,6 +295,16 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         this.setCalendarView(this.currentView);
       }
     } catch (e) {}
+    // On mobile, prefer day view by default if nothing saved
+    try {
+      if (typeof window !== 'undefined' && window.innerWidth < 992) {
+        const saved = localStorage.getItem('calendar:view');
+        if (!saved) {
+          this.currentView = 'day';
+          try { this.setCalendarView('day'); } catch {}
+        }
+      }
+    } catch (e) {}
     // keyboard handlers
     if (typeof window !== 'undefined' && !this.keyboardHandlerBound) {
       window.addEventListener('keydown', this.globalKeyHandler as any);
@@ -303,6 +324,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       window.removeEventListener('keydown', this.globalKeyHandler as any);
       this.keyboardHandlerBound = false;
     }
+  try { if (typeof window !== 'undefined') window.removeEventListener('keydown', this._escapeListener as any); } catch {}
     try { if (typeof window !== 'undefined') window.removeEventListener('resize', this.onResizeBound as any); } catch {}
     // Disconnect observers and transition handlers
     try {
@@ -347,8 +369,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isMobile = (typeof window !== 'undefined') && window.innerWidth < 992;
       // if we transitioned to desktop, close mobile panel
       if (wasMobile && !this.isMobile) this.setMobileFiltersOpen(false);
-	  // adjust calendar internal height on resize
-	  try { this.adjustCalendarHeight(); } catch {}
+  // adjust calendar internal height on resize
+  try { this.adjustCalendarHeight(); } catch {}
     } catch {}
   }
 
@@ -487,6 +509,14 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       }
       // On desktop open the offcanvas drawer from the left
       this.desktopFiltersOpen = !this.desktopFiltersOpen;
+      if (this.desktopFiltersOpen) {
+        setTimeout(() => {
+          try {
+            const btn = document.querySelector('.offcanvas .btn-close') as HTMLElement | null;
+            if (btn) btn.focus();
+          } catch {}
+        }, 60);
+      }
       // apply a small shrink class briefly to help visual fit testing
       try {
         const el = this.calendarContentRef?.nativeElement as HTMLElement | null;
@@ -527,14 +557,23 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   closeMobileFilters() { this.setMobileFiltersOpen(false); }
 
+  // Close any filters overlay (desktop or mobile)
+  closeFilters() {
+    try {
+      this.desktopFiltersOpen = false;
+      this.setMobileFiltersOpen(false);
+      this.adjustCalendarHeight();
+    } catch {}
+  }
+
   private setCalendarView(view: string) {
-    // prevent month view on mobile
-    if (this.isMobile && view === 'month') return;
-    const api = this.calendarApi || (this.calendarOptions as any).calendarApi;
-    if (!api) return;
-    if (view === 'day') api.changeView('timeGridDay');
-    if (view === 'week') api.changeView('timeGridWeek');
-    if (view === 'month') api.changeView('dayGridMonth');
+  // prevent month view on mobile
+  if (this.isMobile && view === 'month') return;
+  const api = this.calendarApi || (this.calendarOptions as any).calendarApi;
+  if (!api) return;
+  if (view === 'day') api.changeView('timeGridDay');
+  if (view === 'week') api.changeView('timeGridWeek');
+  if (view === 'month') api.changeView('dayGridMonth');
   }
 
   private getCurrentUser() {
@@ -628,9 +667,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.rangeEndDate = this.formatDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
       return;
     }
-    // Use effective now so users visiting on weekend (or after Friday 19:00)
-    // see the upcoming week instead of the past/ending week.
-    const now = this.getEffectiveNowForWeek();
+  // Use effective now so users visiting on weekend (or after Friday 19:00)
+  // see the upcoming week instead of the past/ending week.
+  const now = this.getEffectiveNowForWeek();
     // Inicio: lunes de la semana actual (España)
     const day = now.getDay(); // 0-Domingo ... 6-Sábado
     const diffToMonday = (day + 6) % 7; // convierte lunes=0
@@ -646,30 +685,30 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // FullCalendar datesSet callback
   private onDatesSet(arg: any) {
-    if (this.isAdmin) return; // admins unaffected
-    // capture calendar API reference when available
-    try { if (arg && arg.view && arg.view.calendar) this.calendarApi = arg.view.calendar; } catch {}
-    // Keep our toolbar view state in sync with FullCalendar's actual view type.
-    // This fixes an issue on mobile where the component thought the view was 'week'
-    // but FullCalendar started in 'timeGridDay', making the "Semana" button appear
-    // to do nothing until the user toggled the day view first.
-    try {
-      const fcType = arg?.view?.type;
-      if (fcType) {
-        const mapped = fcType === 'timeGridDay' ? 'day' : (fcType === 'timeGridWeek' ? 'week' : (fcType === 'dayGridMonth' ? 'month' : this.currentView));
-        if (mapped && mapped !== this.currentView) {
-          this.currentView = mapped as any;
-          // ensure stored preference isn't overwritten incorrectly
-          try { localStorage.setItem('calendar:view', this.currentView); } catch {}
-        }
+  if (this.isAdmin) return; // admins unaffected
+  // capture calendar API reference when available
+  try { if (arg && arg.view && arg.view.calendar) this.calendarApi = arg.view.calendar; } catch {}
+  // Keep our toolbar view state in sync with FullCalendar's actual view type.
+  // This fixes an issue on mobile where the component thought the view was 'week'
+  // but FullCalendar started in 'timeGridDay', making the "Semana" button appear
+  // to do nothing until the user toggled the day view first.
+  try {
+    const fcType = arg?.view?.type;
+    if (fcType) {
+      const mapped = fcType === 'timeGridDay' ? 'day' : (fcType === 'timeGridWeek' ? 'week' : (fcType === 'dayGridMonth' ? 'month' : this.currentView));
+      if (mapped && mapped !== this.currentView) {
+        this.currentView = mapped as any;
+        // ensure stored preference isn't overwritten incorrectly
+        try { localStorage.setItem('calendar:view', this.currentView); } catch {}
       }
-    } catch (e) {}
-    // Usar fechas locales para evitar saltos por zona horaria
-    const startStr = this.formatDate(new Date(arg.start));
+    }
+  } catch (e) {}
+  // Usar fechas locales para evitar saltos por zona horaria
+  const startStr = this.formatDate(new Date(arg.start));
     // arg.endStr is exclusive in FullCalendar; subtract one day for inclusive logic
     let endDate = new Date(arg.end);
     endDate.setDate(endDate.getDate() - 1);
-    const endStr = this.formatDate(endDate);
+  const endStr = this.formatDate(endDate);
     this.lastVisibleStart = startStr;
     this.lastVisibleEnd = endStr;
     this.fetchAndRenderRange(startStr, endStr);
@@ -677,8 +716,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     try {
       const s = new Date(arg.start);
       const e = new Date(arg.end);
-      // Choose month format: if we're in single-day view show full month; otherwise mobile uses short, desktop uses full
-      const monthStyle: 'short' | 'long' = (this.currentView === 'day') ? 'long' : (this.isMobile ? 'short' : 'long');
+  // Choose month format: if we're in single-day view show full month; otherwise mobile uses short, desktop uses full
+  const monthStyle: 'short' | 'long' = (this.currentView === 'day') ? 'long' : (this.isMobile ? 'short' : 'long');
       let label: string;
       if (this.currentView === 'day') {
         label = this.formatDayAndMonth(s, monthStyle);
@@ -745,6 +784,39 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  // Return '#000' or '#fff' depending on which has better contrast on the provided color (hex or rgb)
+  getContrastColor(color: string): string {
+    try {
+      if (!color) return '#000';
+      let r = 255, g = 255, b = 255;
+      color = color.trim();
+      if (color.startsWith('#')) {
+        const hex = color.substring(1);
+        if (hex.length === 3) {
+          r = parseInt(hex[0] + hex[0], 16);
+          g = parseInt(hex[1] + hex[1], 16);
+          b = parseInt(hex[2] + hex[2], 16);
+        } else if (hex.length === 6) {
+          r = parseInt(hex.substring(0, 2), 16);
+          g = parseInt(hex.substring(2, 4), 16);
+          b = parseInt(hex.substring(4, 6), 16);
+        }
+      } else if (color.startsWith('rgb')) {
+        const nums = color.replace(/[rgba\(\)\s]/g, '').split(',').map(s => parseFloat(s));
+        [r, g, b] = nums;
+      }
+      // relative luminance
+      const srgb = [r, g, b].map(v => {
+        v = v / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      const lum = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+      return lum > 0.5 ? '#000' : '#fff';
+    } catch (e) {
+      return '#000';
+    }
+  }
+
   // Adjust FullCalendar's contentHeight to match the available height inside our layout.
   // This prevents the last time slot from being clipped when side filters are visible
   // and avoids extra bottom space when filters are hidden.
@@ -754,18 +826,18 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!this.calendarApi && this.fullCalRef && this.fullCalRef.nativeElement && typeof this.fullCalRef.nativeElement.getApi === 'function') {
         try { this.calendarApi = this.fullCalRef.nativeElement.getApi(); } catch {}
       }
-      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+  const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
       if (!container) return;
       // Instead of trusting a 100vh-like container height, compute the usable
       // vertical space from the viewport. This handles cases where fixed or
       // absolutely positioned navs/panels overlap the calendar without affecting
       // its clientHeight. Start from viewport bottom and subtract the distance
       // from the top of the calendar to the viewport top.
-      let available = 0;
-      // padding to apply at the bottom of FullCalendar internal scrollers so
-      // the last time slot appears 'raised' above overlapping fixed elements
-      // (e.g. bottom nav). Calculated from overlaps + safety margin below.
-      let padBottom = 0;
+  let available = 0;
+  // padding to apply at the bottom of FullCalendar internal scrollers so
+  // the last time slot appears 'raised' above overlapping fixed elements
+  // (e.g. bottom nav). Calculated from overlaps + safety margin below.
+  let padBottom = 0;
       try {
         let viewportH = 0;
         try {
@@ -783,7 +855,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         // info panels) that may sit above the calendar area even if they don't affect
         // the container's height. We look for visible elements with position fixed/sticky/absolute
         // and subtract their vertical intersection with the calendar area.
-        try {
+  try {
           const elems = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
           let totalOverlap = 0;
           const containerBottom = crect.top + available;
@@ -843,8 +915,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         } catch {}
 
-        // Note: do not subtract toolbar or top menu heights again here.
-        // They are already accounted for in `crect.top` baseline and overlap detection above.
+  // Note: do not subtract toolbar or top menu heights again here.
+  // They are already accounted for in `crect.top` baseline and overlap detection above.
       } catch {}
       // Apply height/padding to the actual scroll container so styles cannot block it.
       // Our layout makes .calendar-content the scroller; ensure its height matches available
@@ -1001,11 +1073,11 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!input) return '';
     try {
       const d = (typeof input === 'string') ? (input.includes('T') ? new Date(input) : new Date(input + 'T00:00:00')) : new Date(input);
-      let formatted = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
-      // Capitalize the first character (weekday) and the last token (month) initial letter
-      formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-      formatted = formatted.replace(/([^,\s]+)\s*$/u, (m) => m.charAt(0).toUpperCase() + m.slice(1));
-      return formatted;
+  let formatted = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+  // Capitalize the first character (weekday) and the last token (month) initial letter
+  formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  formatted = formatted.replace(/([^,\s]+)\s*$/u, (m) => m.charAt(0).toUpperCase() + m.slice(1));
+  return formatted;
     } catch (e) {
       return String(input);
     }
@@ -1050,7 +1122,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       // First try common paths
       if (s && s.class_type_id) {
         // try to find a matching availableClassTypes entry
-        const found = this.availableClassTypes.find(t => t.name === s.class_type_name);
+  const found = this.availableClassTypes.find(t => t.name === s.class_type_name);
         if (found && found.color && found.color.background) return found.color.background;
       }
       // fallback: if event extendedProps were stored in last clicked event, try that
@@ -1111,30 +1183,30 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     try {
       const safeSessions = (sessions || []).filter((session: any) => session && session.id != null && session.schedule_date && session.schedule_time);
       return safeSessions.map(session => {
-        const colors = this.classSessionsService.getEventColors(session);
-        const availableSpots = this.classSessionsService.getAvailableSpots(session);
-        const confirmedCount = this.getConfirmedCount(session);
-        const isFull = confirmedCount >= (session.capacity || 0);
-        const isAvailable = !isFull;
-        const selfTag = session.is_self_booked ? ' (Tú)' : '';
+    const colors = this.classSessionsService.getEventColors(session);
+    const availableSpots = this.classSessionsService.getAvailableSpots(session);
+  const confirmedCount = this.getConfirmedCount(session);
+    const isFull = confirmedCount >= (session.capacity || 0);
+    const isAvailable = !isFull;
+      const selfTag = session.is_self_booked ? ' (Tú)' : '';
 
-        return {
-          id: session.id.toString(),
-          title: `${session.class_type_name}${selfTag} (${confirmedCount}/${session.capacity})`,
-          start: `${session.schedule_date}T${session.schedule_time}`,
-          backgroundColor: colors.background,
-          borderColor: colors.border,
-          textColor: '#ffffff',
-          extendedProps: {
-            session: session,
-            available: !isFull,
-            availableSpots: availableSpots
-          },
-          classNames: [
-            isFull ? 'full-class' : 'available-class',
-            `class-type-${session.class_type_name?.toLowerCase().replace(/\s+/g, '-')}`
-          ]
-        };
+      return {
+        id: session.id.toString(),
+        title: `${session.class_type_name}${selfTag} (${confirmedCount}/${session.capacity})`,
+        start: `${session.schedule_date}T${session.schedule_time}`,
+        backgroundColor: colors.background,
+        borderColor: colors.border,
+        textColor: '#ffffff',
+        extendedProps: {
+          session: session,
+      available: !isFull,
+          availableSpots: availableSpots
+        },
+        classNames: [
+      isFull ? 'full-class' : 'available-class',
+          `class-type-${session.class_type_name?.toLowerCase().replace(/\s+/g, '-')}`
+        ]
+      };
       });
     } catch (e) {
       console.error('[calendar] transformSessionsToEvents error', e);
@@ -1194,13 +1266,13 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   onEventClick(eventInfo: any) {
     console.log('🔄 Event clicked:', eventInfo.event);
     
-    // Validar estructura antes de acceder
-    if (!eventInfo || !eventInfo.event || !eventInfo.event.extendedProps || !eventInfo.event.extendedProps.session) {
+  // Validar estructura antes de acceder
+  if (!eventInfo || !eventInfo.event || !eventInfo.event.extendedProps || !eventInfo.event.extendedProps.session) {
       console.warn('[calendar] Click en evento sin sesión asociada, ignorando');
       return;
     }
-    // Siempre obtener la versión más reciente del objeto sesión del evento
-    const session = eventInfo.event.extendedProps.session as ClassSession;
+  // Siempre obtener la versión más reciente del objeto sesión del evento
+  const session = eventInfo.event.extendedProps.session as ClassSession;
     const confirmedCount = this.getConfirmedCount(session);
     
     console.log('📊 Session data:', {
@@ -1210,8 +1282,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       classTypeId: session.class_type_id
     });
 
-    // Si ya estás reservado, abrir modal directamente para opción de cancelar
-    if (session.is_self_booked) {
+  // Si ya estás reservado, abrir modal directamente para opción de cancelar
+  if (session.is_self_booked) {
       this.selectedSession = session;
       this.showBookingModal = true;
       this.loadingModal = false;
@@ -1221,21 +1293,21 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    // Si está completa y no está reservado => lista de espera (excepto personalizadas)
-    // Determine if class type is personal using loaded metadata (availableClassTypes/classTypes) or name heuristic
-    let isPersonalClass = false;
-    try {
-      // Use session.class_type_name when explicit metadata isn't available for the calendar
-      isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
-    } catch (e) {
-      isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
-    }
-    if (confirmedCount >= (session.capacity || 0) && !isPersonalClass && !session.is_self_booked) {
+  // Si está completa y no está reservado => lista de espera (excepto personalizadas)
+  // Determine if class type is personal using loaded metadata (availableClassTypes/classTypes) or name heuristic
+  let isPersonalClass = false;
+  try {
+  // Use session.class_type_name when explicit metadata isn't available for the calendar
+  isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
+  } catch (e) {
+    isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
+  }
+  if (confirmedCount >= (session.capacity || 0) && !isPersonalClass && !session.is_self_booked) {
       this.handleWaitingList(session);
       return;
     }
 
-    this.selectedSession = session;
+  this.selectedSession = session;
     this.loadingModal = true;
     this.showBookingModal = true;
     this.modalError = '';
@@ -1253,9 +1325,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    const classTypeId = session.class_type_id; // Usar el ID numérico
-    let isPersonal = false;
-    isPersonal = /personal|individual/i.test(String(session.class_type_name || ''));
+  const classTypeId = session.class_type_id; // Usar el ID numérico
+  let isPersonal = false;
+  isPersonal = /personal|individual/i.test(String(session.class_type_name || ''));
 
     console.log('🔍 Verificando disponibilidad:', {
       userId: this.userNumericId,
@@ -1264,8 +1336,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       isPersonal
     });
 
-    // Verificar si el usuario tiene clases disponibles del tipo y que caducan en el mismo mes de la sesión
-    const sub = this.carteraService.tieneClasesDisponiblesEnMes(this.userNumericId, classTypeId, isPersonal, session.schedule_date)
+  // Verificar si el usuario tiene clases disponibles del tipo y que caducan en el mismo mes de la sesión
+  const sub = this.carteraService.tieneClasesDisponiblesEnMes(this.userNumericId, classTypeId, isPersonal, session.schedule_date)
       .subscribe({
         next: (hasClasses: boolean) => {
           console.log('✅ Resultado verificación:', hasClasses);
@@ -1274,10 +1346,10 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           this.loadingModal = false;
 
           if (!hasClasses) {
-            const d = new Date(session.schedule_date);
-            const month = d.toLocaleString('es-ES', { month: 'long' });
-            const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
-            this.modalError = `No tienes un bono para ${monthCap} para clases de tipo "${session.class_type_name}".`;
+      const d = new Date(session.schedule_date);
+      const month = d.toLocaleString('es-ES', { month: 'long' });
+      const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
+      this.modalError = `No tienes un bono para ${monthCap} para clases de tipo "${session.class_type_name}".`;
           }
         },
         error: (error: any) => {
@@ -1469,15 +1541,15 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ¿Está llena la sesión seleccionada?
   isSelectedSessionFull(): boolean {
-    if (!this.selectedSession) return false;
-    // Si ya estoy reservado, no considerar "llena" para efectos de UI (oculta lista de espera)
-    if (this.selectedSession.is_self_booked) return false;
-    return this.getConfirmedCount(this.selectedSession) >= (this.selectedSession.capacity || 0);
+  if (!this.selectedSession) return false;
+  // Si ya estoy reservado, no considerar "llena" para efectos de UI (oculta lista de espera)
+  if (this.selectedSession.is_self_booked) return false;
+  return this.getConfirmedCount(this.selectedSession) >= (this.selectedSession.capacity || 0);
   }
 
   // ¿Es personalizada la sesión seleccionada?
   isSelectedSessionPersonal(): boolean {
-    return !!this.selectedSession && /personal|individual/i.test(String(this.selectedSession.class_type_name || ''));
+  return !!this.selectedSession && /personal|individual/i.test(String(this.selectedSession.class_type_name || ''));
   }
 
   // Método para unirse a la lista de espera

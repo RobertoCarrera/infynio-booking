@@ -224,3 +224,36 @@ body.route-admin .mobile-list-scroll {
 /* Also hide axis/label cells that may show the hour text */
 /* If axis labels inside hidden rows still appear, we'll target them more
   specifically later; keeping this comment to remind why we hide those rows. */
+
+/* Calendar layout helpers for the new calendar template */
+.calendar-main { display: flex; gap: 1rem; align-items: flex-start; }
+.desktop-filters {
+  width: 260px;
+  flex: 0 0 260px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  padding: 0.75rem;
+  overflow: auto;
+  transition: transform 220ms ease, opacity 180ms ease;
+}
+.desktop-filters.collapsed { transform: translateX(-8px) scale(0.98); opacity: 0.88; }
+.desktop-filters:not(.open) { display: none; }
+.desktop-filters .filters-body { margin-top: 0.5rem; }
+.desktop-filters .filter-item { margin: 0.35rem 0; }
+.desktop-filters .type-pill { width: 28px; height: 18px; border-radius: 6px; display: inline-block; }
+
+.calendar-wrapper { min-width: 0; }
+.calendar-content { height: 100%; min-height: 200px; }
+
+/* Mobile filters overlay */
+.mobile-filters-panel { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; z-index: 1400; }
+.mobile-filters-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.32); }
+.mobile-filters-content { position: relative; width: 100%; max-width: 520px; background: #fff; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 -8px 30px rgba(2,6,23,0.12); padding: 1rem; max-height: 80vh; overflow: auto; }
+.mobile-filters-panel .filters-body { margin-top: 0.5rem; }
+
+@media (max-width: 991.98px) {
+  .desktop-filters { display: none !important; }
+  .calendar-main { flex-direction: column; }
+  .calendar-wrapper { width: 100%; }
+}
