@@ -33,7 +33,7 @@ BEGIN
   -- Compute new remaining in a single expression to derive status deterministically
   UPDATE user_packages
   SET current_classes_remaining = greatest(0, coalesce(current_classes_remaining, 0) - 1),
-      status = CASE WHEN greatest(0, coalesce(current_classes_remaining, 0) - 1) > 0 THEN 'active' ELSE 'expired' END,
+  status = CASE WHEN greatest(0, coalesce(current_classes_remaining, 0) - 1) > 0 THEN 'active' ELSE 'depleted' END,
       updated_at = now()
   WHERE id = p_user_package_id;
 

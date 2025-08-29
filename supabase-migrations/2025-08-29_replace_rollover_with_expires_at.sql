@@ -1,10 +1,10 @@
--- Enforce admin-defined expiry for single-class packages and fix booking selection
--- 1) BEFORE INSERT/UPDATE trigger on user_packages: clear next_rollover_reset_date for single-class packages
--- 2) Update create_booking_with_validations to use expires_at for singles and monthly window for monthly packages
+-- Migration: Replace remaining references to next_rollover_reset_date / rollover_classes_remaining
+-- This migration updates trigger and function definitions to rely on expires_at only
+-- and removes references to the dropped rollover columns from DB functions.
 
 BEGIN;
 
--- 1) Trigger function to apply expiry logic on user_packages
+-- 1) Trigger: apply expiry logic on user_packages
 CREATE OR REPLACE FUNCTION public.tg_user_packages_apply_expiry_logic()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -22,11 +22,11 @@ BEGIN
   END IF;
 
   IF v_is_single IS TRUE THEN
-    -- For single-class packages: keep admin-defined expires_at; clear any roll-over legacy fields
-    -- do not reference next_rollover_reset_date (removed)
+    -- For single-class packages: do not set a monthly expiry; keep admin-defined expires_at
+    -- Leave NEW.expires_at untouched when provided; do not reference next_rollover_reset_date
     NULL;
   ELSIF v_is_single IS FALSE THEN
-    -- For monthly packages: ensure expires_at exists if not provided. Default to end-of-month
+    -- For monthly packages: ensure expires_at exists and defaults to end-of-month
     IF NEW.expires_at IS NULL THEN
       v_base_date := COALESCE(NEW.activation_date, NEW.purchase_date, now())::timestamptz;
       NEW.expires_at := (date_trunc('month', v_base_date) + interval '1 month -1 day')::date;
@@ -37,23 +37,7 @@ BEGIN
 END;
 $fn$;
 
--- Drop existing trigger if any, then create it
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname='public' AND c.relname='user_packages' AND t.tgname='tr_user_packages_apply_expiry_logic'
-  ) THEN
-    DROP TRIGGER tr_user_packages_apply_expiry_logic ON public.user_packages;
-  END IF;
-END $$;
-
-CREATE TRIGGER tr_user_packages_apply_expiry_logic
-BEFORE INSERT OR UPDATE ON public.user_packages
-FOR EACH ROW EXECUTE FUNCTION public.tg_user_packages_apply_expiry_logic();
-
--- 2) Update normal booking creation to respect single vs monthly package windows
+-- 2) Replace create_booking_with_validations to use expires_at only
 CREATE OR REPLACE FUNCTION public.create_booking_with_validations(
   p_user_id integer,
   p_class_session_id integer,
@@ -105,6 +89,7 @@ BEGIN
     v_is_personal := (v_ct_name ILIKE '%personal%' OR v_ct_name ILIKE '%personalizada%' OR v_ct_name ILIKE '%personalizado%');
   END IF;
 
+  -- Candidate packages: rely on expires_at only (single and monthly semantics encoded below)
   WITH candidates AS (
     SELECT
       up.id,
@@ -132,15 +117,15 @@ BEGIN
       OR c.has_mapping
     )
     AND (
-  -- Single-class: valid if not expired by expires_at
-  (c.is_single_class AND (c.expires_at IS NULL OR v_session.schedule_date <= c.expires_at))
-  -- Monthly: valid if expires_at is in same month/year as the session
-    OR (NOT c.is_single_class
-      AND c.expires_at IS NOT NULL
-      AND date_part('year', c.expires_at) = date_part('year', v_session.schedule_date)
-      AND date_part('month', c.expires_at) = date_part('month', v_session.schedule_date)
-      AND v_session.schedule_date <= c.expires_at
-  )
+      -- Single-class: valid if not expired by expires_at (or no expiry set)
+      (c.is_single_class AND (c.expires_at IS NULL OR v_session.schedule_date <= c.expires_at))
+      -- Monthly: valid if its expires_at falls in the same month/year as the session
+      OR (NOT c.is_single_class
+            AND c.expires_at IS NOT NULL
+            AND date_part('year', c.expires_at) = date_part('year', v_session.schedule_date)
+            AND date_part('month', c.expires_at) = date_part('month', v_session.schedule_date)
+            AND (c.expires_at IS NULL OR v_session.schedule_date <= c.expires_at)
+        )
     )
     ORDER BY c.purchase_date ASC
     LIMIT 1
@@ -186,4 +171,62 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $function$;
 
+-- 3) Replace admin_assign_package_to_user to avoid inserting rollover_classes_remaining
+CREATE OR REPLACE FUNCTION public.admin_assign_package_to_user(
+  p_user_id integer,
+  p_package_id integer,
+  p_purchase_date timestamp with time zone DEFAULT now(),
+  p_activation_date timestamp with time zone DEFAULT now(),
+  p_current_classes_remaining integer DEFAULT NULL::integer,
+  p_monthly_classes_limit integer DEFAULT NULL::integer,
+  p_expires_at date DEFAULT NULL::date
+)
+ RETURNS json
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_invoker uuid := auth.uid();
+  v_role int;
+  v_pkg_class_count int;
+  v_user_package_id int;
+  v_classes int;
+BEGIN
+  IF v_invoker IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT role_id INTO v_role FROM users WHERE auth_user_id = v_invoker;
+  IF v_role IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'Admin role required';
+  END IF;
+
+  SELECT class_count INTO v_pkg_class_count FROM packages WHERE id = p_package_id;
+  IF v_pkg_class_count IS NULL THEN
+    RETURN json_build_object('success', false, 'message', 'Package not found');
+  END IF;
+
+  v_classes := COALESCE(p_current_classes_remaining, v_pkg_class_count);
+
+  INSERT INTO user_packages (
+    user_id, package_id, purchase_date, activation_date,
+    current_classes_remaining, monthly_classes_limit, status,
+    classes_used_this_month, expires_at
+  ) VALUES (
+    p_user_id, p_package_id, p_purchase_date, p_activation_date,
+    v_classes, p_monthly_classes_limit, 'active',
+    0, p_expires_at
+  ) RETURNING id INTO v_user_package_id;
+
+  RETURN json_build_object('success', true, 'user_package_id', v_user_package_id);
+EXCEPTION WHEN OTHERS THEN
+  RETURN json_build_object('success', false, 'message', SQLERRM);
+END;
+$function$;
+
 COMMIT;
+
+-- Notes:
+-- * Run this migration in staging first. It replaces definitions only; it does not alter table columns.
+-- * After applying, re-run any other migrations that drop the old columns if not already executed.

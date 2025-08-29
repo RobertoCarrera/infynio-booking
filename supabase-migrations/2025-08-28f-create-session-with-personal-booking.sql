@@ -91,7 +91,7 @@ BEGIN
   SET
     current_classes_remaining = current_classes_remaining - 1,
     classes_used_this_month = classes_used_this_month + 1,
-    status = CASE WHEN current_classes_remaining - 1 <= 0 THEN 'expired' ELSE status END
+    status = CASE WHEN current_classes_remaining - 1 <= 0 THEN 'depleted' ELSE status END
   WHERE id = v_user_package_id
     AND current_classes_remaining > 0
   RETURNING id INTO v_user_package_id;

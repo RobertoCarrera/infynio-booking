@@ -66,7 +66,6 @@ export class CarteraClasesService {
           current_classes_remaining,
           status,
           expires_at,
-          next_rollover_reset_date,
           packages!inner (
             id,
             is_personal,
@@ -78,20 +77,11 @@ export class CarteraClasesService {
         .eq('status', 'active')
         .gt('current_classes_remaining', 0);
 
-      const checkMonthMatch = (dateStr?: string | null) => {
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return false;
-        return d.getFullYear() === sessionDate.getFullYear() && d.getMonth() === sessionDate.getMonth();
-      };
-      const checkExpiryOrMonth = (row: any) => {
-        if (row.expires_at) {
-          const exp = new Date(row.expires_at);
-          if (isNaN(exp.getTime())) return false;
-          // Require same month/year as the expires_at and also that the session is not after the expiry day
-          return (exp.getFullYear() === sessionDate.getFullYear() && exp.getMonth() === sessionDate.getMonth()) && (sessionDate <= exp);
-        }
-        return checkMonthMatch(row.next_rollover_reset_date);
+      const checkExpiry = (row: any) => {
+        if (!row.expires_at) return false;
+        const exp = new Date(row.expires_at);
+        if (isNaN(exp.getTime())) return false;
+        return (exp.getFullYear() === sessionDate.getFullYear() && exp.getMonth() === sessionDate.getMonth()) && (sessionDate <= exp);
       };
 
       let hasAny = false;
@@ -109,7 +99,7 @@ export class CarteraClasesService {
           const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
           if (personalMatch && (mappedMatch || directMatch)) {
             hasAny = true;
-            if (checkExpiryOrMonth(row)) {
+            if (checkExpiry(row)) {
               matchesMonth = true;
               break; // already ok
             }
@@ -125,7 +115,6 @@ export class CarteraClasesService {
           current_classes_remaining,
           status,
           expires_at,
-          next_rollover_reset_date,
           packages!inner (
             class_type,
             is_personal
@@ -148,13 +137,13 @@ export class CarteraClasesService {
         if (!pkg) continue;
         const personalMatch = pkg.is_personal === isPersonal;
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === ((classTypeId === 9) ? 2 : classTypeId);
-        if (personalMatch && typeMatch) {
-          hasAny = true;
-          if (row.expires_at ? (sessionDate <= new Date(row.expires_at)) : checkMonthMatch(row.next_rollover_reset_date)) {
-            matchesMonth = true;
-            break;
+          if (personalMatch && typeMatch) {
+            hasAny = true;
+            if (row.expires_at && sessionDate <= new Date(row.expires_at)) {
+              matchesMonth = true;
+              break;
+            }
           }
-        }
       }
 
       return { hasAny, matchesMonth };
@@ -283,14 +272,13 @@ export class CarteraClasesService {
       throw new Error('La fecha de caducidad es obligatoria y debe tener formato YYYY-MM-DD');
     }
     // Activation es inmediata
-    const newUserPackage: any = {
+  const newUserPackage: any = {
       user_id: createData.user_id,
       package_id: createData.package_id,
       purchase_date: nowIso,
       activation_date: nowIso,
       current_classes_remaining: 0, // Se establecerá según el package
       classes_used_this_month: 0,
-      rollover_classes_remaining: 0,
   expires_at: exp,
       status: 'active'
     };
@@ -515,21 +503,11 @@ export class CarteraClasesService {
         .eq('status', 'active')
         .gt('current_classes_remaining', 0);
 
-      const checkMonthMatch = (dateStr?: string | null) => {
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return false;
-        return d.getFullYear() === sessionYear && d.getMonth() === sessionMonth;
-      };
-      const checkExpiryOrMonth = (row: any) => {
-        // Si hay expires_at, exigir que la sesión sea del mismo mes/año y no posterior al día de expiración
-        if (row.expires_at) {
-          const exp = new Date(row.expires_at);
-          if (isNaN(exp.getTime())) return false;
-          return (exp.getFullYear() === sessionYear && exp.getMonth() === sessionMonth) && (sessionDate <= exp);
-        }
-        // Si no hay expires_at, usar la comprobación de mes por next_rollover_reset_date
-        return checkMonthMatch(row.next_rollover_reset_date);
+      const checkExpiry = (row: any) => {
+        if (!row.expires_at) return false;
+        const exp = new Date(row.expires_at);
+        if (isNaN(exp.getTime())) return false;
+        return (exp.getFullYear() === sessionYear && exp.getMonth() === sessionMonth) && (sessionDate <= exp);
       };
 
       if (!mapped.error) {
@@ -542,7 +520,7 @@ export class CarteraClasesService {
           const mapping = (pkg.package_allowed_class_types || []) as Array<{ class_type_id: number }>;
           const mappedMatch = mapping.some(m => acceptableTypes.includes(m.class_type_id) || m.class_type_id === acceptableTypeLegacy);
           const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
-          return personalMatch && (mappedMatch || directMatch) && checkMonthMatch(row.expires_at);
+          return personalMatch && (mappedMatch || directMatch) && checkExpiry(row);
         });
         return ok;
       }
@@ -571,12 +549,12 @@ export class CarteraClasesService {
       const rows = fallback.data || [];
   // Expand fallback types using equivalentGroup as well
   const fallbackTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
-      return rows.some((row: any) => {
+    return rows.some((row: any) => {
         const pkg = row.packages;
         if (!pkg) return false;
         const personalMatch = pkg.is_personal === isPersonal;
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
-  return personalMatch && typeMatch && checkMonthMatch(row.expires_at);
+  return personalMatch && typeMatch && checkExpiry(row);
       });
     })());
   }

@@ -63,12 +63,12 @@ BEGIN
     v_is_personal := (v_ct_name ILIKE '%personal%' OR v_ct_name ILIKE '%personalizada%' OR v_ct_name ILIKE '%personalizado%');
   END IF;
 
-  -- Prefer packages tied to the same month/year as the session (next_rollover_reset_date logic)
+  -- Prefer packages tied to the same month/year as the session (expires_at logic)
   WITH candidates AS (
     SELECT
       up.id,
       up.current_classes_remaining,
-      up.next_rollover_reset_date,
+      up.expires_at,
       up.purchase_date,
       pa.class_type,
       pa.is_personal,
@@ -82,19 +82,10 @@ BEGIN
       AND up.status = 'active'
       AND up.current_classes_remaining > 0
       AND pa.is_personal = v_is_personal
-      -- package is considered valid for the session month if either its next_rollover_reset_date
-      -- or its explicit expires_at falls within the same month/year as the session
-      AND (
-        (up.next_rollover_reset_date IS NOT NULL
-          AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
-          AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
-        )
-        OR (
-          up.expires_at IS NOT NULL
-          AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
-          AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
-        )
-      )
+      -- package is considered valid for the session month if its expires_at falls within the same month/year as the session
+      AND up.expires_at IS NOT NULL
+      AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
+      AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
   ), filtered AS (
     SELECT c.*
     FROM candidates c
@@ -221,23 +212,9 @@ BEGIN
       AND up.status = 'active'
       AND up.current_classes_remaining > 0
       AND pa.is_personal = v_is_personal
-<<<<<<< Updated upstream
-      AND (
-        (up.next_rollover_reset_date IS NOT NULL
-          AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
-          AND date_part('month', up.next_rollover_reset_date) = date_part('month', v_session.schedule_date)
-        )
-        OR (
-          up.expires_at IS NOT NULL
-          AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
-          AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
-        )
-      )
-=======
-  AND up.expires_at IS NOT NULL
-  AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
-  AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
->>>>>>> Stashed changes
+      AND up.expires_at IS NOT NULL
+      AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
+      AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
   ), filtered AS (
     SELECT c.*
     FROM candidates c
@@ -417,7 +394,7 @@ BEGIN
   UPDATE user_packages
   SET current_classes_remaining = current_classes_remaining + 1,
     classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
-    status = CASE WHEN (coalesce(current_classes_remaining, 0) + 1) > 0 THEN 'active' ELSE 'expired' END,
+  status = CASE WHEN (coalesce(current_classes_remaining, 0) + 1) > 0 THEN 'active' ELSE 'depleted' END,
     updated_at = now()
   WHERE id = v_refund_pkg_id;
     -- Log refund action for audit
@@ -438,7 +415,7 @@ BEGIN
   UPDATE user_packages
   SET current_classes_remaining = current_classes_remaining + 1,
     classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
-    status = CASE WHEN (coalesce(current_classes_remaining, 0) + 1) > 0 THEN 'active' ELSE 'expired' END,
+  status = CASE WHEN (coalesce(current_classes_remaining, 0) + 1) > 0 THEN 'active' ELSE 'depleted' END,
     updated_at = now()
   FROM to_update
   WHERE user_packages.id = to_update.id;

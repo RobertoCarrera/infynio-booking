@@ -1,6 +1,8 @@
 .admin-cartera-container {
   padding: 1rem;
   min-height: 80vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Ensure three columns inside admin-cartera have equal height and cards fill their column */
@@ -311,7 +313,7 @@
   }
 
   .usuarios-scroll, .cartera-scroll  {
-    max-height: 29vh;
+    max-height: 25vh;
   }
   
   .table-responsive {
