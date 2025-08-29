@@ -55,6 +55,31 @@
   flex-direction: column;
 }
 
+/* Ensure the full-calendar wrapper and the <full-calendar> element can grow
+   to use available vertical space. Some browsers collapse flex children when
+   min-height is not set; set min-height: 0 on flex children and force the
+   calendar to occupy remaining space. */
+.full-calendar-wrapper {
+  flex: 1 1 auto;
+  min-height: 0; /* allow the inner scroller to compute correct height */
+  display: flex;
+  flex-direction: column;
+}
+
+full-calendar {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: block;
+}
+
+/* Ensure FullCalendar's internal containers use available height */
+::ng-deep .fc-view-harness,
+::ng-deep .fc .fc-scroller {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
 /* Header */
 .calendar-header {
   display: flex;

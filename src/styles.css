@@ -1,118 +1,13 @@
 @import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css");
+/* FullCalendar core stylesheet (CDN fallback) - loads FullCalendar v6 styles so
+  timeGrid/dayGrid render properly. Using CDN avoids bundler resolution issues.
+*/
+@import url("https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/main.min.css");
 
-/* Forzar interacción en el calendario de admin, anulando cualquier estilo global */
-.admin-calendar-active .fc,
-.admin-calendar-active .fc-view-harness,
-.admin-calendar-active .fc-daygrid,
-.admin-calendar-active .fc-scrollgrid,
-.admin-calendar-active .fc-daygrid-body,
-.admin-calendar-active .fc-daygrid-week,
-.admin-calendar-active .fc-daygrid-day-frame,
-.admin-calendar-active .fc-timegrid-slots,
-.admin-calendar-active .fc-timegrid-slot {
-  pointer-events: auto !important;
-  user-select: auto !important;
-}
-
-/* Pintar todas las celdas de horas pasadas (en cualquier día) con gris #e0e0e0 */
-.fc .fc-timegrid-slot.fc-past {
-  background-color: #e0e0e0 !important;
-}
-
-.calendar-container, .calendar-content {
-  /* height: 90dvh; */
-  /* max-height: 900dvh; */
-  min-height: 0;
-  box-sizing: border-box;
-  /* overflow: hidden; */
-}
-
-/* Ajusta la altura de las filas de hora para que se repartan el espacio de forma uniforme */
-.fc-timegrid-slots, .fc-timegrid-slot {
-  min-height: auto !important;
-  height: auto !important;
-}
-
-/* Estilo para la franja de descanso - SOLO la primera fila visible */
-.fc .fc-timegrid-slot[data-time="13:00:00"] {
-  background-color: #E8EBE8 !important;
-  border-top: 2px solid #dee2e6 !important;
-  border-bottom: 2px solid #dee2e6 !important;
-  /* Hacer que ocupe el espacio de las 3 horas */
-  min-height: calc(3 * var(--fc-timegrid-slot-height, 48px)) !important;
-}
-
-/* Ocultar COMPLETAMENTE las filas 14:00 y 15:00 */
-.fc .fc-timegrid-slot[data-time="14:00:00"],
-.fc .fc-timegrid-slot[data-time="15:00:00"] {
-  display: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-}
-
-/* Ocultar TODAS las etiquetas de la franja de descanso */
-.fc .fc-timegrid-slot-label[data-time="13:00:00"],
-.fc .fc-timegrid-slot-label[data-time="14:00:00"],
-.fc .fc-timegrid-slot-label[data-time="15:00:00"] {
-  display: none !important;
-}
-
-/* Opcional: ajusta el tamaño de fuente para móviles */
-@media (max-width: 600px) {
-  .fc {
-    font-size: 12px;
-  }
-  .fc .fc-header-toolbar {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 0.5rem;
-  }
-  .fc .fc-header-toolbar .fc-toolbar-chunk {
-    margin-bottom: 0.25rem;
-  }
-  .fc .fc-header-toolbar .fc-toolbar-chunk:first-child {
-    margin-bottom: 0.25rem;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-around !important;
-  }
-  .fc .fc-today-button{
-    min-width: 30%;
-  }
-  .fc .fc-header-toolbar .fc-toolbar-title {
-    font-size: 1.1rem !important;
-    text-align: center;
-    margin-bottom: 0.25rem;
-  }
-  .fc .fc-button-group {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-around !important;
-  }
-  .fc .fc-button-group > .fc-button {
-    min-width: 70px;
-    font-size: 0.95rem;
-    padding: 0.3em 0.6em;
-  }
-}
-
-/* Small utilities used across the app: map the project's min-vh-0 usage to a real rule
-  so flex children can shrink and nested overflow:auto containers can scroll. */
-.min-h-0, .min-vh-0 { min-height: 0 !important; }
-
-/* If any component needs a full-height flex child, use .h-100 or min-vh-100 per Bootstrap. */
-.fc-col-header-cell-cushion, .fc-timegrid-slot-label-cushion, .current-range{
-  color: #424242 !important;
-  pointer-events: none !important;
-}
-
-.fc-timegrid-event-harness:hover{
-  cursor: pointer;
-}
+/* Calendar global rules removed per request.
+  If calendar-specific styling is needed later, add a dedicated file such as
+  src/app/components/calendar/calendar-overrides.css and import it only where used. */
 
 /* --- Admin: disable page-level vertical scrolling for admin routes --- */
 /* Add .route-admin to <body> when on any admin route; these rules completely
@@ -139,16 +34,136 @@ body.route-admin .mobile-list-scroll {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Keep internal scrollbars visible/usable (fallback to default behaviour) */
-body.route-admin .tabla-usuarios,
-body.route-admin .mobile-list-viewport {
-  scrollbar-width: auto;
-  -ms-overflow-style: auto;
+/* Calendar behaviour is now controlled by FullCalendar options in
+  src/app/admin/calendar/admin-calendar.component.ts (slotMinTime, hiddenDays,
+  businessHours). Removed the global CSS overrides to allow native rendering. */
+
+/* User calendar layout: ensure containers provide height so FullCalendar can render */
+.calendar-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100vh; /* occupy viewport height beneath the app header */
 }
 
-body.route-admin .tabla-usuarios::-webkit-scrollbar,
-body.route-admin .mobile-list-viewport::-webkit-scrollbar {
+.calendar-body {
+  flex: 1 1 auto;
+  min-height: 0; /* allow children to shrink and scrollers to size */
+  display: flex;
+}
+
+.calendar-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+full-calendar {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
   display: block;
-  width: 10px;
-  height: 10px;
+}
+
+/* FullCalendar containers must have height: make root and harness fill */
+::ng-deep .fc,
+::ng-deep .fc-view-harness {
+  height: 100% !important;
+}
+
+/* Fallback: ensure a visible minimum height for the calendar grid */
+::ng-deep .fc-view-harness {
+  min-height: 560px !important;
+}
+
+/* Mobile filters overlay: ensure it never affects desktop layout */
+@media (min-width: 992px) {
+  .mobile-filters-backdrop,
+  .mobile-filters-panel { display: none !important; }
+}
+
+/* On mobile, keep them out of normal flow and only visible when .open */
+@media (max-width: 991.98px) {
+  .mobile-filters-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 3000;
+  }
+  .mobile-filters-backdrop.open { display: block; }
+
+  .mobile-filters-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(85vw, 360px);
+    background: #fff;
+    transform: translateX(100%);
+    transition: transform .2s ease;
+    z-index: 3001;
+    display: block; /* present but off-screen until .open */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-filters-panel.open { transform: translateX(0); }
+}
+
+/* Make slots more compact so 07:00–21:00 fits better in common viewports */
+.calendar-container ::ng-deep .fc .fc-timegrid-slot,
+.calendar-container ::ng-deep .fc .fc-timegrid-slots {
+  --fc-timegrid-slot-height: 36px !important; /* default ~48px; tighter */
+}
+
+/* On smaller heights, compact further */
+@media (max-height: 800px) {
+  .calendar-container ::ng-deep .fc .fc-timegrid-slot,
+  .calendar-container ::ng-deep .fc .fc-timegrid-slots {
+  --fc-timegrid-slot-height: 32px !important;
+  }
+}
+
+@media (max-height: 680px) {
+  .calendar-container ::ng-deep .fc .fc-timegrid-slot,
+  .calendar-container ::ng-deep .fc .fc-timegrid-slots {
+  --fc-timegrid-slot-height: 28px !important;
+  }
+}
+
+/* Ensure the inner FullCalendar scroller can scroll if needed */
+.calendar-container ::ng-deep .fc .fc-scroller {
+  overflow-y: scroll !important; /* force scrollbar visibility */
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Ensure the grid stretches to the available height so the inner scroller activates */
+.calendar-container ::ng-deep .fc-scrollgrid,
+.calendar-container ::ng-deep .fc-timegrid,
+.calendar-container ::ng-deep .fc-timegrid-body,
+.calendar-container ::ng-deep .fc-timegrid-slots {
+  height: 100% !important;
+}
+/* Ensure the scroller and day columns reflow when weekends are hidden */
+::ng-deep .fc .fc-scroller,
+::ng-deep .fc .fc-daygrid-day-frame,
+::ng-deep .fc .fc-daygrid-day-events {
+  box-sizing: border-box !important;
+}
+
+/* Optionally style visible slots to indicate business hours */
+::ng-deep .fc .fc-timegrid-slot:not([style*="display: none"]) {
+  background-color: transparent !important;
+}
+
+.fc .fc-scrollgrid-liquid{
+  max-height: 85%;
 }

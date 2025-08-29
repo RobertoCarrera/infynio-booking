@@ -49,14 +49,17 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   dayCellContent: (arg) => {
     return String(arg.dayNumberText).replace(/\D/g, ''); // Solo el número del día
   },
-  slotMinTime: isMobile ? '08:00:00' : '08:00:00',
-  slotMaxTime: isMobile ? '20:00:00' : '20:00:00',
+  // Horario visible total: 07:00 a 21:00
+  slotMinTime: '07:00:00',
+  slotMaxTime: '21:00:00',
   hiddenDays: [0, 6], // Oculta domingos y sábados
   allDaySlot: false,
+  // Slots por hora (marcas cada 60 minutos)
   slotDuration: '01:00:00',
+  // Horario laboral: 07:00–14:00 y 16:00–21:00 (L-V)
   businessHours: [
-    { daysOfWeek: [1,2,3,4,5], startTime: '08:00', endTime: '13:00' },
-    { daysOfWeek: [1,2,3,4,5], startTime: '16:00', endTime: '20:00' }
+    { daysOfWeek: [1,2,3,4,5], startTime: '07:00', endTime: '14:00' },
+    { daysOfWeek: [1,2,3,4,5], startTime: '16:00', endTime: '21:00' }
   ],
   // Selección habilitada en el calendario de admin (configurada en el componente)
   events: [], // Aquí puedes cargar tus reservas
