@@ -60,8 +60,8 @@ body.route-admin .mobile-list-scroll {
    flex layout so the toolbar/header stay visible while the time grid scrolls. */
 .p-wrapper {
   /* keep the wrapper at a fixed height so children can use flex sizing */
-  height: 70vh;
-  max-height: 70vh;
+  height: 85vh;
+  max-height: 85vh;
   /* keep wrapper visible so non-time elements (toolbar, headers) remain in flow */
   overflow: visible;
   /* larger gap below the calendar so following page content doesn't stick */
@@ -139,3 +139,42 @@ body.route-admin .mobile-list-scroll {
 
 /* (removed) axis sizing/overflow overrides */
 /* (removed) misc FullCalendar overrides for user calendar */
+
+/* ------------------------------------------------------------------
+   Improve legibility: increase per-hour slot height for the user calendar
+   Scoped to `.p-wrapper` so admin calendars or other instances aren't affected
+   We use a CSS variable so it's easy to tweak later.
+------------------------------------------------------------------ */
+.p-wrapper {
+  /* default slot min-height (mobile / small screens) */
+  --calendar-slot-min-height: 64px;
+}
+
+@media (min-width: 992px) {
+  .p-wrapper {
+    /* larger rows on desktop */
+    --calendar-slot-min-height: 96px;
+  }
+}
+
+/* Strong, global selectors that target FullCalendar's timeGrid slot elements */
+.p-wrapper .fc .fc-timegrid-slot,
+.p-wrapper .fc .fc-timegrid-slot > .fc-timegrid-slot-lane,
+.p-wrapper .fc .fc-timegrid-slots td,
+.p-wrapper .fc .fc-timegrid-slots tr {
+  min-height: var(--calendar-slot-min-height) !important;
+  height: auto !important;
+}
+
+/* Ensure the time labels remain vertically centered */
+.p-wrapper .fc .fc-timegrid-slot-label,
+.p-wrapper .fc .fc-timegrid-slot .fc-timegrid-slot-label {
+  line-height: var(--calendar-slot-min-height) !important;
+}
+
+/* Slightly reduce font-size on narrow screens to keep labels readable */
+@media (max-width: 575.98px) {
+  .p-wrapper .fc .fc-timegrid-slot-label {
+    font-size: 0.85rem;
+  }
+}
