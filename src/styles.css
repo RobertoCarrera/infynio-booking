@@ -38,132 +38,104 @@ body.route-admin .mobile-list-scroll {
   src/app/admin/calendar/admin-calendar.component.ts (slotMinTime, hiddenDays,
   businessHours). Removed the global CSS overrides to allow native rendering. */
 
-/* User calendar layout: ensure containers provide height so FullCalendar can render */
-.calendar-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100vh; /* occupy viewport height beneath the app header */
-}
-
-.calendar-body {
-  flex: 1 1 auto;
-  min-height: 0; /* allow children to shrink and scrollers to size */
-  display: flex;
-}
-
-.calendar-main {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.calendar-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-full-calendar {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-  display: block;
-}
-
-/* FullCalendar containers must have height: make root and harness fill */
-::ng-deep .fc,
-::ng-deep .fc-view-harness {
-  height: 100% !important;
-}
-
-/* Fallback: ensure a visible minimum height for the calendar grid */
-::ng-deep .fc-view-harness {
-  min-height: 560px !important;
-}
+/* (removed) user calendar layout & overrides — restarting styles */
 
 /* Mobile filters overlay: ensure it never affects desktop layout */
 @media (min-width: 992px) {
-  .mobile-filters-backdrop,
-  .mobile-filters-panel { display: none !important; }
+  /* removed mobile filters styles */
 }
 
 /* On mobile, keep them out of normal flow and only visible when .open */
 @media (max-width: 991.98px) {
-  .mobile-filters-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    z-index: 3000;
-  }
-  .mobile-filters-backdrop.open { display: block; }
-
-  .mobile-filters-panel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    height: 100%;
-    width: min(85vw, 360px);
-    background: #fff;
-    transform: translateX(100%);
-    transition: transform .2s ease;
-    z-index: 3001;
-    display: block; /* present but off-screen until .open */
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .mobile-filters-panel.open { transform: translateX(0); }
+  /* removed mobile filters styles */
 }
 
-/* Make slots more compact so 07:00–21:00 fits better in common viewports */
-.calendar-container ::ng-deep .fc .fc-timegrid-slot,
-.calendar-container ::ng-deep .fc .fc-timegrid-slots {
-  --fc-timegrid-slot-height: 36px !important; /* default ~48px; tighter */
+/* Lightweight page padding for the calendar route */
+.p-wrapper {
+  padding: 1rem; /* small padding on all sides */
+  box-sizing: border-box;
 }
 
-/* On smaller heights, compact further */
-@media (max-height: 800px) {
-  .calendar-container ::ng-deep .fc .fc-timegrid-slot,
-  .calendar-container ::ng-deep .fc .fc-timegrid-slots {
-  --fc-timegrid-slot-height: 32px !important;
+/* Make the calendar area occupy a fixed portion of the viewport and use a
+   flex layout so the toolbar/header stay visible while the time grid scrolls. */
+.p-wrapper {
+  /* keep the wrapper at a fixed height so children can use flex sizing */
+  height: 70vh;
+  max-height: 70vh;
+  /* keep wrapper visible so non-time elements (toolbar, headers) remain in flow */
+  overflow: visible;
+  /* larger gap below the calendar so following page content doesn't stick */
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  .p-wrapper {
+    padding: 1rem 1.5rem; /* larger horizontal padding on desktop */
   }
 }
 
-@media (max-height: 680px) {
-  .calendar-container ::ng-deep .fc .fc-timegrid-slot,
-  .calendar-container ::ng-deep .fc .fc-timegrid-slots {
-  --fc-timegrid-slot-height: 28px !important;
+@media (min-width: 1200px) {
+  .p-wrapper {
+    padding: 1rem 2rem; /* generous margins on wide screens */
+  margin-bottom: 4rem;
   }
 }
 
-/* Ensure the inner FullCalendar scroller can scroll if needed */
-.calendar-container ::ng-deep .fc .fc-scroller {
-  overflow-y: auto !important; /* let browser show scrollbar only when needed */
-  -webkit-overflow-scrolling: touch !important;
+/* Ensure the calendar fills the available inner area */
+.p-wrapper > full-calendar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 50vh; /* ensure reasonable minimum on small screens */
 }
 
-/* Ensure the grid stretches to the available height so the inner scroller activates */
-.calendar-container ::ng-deep .fc-scrollgrid,
-.calendar-container ::ng-deep .fc-timegrid,
-.calendar-container ::ng-deep .fc-timegrid-body,
-.calendar-container ::ng-deep .fc-timegrid-slots {
-  height: 100% !important;
-}
-/* Ensure the scroller and day columns reflow when weekends are hidden */
-::ng-deep .fc .fc-scroller,
-::ng-deep .fc .fc-daygrid-day-frame,
-::ng-deep .fc .fc-daygrid-day-events {
-  box-sizing: border-box !important;
+/* Ensure only FullCalendar's internal scroller (timeGrid) becomes scrollable.
+   This keeps toolbar/header static while the hourly slots scroll vertically. */
+.p-wrapper > full-calendar,
+.p-wrapper > full-calendar .fc {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-/* Optionally style visible slots to indicate business hours */
-::ng-deep .fc .fc-timegrid-slot:not([style*="display: none"]) {
-  background-color: transparent !important;
+/* Allow the view harness to flex and ensure children can shrink properly. */
+.p-wrapper .fc .fc-view-harness {
+  flex: 1 1 auto;
+  min-height: 0; /* important for children with overflow in flex layouts */
+  display: flex;
+  flex-direction: column;
 }
 
-.fc .fc-scrollgrid-liquid{
-  max-height: 85%;
+/* Make only the internal scroller (timeGrid content) take remaining space */
+.p-wrapper .fc .fc-scroller {
+  flex: 1 1 auto;
+  min-height: 0; /* allow it to shrink inside the flex parent */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: none;
 }
+
+/* Make timeGrid hourly slots taller by giving each slot a min-height proportional
+  to the visible calendar area. We assume visible hours 07:00-20:00 (13 slots). */
+.p-wrapper .fc .fc-timegrid-slot {
+  /* fallback: each hour at least ~7.0vh when wrapper max-height is 90vh */
+  min-height: calc(65vh / 13) !important;
+  height: auto !important;
+}
+
+/* Also ensure the slot labels line-height scales so labels stay vertically centered. */
+.p-wrapper .fc .fc-timegrid-slot-label {
+  line-height: calc(65vh / 13) !important;
+}
+
+/* If FullCalendar uses a different internal slot element, include additional selectors */
+.p-wrapper .fc .fc-timegrid-slot > .fc-timegrid-slot-lane,
+.p-wrapper .fc .fc-timegrid-slots td {
+  min-height: calc(65vh / 13) !important;
+}
+
+/* (removed) break hour label/border overrides */
+
+
+/* (removed) axis sizing/overflow overrides */
+/* (removed) misc FullCalendar overrides for user calendar */

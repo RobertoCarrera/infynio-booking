@@ -169,8 +169,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       /* Business hours and visible time range (admin calendar) */
       // Show slots from 07:00 up to 21:00, but businessHours will mark active ranges
       slotMinTime: '07:00:00',
-  // slotMaxTime is exclusive; use 22:00 so the 21:00 label/slot is visible
-  slotMaxTime: '22:00:00',
+      slotMaxTime: '21:00:00',
       // Hide Sunday (0) and Saturday (6)
       hiddenDays: [0, 6],
       // Define two business-hour ranges: 07:00-14:00 and 16:00-21:00 on Mon-Fri
