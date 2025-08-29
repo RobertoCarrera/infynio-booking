@@ -321,11 +321,12 @@ full-calendar {
   }
 }
 
-/* Ensure FullCalendar scroller uses remaining space and last slot is not clipped */
-::ng-deep .fc .fc-scroller {
+/* Ensure FullCalendar scroller uses remaining space and last slot is not clipped (admin only) */
+.admin-calendar-container ::ng-deep .fc .fc-scroller {
   /* keep scroller as main area and ensure small bottom padding so last slot is visible */
   box-sizing: border-box !important;
-  overflow: hidden !important;
+  overflow-y: auto !important; /* permit vertical scrolling inside admin calendar */
+  -webkit-overflow-scrolling: touch !important;
 }
 
 /* Slightly reduce per-slot min-height so full 12 slots (08:00-20:00) fit in typical viewports */

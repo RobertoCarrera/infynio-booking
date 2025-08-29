@@ -141,7 +141,7 @@ full-calendar {
 
 /* Ensure the inner FullCalendar scroller can scroll if needed */
 .calendar-container ::ng-deep .fc .fc-scroller {
-  overflow-y: scroll !important; /* force scrollbar visibility */
+  overflow-y: auto !important; /* let browser show scrollbar only when needed */
   -webkit-overflow-scrolling: touch !important;
 }
 
