@@ -135,7 +135,7 @@ BEGIN
 
     v_classes_remaining := v_classes_remaining - 1;
     v_classes_used := v_classes_used + 1;
-    v_new_status := CASE WHEN v_classes_remaining <= 0 THEN 'expired' ELSE 'active' END;
+  v_new_status := CASE WHEN v_classes_remaining <= 0 THEN 'depleted' ELSE 'active' END;
 
     UPDATE user_packages
     SET 
@@ -207,7 +207,7 @@ BEGIN
     SELECT
       up.id,
       up.current_classes_remaining,
-      up.next_rollover_reset_date,
+  up.expires_at,
       up.purchase_date,
       pa.class_type,
       pa.is_personal,
@@ -221,6 +221,7 @@ BEGIN
       AND up.status = 'active'
       AND up.current_classes_remaining > 0
       AND pa.is_personal = v_is_personal
+<<<<<<< Updated upstream
       AND (
         (up.next_rollover_reset_date IS NOT NULL
           AND date_part('year', up.next_rollover_reset_date) = date_part('year', v_session.schedule_date)
@@ -232,6 +233,11 @@ BEGIN
           AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
         )
       )
+=======
+  AND up.expires_at IS NOT NULL
+  AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
+  AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
+>>>>>>> Stashed changes
   ), filtered AS (
     SELECT c.*
     FROM candidates c
@@ -270,7 +276,7 @@ BEGIN
   ) RETURNING id INTO v_booking_id;
 
   v_classes_remaining := v_classes_remaining - 1;
-  v_new_status := CASE WHEN v_classes_remaining <= 0 THEN 'expired' ELSE 'active' END;
+  v_new_status := CASE WHEN v_classes_remaining <= 0 THEN 'depleted' ELSE 'active' END;
 
   UPDATE user_packages
   SET current_classes_remaining = v_classes_remaining,
@@ -343,29 +349,29 @@ BEGIN
   v_pkg_id := v_booking.user_package_id;
 
   IF v_pkg_id IS NOT NULL THEN
-    UPDATE user_packages
-    SET current_classes_remaining = current_classes_remaining + 1,
-        classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
-        status = case when current_classes_remaining + 1 > 0 and status = 'expired' then 'active' else status end,
-        updated_at = now()
-    WHERE id = v_pkg_id;
+  UPDATE user_packages
+  SET current_classes_remaining = current_classes_remaining + 1,
+    classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
+    status = case when current_classes_remaining + 1 > 0 and status in ('expired','depleted') then 'active' else status end,
+    updated_at = now()
+  WHERE id = v_pkg_id;
   ELSE
     SELECT up.*
     INTO v_pkg
     FROM user_packages up
     WHERE up.user_id = p_user_id
-      AND up.status in ('active','expired')
+      AND up.status in ('active','expired','depleted')
     ORDER BY up.updated_at desc nulls last, up.purchase_date desc
     LIMIT 1
     FOR UPDATE;
 
     IF FOUND THEN
-      UPDATE user_packages
-      SET current_classes_remaining = current_classes_remaining + 1,
-          classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
-          status = case when current_classes_remaining + 1 > 0 and status = 'expired' then 'active' else status end,
-          updated_at = now()
-      WHERE id = v_pkg.id;
+    UPDATE user_packages
+    SET current_classes_remaining = current_classes_remaining + 1,
+      classes_used_this_month = greatest(0, coalesce(classes_used_this_month, 0) - 1),
+      status = case when current_classes_remaining + 1 > 0 and status in ('expired','depleted') then 'active' else status end,
+      updated_at = now()
+    WHERE id = v_pkg.id;
     END IF;
   END IF;
 
@@ -425,7 +431,7 @@ BEGIN
     WITH to_update AS (
       SELECT id
       FROM user_packages
-      WHERE user_id = v_user_id AND status IN ('active','expired')
+    WHERE user_id = v_user_id AND status IN ('active','expired','depleted')
       ORDER BY purchase_date ASC
       LIMIT 1
     )

@@ -210,8 +210,8 @@ export class CarteraClasesService {
             is_personal
           )
         `)
-        .eq('user_id', userId)
-        .eq('status', 'active')
+  .eq('user_id', userId)
+  .in('status', ['active','depleted'])
         .order('purchase_date', { ascending: false })
     ).pipe(
       map(response => {
@@ -220,12 +220,6 @@ export class CarteraClasesService {
         return (response.data || []).map(item => {
           const packageData = item.packages as any;
           
-          // Calcular días hasta expiración/rollover: usar expires_at si existe; si no, usar next_rollover_reset_date
-          const deadlineStr: string | null = item.expires_at || item.next_rollover_reset_date || null;
-          const daysUntilRollover = deadlineStr
-            ? Math.ceil((new Date(deadlineStr).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-            : null;
-
           return {
             ...item,
             package_name: packageData.name,
@@ -234,8 +228,8 @@ export class CarteraClasesService {
             package_price: packageData.price,
             package_is_single_class: packageData.is_single_class,
             package_is_personal: packageData.is_personal,
-            days_until_rollover: daysUntilRollover,
-            rollover_status: daysUntilRollover && daysUntilRollover > 0 ? 'active' : daysUntilRollover === null ? 'pending' : 'expired'
+            days_until_rollover: item.expires_at ? Math.ceil((new Date(item.expires_at).getTime() - Date.now()) / (1000*60*60*24)) : null,
+            rollover_status: item.expires_at ? (new Date(item.expires_at) > new Date() ? 'active' : 'expired') : 'pending'
           } as UserPackageDetailed;
         });
       })
@@ -312,6 +306,7 @@ export class CarteraClasesService {
         if (packageResponse.error) throw packageResponse.error;
         
   newUserPackage.current_classes_remaining = packageResponse.data.class_count;
+  // ensure date-only and EOM
   newUserPackage.expires_at = exp;
 
         return from(
@@ -323,8 +318,8 @@ export class CarteraClasesService {
         );
       }),
       map(response => {
-        if (response.error) throw response.error;
-        console.debug('agregarPackageAUsuario: inserted next_rollover_reset_date=', response.data?.next_rollover_reset_date);
+  if (response.error) throw response.error;
+  console.debug('agregarPackageAUsuario: inserted expires_at=', response.data?.expires_at);
         return response.data;
       })
     );
@@ -338,10 +333,8 @@ export class CarteraClasesService {
       this.supabaseService.supabase.rpc('modify_user_package', {
         package_id_param: userPackageId,
         current_classes_remaining_param: updateData.current_classes_remaining,
-        monthly_classes_limit_param: updateData.monthly_classes_limit,
         classes_used_this_month_param: updateData.classes_used_this_month,
-        rollover_classes_remaining_param: updateData.rollover_classes_remaining,
-        next_rollover_reset_date_param: updateData.next_rollover_reset_date,
+  expires_at_param: updateData.expires_at,
         status_param: updateData.status
       })
     ).pipe(
@@ -503,7 +496,7 @@ export class CarteraClasesService {
         return [classTypeId];
       })();
 
-      // Intento 1: con mapping y obtención de next_rollover_reset_date
+    // Intento 1: con mapping y obtención de expires_at
     const mapped = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
@@ -511,7 +504,6 @@ export class CarteraClasesService {
           current_classes_remaining,
           status,
       expires_at,
-          next_rollover_reset_date,
           packages!inner (
             id,
             is_personal,
@@ -550,7 +542,7 @@ export class CarteraClasesService {
           const mapping = (pkg.package_allowed_class_types || []) as Array<{ class_type_id: number }>;
           const mappedMatch = mapping.some(m => acceptableTypes.includes(m.class_type_id) || m.class_type_id === acceptableTypeLegacy);
           const directMatch = acceptableTypes.includes(pkg.class_type) || (pkg.class_type === acceptableTypeLegacy);
-          return personalMatch && (mappedMatch || directMatch) && checkExpiryOrMonth(row);
+          return personalMatch && (mappedMatch || directMatch) && checkMonthMatch(row.expires_at);
         });
         return ok;
       }
@@ -563,7 +555,6 @@ export class CarteraClasesService {
           current_classes_remaining,
           status,
       expires_at,
-          next_rollover_reset_date,
           packages!inner (
             class_type,
             is_personal
@@ -585,7 +576,7 @@ export class CarteraClasesService {
         if (!pkg) return false;
         const personalMatch = pkg.is_personal === isPersonal;
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
-        return personalMatch && typeMatch && (row.expires_at ? (sessionDate <= new Date(row.expires_at)) : checkMonthMatch(row.next_rollover_reset_date));
+  return personalMatch && typeMatch && checkMonthMatch(row.expires_at);
       });
     })());
   }
@@ -635,7 +626,7 @@ export class CarteraClasesService {
         .from('user_packages')
         .select('*')
         .eq('status', 'active')
-        .lte('next_rollover_reset_date', today)
+        .lte('expires_at', today)
     ).pipe(
       switchMap(response => {
         if (response.error) throw response.error;
@@ -652,10 +643,9 @@ export class CarteraClasesService {
           nextMonth.setMonth(nextMonth.getMonth() + 1, 7);
           
           return this.modificarUserPackage(userPackage.id, {
-            rollover_classes_remaining: userPackage.current_classes_remaining,
-            classes_used_this_month: 0,
-            next_rollover_reset_date: nextMonth.toISOString().split('T')[0]
-          });
+              classes_used_this_month: 0,
+              expires_at: nextMonth.toISOString().split('T')[0]
+            });
         });
 
         return forkJoin(updates);

@@ -134,7 +134,7 @@ interface UserWithPackages {
               <li *ngFor="let up of user.packages" class="package-item">
                 <div class="pkg-info">
                   <strong>{{ up.package?.name || 'Admin Pack' }}</strong>
-                  <span class="pkg-meta">(clases: {{ up.current_classes_remaining }} | caduca: {{ up.expires_at || up.next_rollover_reset_date || '-' }})</span>
+                  <span class="pkg-meta">(clases: {{ up.current_classes_remaining }} | caduca: {{ up.expires_at || '-' }})</span>
                 </div>
                 <div class="pkg-actions">
                   <button class="delete-btn" (click)="onDeleteUserPackage(up.id)">Eliminar bono</button>

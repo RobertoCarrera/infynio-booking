@@ -81,27 +81,30 @@ npm run build
 
 ## 💾 Estructura de Datos
 
-### Packages
-```sql
-- id: SERIAL PRIMARY KEY
-- name: VARCHAR(100) - Nombre del paquete
-- class_type: VARCHAR(20) - 'MAT_FUNCIONAL' | 'REFORMER'
-- class_count: INTEGER - Número de clases
-- price: DECIMAL(10,2) - Precio en euros (solo referencia)
-- is_single_class: BOOLEAN - Si es clase suelta
-- is_personal: BOOLEAN - Si es clase personalizada
-```
-
 ### User Packages
 ```sql
 - id: SERIAL PRIMARY KEY
 - user_id: INTEGER - ID del usuario
 - package_id: INTEGER - ID del paquete (puede ser NULL para paquetes admin)
 - current_classes_remaining: INTEGER - Clases totales disponibles
+- classes_used_this_month: INTEGER - Clases usadas este mes
+- status: VARCHAR(20) - 'active' | 'depleted' | 'expired' | 'suspended'
+
+Notes:
+- 'depleted' is set when a package's classes reach 0 but its expiration date has not passed; depleted packages remain visible in the user's wallet.
+- 'expired' is reserved for date-based expiration (when expires_at is in the past).
+- Monthly rollover counters were removed: availability is tracked via current_classes_remaining and date-based expiry via expires_at.
+```
+- package_id: INTEGER - ID del paquete (puede ser NULL para paquetes admin)
+- current_classes_remaining: INTEGER - Clases totales disponibles
 - monthly_classes_limit: INTEGER - Límite mensual
 - classes_used_this_month: INTEGER - Clases usadas este mes
 - rollover_classes_remaining: INTEGER - Clases acumuladas
-- status: VARCHAR(20) - 'active' | 'expired' | 'suspended'
+- status: VARCHAR(20) - 'active' | 'depleted' | 'expired' | 'suspended'
+
+Notes:
+- 'depleted' is set when a package's classes reach 0 but its expiration date has not passed; depleted packages remain visible in the user's wallet.
+- 'expired' is reserved for date-based expiration (when expires_at / next_rollover_reset_date is in the past).
 ```
 
 ## �‍💼 Interfaz de Administración

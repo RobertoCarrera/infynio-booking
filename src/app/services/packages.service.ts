@@ -20,12 +20,9 @@ export interface UserPackage {
   purchase_date: string;
   activation_date?: string;
   current_classes_remaining: number;
-  monthly_classes_limit: number;
   classes_used_this_month: number;
-  rollover_classes_remaining: number;
-  next_rollover_reset_date?: string;
-  expires_at?: string; // new explicit expiry
-  status: 'active' | 'expired' | 'suspended';
+  expires_at?: string;
+  status: 'active' | 'expired' | 'suspended' | 'depleted';
   package?: Package;
 }
 
@@ -61,15 +58,14 @@ export class PackagesService {
   async getUserActivePackages(userId: number): Promise<UserPackage[]> {
     try {
       const { data, error } = await this.supabase.supabase
-        .from('user_packages')
-        .select(`
+          .from('user_packages')
+          .select(`
             *,
             package:packages(*)
           `)
-        .eq('user_id', userId)
-        // Include both active and expired packages so a bono reduced to 0 is still visible in the cartera
-        .in('status', ['active', 'expired'])
-        .order('created_at', { ascending: false });
+          .eq('user_id', userId)
+          .in('status', ['active','depleted'])
+          .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching user packages:', error);
@@ -118,31 +114,27 @@ export class PackagesService {
         return toDateOnly(last);
       };
 
-      // Build payload depending on single-class vs monthly
-      const isSingle = !!packageData.is_single_class;
-      const expiresAt = isSingle ? toDateOnlyFromAny(expirationDate) : undefined;
-      let nextRolloverResetDate: string | undefined;
-      if (!isSingle) {
-        // monthly: keep monthly EOM behaviour unless caller overrides
-        if (expirationDate) {
-          nextRolloverResetDate = endOfMonthDateOnly(expirationDate.split('T')[0]);
-        } else {
-          const now = new Date();
-          const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-          nextRolloverResetDate = toDateOnly(lastOfNext);
-        }
+      // Si el llamador pasa una expirationDate, úsala (normalizar si viene con time)
+      let expiresAt: string;
+      if (expirationDate) {
+        // Accept 'YYYY-MM-DD' or ISO; normalize to EOM date-only
+        const raw = expirationDate.split('T')[0];
+        expiresAt = endOfMonthDateOnly(raw);
+      } else {
+        // last day of next month, date-only
+        const now = new Date();
+        const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        expiresAt = toDateOnly(lastOfNext);
       }
 
-      const newUserPackage: any = {
+  const newUserPackage = {
         user_id: userId,
         package_id: packageId,
         purchase_date: purchaseDate,
         activation_date: activationDate,
         current_classes_remaining: packageData.class_count,
-        monthly_classes_limit: packageData.class_count,
         classes_used_this_month: 0,
-        rollover_classes_remaining: 0,
-        ...(isSingle ? { expires_at: expiresAt } : { next_rollover_reset_date: nextRolloverResetDate }),
+  expires_at: expiresAt,
         status: 'active' as const
       };
 
@@ -194,12 +186,11 @@ export class PackagesService {
       );
 
       const calculateTotals = (packages: UserPackage[]) => {
-        const monthly = packages.reduce((sum, pkg) => sum + (pkg.monthly_classes_limit - pkg.classes_used_this_month), 0);
-        const rollover = packages.reduce((sum, pkg) => sum + pkg.rollover_classes_remaining, 0);
+        const total = packages.reduce((sum, pkg) => sum + pkg.current_classes_remaining, 0);
         return {
-          total: monthly + rollover,
-          monthly,
-          rollover,
+          total,
+          monthly: 0,
+          rollover: 0,
           packages
         };
       };
@@ -220,8 +211,7 @@ export class PackagesService {
       // Obtener paquetes activos del tipo específico
       const userPackages = await this.getUserActivePackages(userId);
       const availablePackages = userPackages.filter(
-        pkg => pkg.package?.class_type === classType && 
-               (pkg.monthly_classes_limit - pkg.classes_used_this_month > 0 || pkg.rollover_classes_remaining > 0)
+        pkg => pkg.package?.class_type === classType && pkg.current_classes_remaining > 0
       );
 
       if (availablePackages.length === 0) {
@@ -229,12 +219,9 @@ export class PackagesService {
       }
 
       // Usar primero las clases del mes actual, luego las de rollover
-      let packageToUpdate = availablePackages.find(
-        pkg => pkg.monthly_classes_limit - pkg.classes_used_this_month > 0
-      );
+      let packageToUpdate = availablePackages.find(pkg => pkg.current_classes_remaining > 0);
 
       if (packageToUpdate) {
-        // Usar clase del mes actual
         const { error } = await this.supabase.supabase
           .from('user_packages')
           .update({
@@ -244,20 +231,6 @@ export class PackagesService {
           .eq('id', packageToUpdate.id);
 
         if (error) throw error;
-      } else {
-        // Usar clase de rollover
-        packageToUpdate = availablePackages.find(pkg => pkg.rollover_classes_remaining > 0);
-        if (packageToUpdate) {
-          const { error } = await this.supabase.supabase
-            .from('user_packages')
-            .update({
-              rollover_classes_remaining: packageToUpdate.rollover_classes_remaining - 1,
-              current_classes_remaining: packageToUpdate.current_classes_remaining - 1
-            })
-            .eq('id', packageToUpdate.id);
-
-          if (error) throw error;
-        }
       }
 
       return true;
@@ -291,7 +264,7 @@ export class PackagesService {
         })
         .eq('id', packageToUpdate.id);
 
-      if (error) throw error;
+  if (error) throw error;
 
       return true;
     } catch (error) {
@@ -313,7 +286,7 @@ export class PackagesService {
           .from('user_packages')
           .update({
             current_classes_remaining: existingPackage.current_classes_remaining + amount,
-            monthly_classes_limit: existingPackage.monthly_classes_limit + amount
+            // removed monthly_classes_limit as part of model simplification
           })
           .eq('id', existingPackage.id);
 
@@ -334,18 +307,16 @@ export class PackagesService {
         const now = new Date();
         const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
         const defaultNext = toDateOnly(lastOfNext);
-        const nextReset = expirationDate ? endOfMonthDateOnly(expirationDate.split('T')[0]) : defaultNext;
+  const expiresAt = expirationDate ? endOfMonthDateOnly(expirationDate.split('T')[0]) : defaultNext;
 
-        const packageData = {
+  const packageData = {
           user_id: userId,
           package_id: null, // No está asociado a un paquete específico
           purchase_date: new Date().toISOString(),
           activation_date: new Date().toISOString(),
           current_classes_remaining: amount,
-          monthly_classes_limit: amount,
           classes_used_this_month: 0,
-          rollover_classes_remaining: 0,
-          expires_at: expirationDate ? expirationDate.split('T')[0] : defaultNext,
+          expires_at: expiresAt,
           status: 'active' as const
         };
 
@@ -403,24 +374,22 @@ export class PackagesService {
       // Quitar clases del paquete más reciente
       const packageToUpdate = availablePackages[0];
       const newRemaining = Math.max(0, packageToUpdate.current_classes_remaining - amount);
-      const newMonthlyLimit = Math.max(0, packageToUpdate.monthly_classes_limit - amount);
-
       const { error } = await this.supabase.supabase
         .from('user_packages')
         .update({
           current_classes_remaining: newRemaining,
-          monthly_classes_limit: newMonthlyLimit,
-          classes_used_this_month: Math.min(packageToUpdate.classes_used_this_month, newMonthlyLimit)
+          // removed monthly_classes_limit
+          classes_used_this_month: Math.min(packageToUpdate.classes_used_this_month, newRemaining)
         })
         .eq('id', packageToUpdate.id);
 
       if (error) throw error;
 
-      // Si las clases llegan a 0, marcar como expirado
+      // Si las clases llegan a 0, marcar como depleted (se muestra en cartera)
       if (newRemaining === 0) {
         const { error: statusError } = await this.supabase.supabase
           .from('user_packages')
-          .update({ status: 'inactive' })
+          .update({ status: 'depleted' })
           .eq('id', packageToUpdate.id);
 
         if (statusError) throw statusError;

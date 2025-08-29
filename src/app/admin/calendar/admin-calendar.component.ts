@@ -1847,7 +1847,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     // 3. Actualizar el paquete del usuario
     const newClassesRemaining = userPackage.current_classes_remaining - 1;
     const newClassesUsed = userPackage.classes_used_this_month + 1;
-    const newStatus = newClassesRemaining <= 0 ? 'expired' : 'active';
+  const newStatus = newClassesRemaining <= 0 ? 'depleted' : 'active';
 
     const { error: packageUpdateError } = await this.supabaseService.supabase
       .from('user_packages')
@@ -1936,7 +1936,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     // 3. Actualizar el paquete del usuario
     const newClassesRemaining = userPackage.current_classes_remaining - 1;
     const newClassesUsed = userPackage.classes_used_this_month + 1;
-    const newStatus = newClassesRemaining <= 0 ? 'expired' : 'active';
+  const newStatus = newClassesRemaining <= 0 ? 'depleted' : 'active';
 
     const { error: packageUpdateError } = await this.supabaseService.supabase
       .from('user_packages')

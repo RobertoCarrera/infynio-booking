@@ -55,7 +55,6 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
 
     this.modificarForm = this.fb.group({
       current_classes_remaining: [0, [Validators.required, Validators.min(0)]],
-      rollover_classes_remaining: [0, [Validators.min(0)]],
       classes_used_this_month: [0, [Validators.min(0)]],
       status: ['active', Validators.required]
     });
@@ -206,7 +205,6 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.showModificarModal = true;
     this.modificarForm.patchValue({
       current_classes_remaining: entrada.clases_disponibles,
-      rollover_classes_remaining: entrada.rollover_classes_remaining,
       classes_used_this_month: entrada.classes_used_this_month,
       status: entrada.status
     });
@@ -229,7 +227,6 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
 
     const updateData: UpdateUserPackage = {
       current_classes_remaining: formData.current_classes_remaining,
-      rollover_classes_remaining: formData.rollover_classes_remaining,
       classes_used_this_month: formData.classes_used_this_month,
       status: formData.status
     };
@@ -374,17 +371,19 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   getRolloverStatus(entrada: CarteraClase): string {
-    // Preferir fecha_expiracion (que ya resuelve expires_at || next_rollover_reset_date)
-    const deadline = entrada.fecha_expiracion || entrada.next_rollover_reset_date;
-    if (!deadline) return 'Sin fecha de caducidad';
+  if (!entrada.expires_at) return 'Sin fecha de rollover';
 
-    const today = new Date();
-    const d = new Date(deadline);
-    const daysLeft = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysLeft > 0) return `${daysLeft} días restantes`;
-    if (daysLeft === 0) return 'Vence hoy';
-    return 'Vencido';
+  const today = new Date();
+  const rolloverDate = new Date(entrada.expires_at as string);
+    const daysLeft = Math.ceil((rolloverDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysLeft > 0) {
+      return `${daysLeft} días hasta rollover`;
+    } else if (daysLeft === 0) {
+      return 'Rollover hoy';
+    } else {
+      return 'Rollover vencido';
+    }
   }
 
   clearMessages() {

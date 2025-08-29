@@ -18,12 +18,9 @@ export interface UserPackage {
   purchase_date: string;
   activation_date?: string;
   current_classes_remaining: number;
-  monthly_classes_limit?: number;
   classes_used_this_month: number;
-  rollover_classes_remaining: number;
-  next_rollover_reset_date?: string;
   expires_at?: string;
-  status: 'active' | 'inactive' | 'expired' | 'pending';
+  status: 'active' | 'inactive' | 'expired' | 'pending' | 'depleted';
   
   // Relación con package (para cuando hagamos JOIN)
   package?: Package;
@@ -64,8 +61,8 @@ export interface CarteraClase {
   // Campos adicionales para la nueva lógica
   monthly_classes_limit?: number;
   classes_used_this_month: number;
-  rollover_classes_remaining: number;
-  next_rollover_reset_date?: string;
+  // rollover removed; use expires_at
+  expires_at?: string;
   status: string;
   package_name: string;
   package_price: number;
@@ -81,10 +78,8 @@ export interface CreateUserPackage {
 
 export interface UpdateUserPackage {
   current_classes_remaining?: number;
-  monthly_classes_limit?: number;
   classes_used_this_month?: number;
-  rollover_classes_remaining?: number;
-  next_rollover_reset_date?: string;
+  expires_at?: string;
   status?: string;
 }
 
@@ -104,12 +99,10 @@ export function mapUserPackageToCarteraClase(userPackage: UserPackageDetailed): 
     clases_disponibles: userPackage.current_classes_remaining,
     clases_totales: userPackage.package_class_count,
     fecha_compra: userPackage.purchase_date,
-  fecha_expiracion: userPackage.expires_at || userPackage.next_rollover_reset_date,
+  fecha_expiracion: userPackage.expires_at,
     activo: userPackage.status === 'active',
-    monthly_classes_limit: userPackage.monthly_classes_limit,
-    classes_used_this_month: userPackage.classes_used_this_month,
-    rollover_classes_remaining: userPackage.rollover_classes_remaining,
-  next_rollover_reset_date: userPackage.next_rollover_reset_date,
+  classes_used_this_month: userPackage.classes_used_this_month,
+  expires_at: userPackage.expires_at,
     status: userPackage.status,
     package_name: userPackage.package_name,
     package_price: userPackage.package_price

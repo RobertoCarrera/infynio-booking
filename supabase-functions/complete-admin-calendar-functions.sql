@@ -141,7 +141,7 @@ BEGIN
     -- Actualizar el paquete
     v_classes_remaining := v_classes_remaining - 1;
     v_classes_used := v_classes_used + 1;
-    v_new_status := CASE WHEN v_classes_remaining <= 0 THEN 'expired' ELSE 'active' END;
+  v_new_status := CASE WHEN v_classes_remaining <= 0 THEN 'depleted' ELSE 'active' END;
 
     UPDATE user_packages
     SET 

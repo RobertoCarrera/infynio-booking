@@ -132,25 +132,24 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION process_monthly_rollover()
 RETURNS VOID AS $$
 BEGIN
-  -- Mover clases no usadas a rollover y resetear el contador mensual
+  -- Resetear contador mensual y preparar expires_at (si aplica)
   UPDATE user_packages 
   SET 
-    rollover_classes_remaining = rollover_classes_remaining + (monthly_classes_limit - classes_used_this_month),
     classes_used_this_month = 0,
-    next_rollover_reset_date = (DATE_TRUNC('month', CURRENT_DATE + INTERVAL '1 month'))::date
+    expires_at = (DATE_TRUNC('month', CURRENT_DATE + INTERVAL '1 month'))::date
   WHERE 
     status = 'active' 
-    AND (next_rollover_reset_date IS NULL OR next_rollover_reset_date <= CURRENT_DATE)
+    AND (expires_at IS NULL OR expires_at <= CURRENT_DATE)
     AND package_id IS NOT NULL 
     AND EXISTS (SELECT 1 FROM packages WHERE id = user_packages.package_id AND NOT is_single_class);
-        
-    -- Expirar clases sueltas que han pasado su fecha
+
+  -- Expirar clases sueltas que han pasado su fecha (usando expires_at)
   UPDATE user_packages 
   SET status = 'expired'
   WHERE 
     status = 'active' 
-    AND next_rollover_reset_date IS NOT NULL
-    AND next_rollover_reset_date <= CURRENT_DATE
+    AND expires_at IS NOT NULL
+    AND expires_at <= CURRENT_DATE
     AND package_id IS NOT NULL
     AND EXISTS (SELECT 1 FROM packages WHERE id = user_packages.package_id AND is_single_class);
 END;
@@ -161,23 +160,19 @@ CREATE OR REPLACE FUNCTION user_class(p_user_id INTEGER, p_class_type TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
     v_package_id INTEGER;
-    v_monthly_available INTEGER;
-    v_rollover_available INTEGER;
+  v_monthly_available INTEGER;
 BEGIN
     -- Buscar un paquete activo del tipo especificado con clases disponibles
     SELECT up.id, 
            (up.monthly_classes_limit - up.classes_used_this_month),
-           up.rollover_classes_remaining
+       up.current_classes_remaining
     INTO v_package_id, v_monthly_available, v_rollover_available
     FROM user_packages up
     LEFT JOIN packages p ON up.package_id = p.id
     WHERE up.user_id = p_user_id 
       AND (p.class_type = p_class_type OR up.package_id IS NULL) -- Admin packages don't have class_type restriction
       AND up.status = 'active'
-      AND (
-          (up.monthly_classes_limit - up.classes_used_this_month) > 0 
-          OR up.rollover_classes_remaining > 0
-      )
+    AND up.current_classes_remaining > 0
     ORDER BY up.created_at DESC
     LIMIT 1;
     
@@ -186,19 +181,12 @@ BEGIN
     END IF;
     
     -- Usar primero las clases del mes actual, luego las de rollover
-    IF v_monthly_available > 0 THEN
-        UPDATE user_packages 
-        SET 
-            classes_used_this_month = classes_used_this_month + 1,
-            current_classes_remaining = current_classes_remaining - 1
-        WHERE id = v_package_id;
-    ELSE
-        UPDATE user_packages 
-        SET 
-            rollover_classes_remaining = rollover_classes_remaining - 1,
-            current_classes_remaining = current_classes_remaining - 1
-        WHERE id = v_package_id;
-    END IF;
+    -- Consumir clase y decrementar contador único current_classes_remaining
+    UPDATE user_packages 
+    SET 
+      classes_used_this_month = classes_used_this_month + 1,
+      current_classes_remaining = current_classes_remaining - 1
+    WHERE id = v_package_id;
     
     RETURN TRUE;
 END;
