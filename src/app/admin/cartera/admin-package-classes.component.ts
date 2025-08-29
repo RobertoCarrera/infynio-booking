@@ -29,9 +29,10 @@ import { Subscription } from 'rxjs';
             <div class="fw-semibold">{{ c.class_name || c.class_type_name || 'Clase' }}</div>
             <div class="text-muted small">{{ formatWhen(c) }}</div>
           </div>
-          <div class="text-end small">
-            <div *ngIf="c.status==='CONFIRMED'" class="badge bg-success">Confirmada</div>
-          </div>
+              <div class="text-end small">
+                <div *ngIf="c.status==='CONFIRMED'" class="badge bg-success">Confirmada</div>
+                <div *ngIf="c.status==='CANCELLED'" class="badge bg-danger ms-1">Cancelled</div>
+              </div>
         </div>
       </li>
     </ul>
@@ -72,7 +73,8 @@ export class AdminPackageClassesComponent implements OnChanges {
       const rows = await supabase
         .from('bookings')
         .select(`*, class_sessions(*, class_types(name))`)
-        .eq('user_package_id', this.userPackageId)
+  .eq('user_package_id', this.userPackageId)
+  .in('status', ['CONFIRMED', 'CANCELLED'])
         .order('booking_date_time', { ascending: true });
       if (rows.error) throw rows.error;
       this.classes = (rows.data || []).map((r: any) => ({
