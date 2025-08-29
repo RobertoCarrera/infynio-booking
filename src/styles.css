@@ -179,24 +179,38 @@ body.route-admin .mobile-list-scroll {
   }
 }
 
-/* Hide the 13:00, 14:00 and 15:00 rows (midday break) in the user calendar
-   Targets FullCalendar's timeGrid rows which expose a data-time attribute. */
-.p-wrapper .fc .fc-timegrid-slots tr[data-time="13:00:00"],
+/* Hide the 14:00 and 15:00 rows/slots in the timeGrid (scoped to .p-wrapper).
+   We include multiple selectors to cover FullCalendar DOM variants across versions.
+*/
 .p-wrapper .fc .fc-timegrid-slots tr[data-time="14:00:00"],
-.p-wrapper .fc .fc-timegrid-slots tr[data-time="15:00:00"] {
-  display: none !important;
-}
-
-/* Also hide any slot elements that expose the same data-time attribute */
-.p-wrapper .fc .fc-timegrid-slot[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-slots tr[data-time="15:00:00"],
 .p-wrapper .fc .fc-timegrid-slot[data-time="14:00:00"],
-.p-wrapper .fc .fc-timegrid-slot[data-time="15:00:00"] {
+.p-wrapper .fc .fc-timegrid-slot[data-time="15:00:00"],
+.p-wrapper .fc .fc-timegrid-slot-lane[data-time="14:00:00"],
+.p-wrapper .fc .fc-timegrid-slot-lane[data-time="15:00:00"],
+.p-wrapper .fc .fc-timegrid-slots td[data-time="14:00:00"],
+.p-wrapper .fc .fc-timegrid-slots td[data-time="15:00:00"] {
   display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+.p-wrapper .fc .fc-timegrid-slots tr[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-slot[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-slot-lane[data-time="13:00:00"],
+.p-wrapper .fc .fc-timegrid-slots td[data-time="13:00:00"] {
+  --calendar-slot-min-height: 45px;
+  height: 45px !important;
+  min-height: 45px !important;
+  background-color: gray;
 }
 
-/* Hide the corresponding axis labels if present */
-.p-wrapper .fc .fc-timegrid-axis tr[data-time="13:00:00"],
-.p-wrapper .fc .fc-timegrid-axis tr[data-time="14:00:00"],
-.p-wrapper .fc .fc-timegrid-axis tr[data-time="15:00:00"] {
-  display: none !important;
+.fc-timegrid-bg-harness{
+  background-color: red;
 }
+
+/* Also hide axis/label cells that may show the hour text */
+/* If axis labels inside hidden rows still appear, we'll target them more
+  specifically later; keeping this comment to remind why we hide those rows. */
