@@ -162,6 +162,59 @@
 	transform: translateX(0%);
 }
 
+/* Booking modal centered, reusing offcanvas-like look but centered */
+.booking-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.5);
+	z-index: 21000; /* above offcanvas and menus */
+	opacity: 0;
+	transition: opacity .18s ease;
+	pointer-events: none;
+}
+.booking-modal-backdrop.show {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.booking-modal {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 21010; /* above backdrop */
+	width: min(720px, 95vw);
+	max-height: 90vh;
+	overflow: auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.booking-modal-dialog {
+	background: var(--bs-body-bg, #fff);
+	border-radius: 10px;
+	box-shadow: 0 12px 40px rgba(2,6,23,0.32);
+	width: 100%;
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	border: 1px solid rgba(0,0,0,0.06);
+}
+.booking-modal-header {
+	padding: 1rem;
+	display:flex;
+	align-items:center;
+	justify-content:space-between;
+	border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.booking-modal-title { margin: 0; font-weight:700; }
+.booking-modal-body { padding: 1rem; overflow:auto; }
+.booking-modal-footer { padding: 0.75rem 1rem; display:flex; gap:0.5rem; justify-content:flex-end; border-top:1px solid rgba(0,0,0,0.04); }
+
+.booking-modal .badge { padding: 0.45rem 0.6rem; border-radius: 6px; font-weight:600; }
+
+
 /* Hide the checkbox visually but keep it accessible */
 .visually-hidden { 
 	position: absolute !important; 

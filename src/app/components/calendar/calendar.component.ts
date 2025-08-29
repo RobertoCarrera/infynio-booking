@@ -1363,7 +1363,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   // Contador robusto de confirmados, evitando depender de available_spots
-  private getConfirmedCount(session: ClassSession): number {
+  public getConfirmedCount(session: ClassSession): number {
     if (typeof session.confirmed_bookings_count === 'number') return session.confirmed_bookings_count;
     // As a weak fallback, infer from available_spots only if present and numeric.
     if (typeof session.available_spots === 'number' && typeof session.capacity === 'number') {
@@ -1372,6 +1372,30 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     // Last resort: derive from bookings array (may be RLS-limited in some envs)
     const confirmed = session.bookings?.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED').length || 0;
     return confirmed;
+  }
+
+  // Helper expuesto para la plantilla: calcula plazas disponibles de forma segura
+  public availableSpotsForTemplate(session: ClassSession): number | null {
+    if (!session) return null;
+    if (typeof session.available_spots === 'number') return session.available_spots;
+    if (typeof session.capacity === 'number') return Math.max(0, (session.capacity || 0) - this.getConfirmedCount(session));
+    return null;
+  }
+
+  // Template helpers to safely read optional or differently-named fields
+  public sessionDuration(session: any): string | number {
+    try {
+      if (!session) return '—';
+      return session.duration_minutes ?? session.class_type_duration ?? '—';
+    } catch { return '—'; }
+  }
+
+  public sessionDescription(session: any): string | null {
+    try { return session?.description ?? null; } catch { return null; }
+  }
+
+  public sessionCapacity(session: any): number | string {
+    try { return session?.capacity ?? '—'; } catch { return '—'; }
   }
 
   // FUNCIÓN CORREGIDA - Confirmar reserva

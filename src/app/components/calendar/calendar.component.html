@@ -64,3 +64,43 @@
 </div>
 
 <!-- Mobile uses the same offcanvas as desktop; we toggle position via classes in CSS/host -->
+
+<!-- Booking modal (centered) -->
+<div class="booking-modal-backdrop fade" [class.show]="showBookingModal" (click)="closeBookingModal()" [attr.aria-hidden]="!showBookingModal"></div>
+
+<div *ngIf="showBookingModal" class="booking-modal" role="dialog" aria-modal="true" [attr.aria-label]="selectedSession ? ('Detalles de ' + selectedSession.class_type_name) : 'Detalles de la sesión'">
+	<div class="booking-modal-dialog">
+		<div class="booking-modal-header">
+			<h5 class="booking-modal-title">{{ selectedSession ? selectedSession.class_type_name : 'Cargando…' }}</h5>
+			<button type="button" class="btn-close text-reset" aria-label="Salir" (click)="closeBookingModal()"></button>
+		</div>
+		<div class="booking-modal-body">
+			<ng-container *ngIf="selectedSession; else loadingBooking">
+				<div class="mb-2 text-muted small">{{ formatDateCapitalMonthWithTime(selectedSession.schedule_date + 'T' + (selectedSession.schedule_time || '00:00:00')) }}</div>
+				<div class="mb-2">
+					<strong>Tipo:</strong> {{ selectedSession.class_type_name }}
+				</div>
+								<div class="mb-2">
+									<strong>Duración:</strong> {{ sessionDuration(selectedSession) }} min
+								</div>
+				<div class="mb-2 text-sm text-muted" *ngIf="isSelectedSessionPersonal()">Esta es una sesión personalizada.</div>
+				<div class="mb-2">
+					<span *ngIf="isSelectedSessionFull()">Llena</span>
+					<span *ngIf="!isSelectedSessionFull()">Plazas disponibles: {{ availableSpotsForTemplate(selectedSession) ?? '—' }}</span>
+				</div>
+				<div class="mt-2 text-danger" *ngIf="modalError">{{ modalError }}</div>
+				<div class="mt-2 text-success" *ngIf="modalSuccess">{{ modalSuccess }}</div>
+			</ng-container>
+			<ng-template #loadingBooking>
+				<div>Cargando detalles de la sesión…</div>
+			</ng-template>
+		</div>
+		<div class="booking-modal-footer">
+			<button type="button" class="btn btn-secondary" (click)="closeBookingModal()">Salir</button>
+			<button type="button" class="btn btn-primary" [disabled]="loadingModal || !userCanBook || isSelectedSessionFull()" (click)="reserveClass()">
+				<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+				Reservar
+			</button>
+		</div>
+	</div>
+</div>
