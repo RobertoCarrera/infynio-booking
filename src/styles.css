@@ -60,8 +60,8 @@ body.route-admin .mobile-list-scroll {
    flex layout so the toolbar/header stay visible while the time grid scrolls. */
 .p-wrapper {
   /* keep the wrapper at a fixed height so children can use flex sizing */
-  height: 85vh;
-  max-height: 85vh;
+  height: 88vh;
+  max-height: 88vh;
   /* keep wrapper visible so non-time elements (toolbar, headers) remain in flow */
   overflow: visible;
   /* larger gap below the calendar so following page content doesn't stick */
@@ -119,19 +119,19 @@ body.route-admin .mobile-list-scroll {
   to the visible calendar area. We assume visible hours 07:00-20:00 (13 slots). */
 .p-wrapper .fc .fc-timegrid-slot {
   /* fallback: each hour at least ~7.0vh when wrapper max-height is 90vh */
-  min-height: calc(65vh / 13) !important;
+  min-height: calc(68vh / 13) !important;
   height: auto !important;
 }
 
 /* Also ensure the slot labels line-height scales so labels stay vertically centered. */
 .p-wrapper .fc .fc-timegrid-slot-label {
-  line-height: calc(65vh / 13) !important;
+  line-height: calc(68vh / 13) !important;
 }
 
 /* If FullCalendar uses a different internal slot element, include additional selectors */
 .p-wrapper .fc .fc-timegrid-slot > .fc-timegrid-slot-lane,
 .p-wrapper .fc .fc-timegrid-slots td {
-  min-height: calc(65vh / 13) !important;
+  min-height: calc(68vh / 13) !important;
 }
 
 /* (removed) break hour label/border overrides */
@@ -147,13 +147,13 @@ body.route-admin .mobile-list-scroll {
 ------------------------------------------------------------------ */
 .p-wrapper {
   /* default slot min-height (mobile / small screens) */
-  --calendar-slot-min-height: 64px;
+  --calendar-slot-min-height: 60px;
 }
 
 @media (min-width: 992px) {
   .p-wrapper {
     /* larger rows on desktop */
-    --calendar-slot-min-height: 96px;
+    --calendar-slot-min-height:  60px;
   }
 }
 
@@ -197,16 +197,6 @@ body.route-admin .mobile-list-scroll {
   margin: 0 !important;
   border: 0 !important;
 }
-.p-wrapper .fc .fc-timegrid-slots tr[data-time="13:00:00"],
-.p-wrapper .fc .fc-timegrid-slot[data-time="13:00:00"],
-.p-wrapper .fc .fc-timegrid-slot-lane[data-time="13:00:00"],
-.p-wrapper .fc .fc-timegrid-slots td[data-time="13:00:00"] {
-  --calendar-slot-min-height: 45px;
-  height: 45px !important;
-  min-height: 45px !important;
-  background-color: gray;
-  color: transparent;
-}
 
 /* Prevent a global bg-harness color from covering slot-specific styles. */
 .p-wrapper .fc .fc-timegrid-bg-harness{
@@ -227,8 +217,8 @@ body.route-admin .mobile-list-scroll {
 .p-wrapper .fc .fc-timegrid-slot[data-time="13:00:00"] > .fc-timegrid-slot-lane,
 .p-wrapper .fc .fc-timegrid-slots td[data-time="13:00:00"] {
   background-color: gray !important;
-  height: 45px !important;
-  min-height: 45px !important;
+  --calendar-slot-min-height: 10px !important;
+  color: transparent;
 }
 
 /* Also hide axis/label cells that may show the hour text */

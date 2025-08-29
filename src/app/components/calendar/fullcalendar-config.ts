@@ -20,7 +20,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   },
   initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
   slotMinTime: '07:00:00',
-  slotMaxTime: '20:00:00',
+  slotMaxTime: '21:00:00',
   hiddenDays: [0, 6],
   allDaySlot: false,
   slotDuration: '01:00:00',
