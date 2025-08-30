@@ -4,6 +4,7 @@
   align-items:center;
   justify-content:space-between;
 }
+.calendar-toolbar { width: 100%; box-sizing: border-box; }
 .calendar-toolbar .chevron { transition: transform 200ms ease; }
 .calendar-toolbar .chevron.rotated { transform: rotate(180deg); }
 

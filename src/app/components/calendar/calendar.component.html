@@ -1,14 +1,4 @@
-<app-calendar-toolbar
-	[currentRangeLabel]="currentRangeLabel"
-	[currentView]="currentView"
-	[isMobile]="isMobile"
-	[filtersCollapsed]="desktopFiltersCollapsed"
-	(prev)="onPrev()"
-	(next)="onNext()"
-	(today)="goToday()"
-	(changeView)="setView($event)"
-	(toggleFilters)="onToolbarToggleFilters()"
-></app-calendar-toolbar>
+<!-- toolbar moved inside the calendar wrapper so it shares the same horizontal padding/width -->
 
 <!-- Shared offcanvas for desktop and mobile. On mobile it appears from the right via .offcanvas-end -->
 <div [class.modal-backdrop]="desktopFiltersOpen || mobileFiltersOpen" [class.fade]="desktopFiltersOpen || mobileFiltersOpen" [class.show]="desktopFiltersOpen || mobileFiltersOpen" (click)="closeFilters()" [attr.aria-hidden]="!(desktopFiltersOpen || mobileFiltersOpen)"></div>
@@ -60,6 +50,23 @@
 
 <!-- Calendar -->
 <div class="calendar-page p-wrapper">
+		<div class="container-fluid px-0">
+			<div class="row justify-content-center">
+				<div class="col-12">
+					<app-calendar-toolbar
+						[currentRangeLabel]="currentRangeLabel"
+						[currentView]="currentView"
+						[isMobile]="isMobile"
+						[filtersCollapsed]="desktopFiltersCollapsed"
+						(prev)="onPrev()"
+						(next)="onNext()"
+						(today)="goToday()"
+						(changeView)="setView($event)"
+						(toggleFilters)="onToolbarToggleFilters()"
+					></app-calendar-toolbar>
+				</div>
+			</div>
+		</div>
 	<div *ngIf="!typesLoaded" class="calendar-loading d-flex align-items-center justify-content-center" style="min-height:300px;">
 		<div class="text-center">
 			<div class="spinner-border" role="status" aria-hidden="true"></div>
