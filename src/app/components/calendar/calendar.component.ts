@@ -1520,8 +1520,24 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     const filteredEvents = (this.events || [])
       .filter(Boolean)
       .filter(event => {
+        if (!event || !event.extendedProps) return false;
+        const session = event.extendedProps.session as any;
+        // If we don't have a session, keep event only if no filter
+        if (!session) return noFilter;
+
+        // Detect personal sessions (same heuristics as extractClassTypes)
+        const KNOWN_PERSONAL_TYPE_IDS = new Set<number>([4, 22, 23]);
+        const ctId = Number(session.class_type_id || -1);
+        const assignedIsValid = Number.isFinite(Number(session.personal_user_id));
+        const isPersonalFlag = !!session.is_personal;
+        const personalByName = /personal|individual/i.test(String(session.class_type_name || ''));
+        const sessionIsPersonal = isPersonalFlag || assignedIsValid || personalByName || KNOWN_PERSONAL_TYPE_IDS.has(ctId);
+
+        // Always include personal sessions so users can see occupied hours.
+        if (sessionIsPersonal) return true;
+
         if (noFilter) return true;
-        return !!event?.extendedProps?.session?.class_type_name && filteredTypes.has(event.extendedProps.session.class_type_name);
+        return !!session.class_type_name && filteredTypes.has(session.class_type_name);
       });
     this.calendarOptions = {
       ...this.calendarOptions,
