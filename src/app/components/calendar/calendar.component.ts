@@ -1582,7 +1582,10 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // Método para unirse a la lista de espera
   joinWaitingList() {
-    if (!this.selectedSession || !this.userNumericId) {
+    if (!this.selectedSession || !this.userNumericId) return;
+    // Ensure user has a valid bono for this month
+    if (!this.userCanBook) {
+      this.modalError = 'No tienes un bono válido para esta sesión; no puedes unirte a la lista de espera.';
       return;
     }
 

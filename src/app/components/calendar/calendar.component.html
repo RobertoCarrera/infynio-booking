@@ -97,16 +97,24 @@
 		</div>
 			<div class="booking-modal-footer">
 				<button type="button" class="btn btn-secondary" (click)="closeBookingModal()">Salir</button>
-				<!-- If already booked, show Cancel button; otherwise show Reserve -->
-				<button *ngIf="selectedSession?.is_self_booked; else reserveBtn" type="button" [ngClass]="{'btn': true, 'btn-danger': true}" [disabled]="loadingModal || !canCancelSelectedBooking()" (click)="cancelOwnBooking()">
+				<!-- If already booked, show Cancel button; otherwise show Reserve/Waitlist actions -->
+				<button *ngIf="selectedSession?.is_self_booked; else notBookedBtns" type="button" [ngClass]="{'btn': true, 'btn-danger': true}" [disabled]="loadingModal || !canCancelSelectedBooking()" (click)="cancelOwnBooking()">
 					<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
 					Cancelar
 				</button>
-				<ng-template #reserveBtn>
-					<button type="button" [ngClass]="{'btn': true, 'btn-success': true}" [disabled]="loadingModal || !userCanBook || isSelectedSessionFull()" (click)="reserveClass()">
+				<ng-template #notBookedBtns>
+					<!-- If session is full, offer waitlist actions; otherwise show reserve -->
+					<button *ngIf="isSelectedSessionFull(); else simpleReserve" type="button" [ngClass]="{'btn': true, 'btn-outline-primary': true}" [disabled]="loadingModal || !userCanBook" (click)="isInWaitingList ? cancelWaitingList() : joinWaitingList()">
 						<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-						Reservar
+						<span *ngIf="!isInWaitingList">Añadir Lista de Espera</span>
+						<span *ngIf="isInWaitingList">Eliminar Lista de Espera</span>
 					</button>
+					<ng-template #simpleReserve>
+						<button type="button" [ngClass]="{'btn': true, 'btn-success': true}" [disabled]="loadingModal || !userCanBook" (click)="reserveClass()">
+							<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+							Reservar
+						</button>
+					</ng-template>
 				</ng-template>
 			</div>
 	</div>
