@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, signal, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FullCalendarModule } from '@fullcalendar/angular';
+import { FullCalendarModule, FullCalendarComponent } from '@fullcalendar/angular';
 import { CalendarOptions } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession } from '../../services/class-sessions.service';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
@@ -20,6 +20,7 @@ import { Subscription } from 'rxjs';
 })
 export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('fullCal', { static: false }) fullCalRef!: ElementRef<any>;
+  @ViewChild('calendar', { static: false }) calendarComponent!: FullCalendarComponent;
   @ViewChild('calendarContent', { static: false }) calendarContentRef!: ElementRef<HTMLElement>;
   // store a direct calendar API reference when available
   private calendarApi: any = null;
@@ -45,6 +46,11 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   isInWaitingList = false;
   waitingListPosition = 0;
   waitingListCount = 0;
+
+  // Toast notification state
+  showToast = false;
+  toastMessage = '';
+  toastType: 'success' | 'error' = 'success';
   
   private subscriptions: Subscription[] = [];
   private isAdmin = false;
@@ -590,7 +596,6 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
               if (!error && data) {
                 this.currentUserId = data.auth_user_id;
                 this.userNumericId = data.id;
-                console.log('Current user UUID:', this.currentUserId, 'Numeric ID:', this.userNumericId);
                 // Obtener rol y luego cargar eventos con el rango adecuado
                 const roleSub = this.supabaseService.getCurrentUserRole().subscribe(role => {
                   this.isAdmin = (role === 'admin');
@@ -1264,7 +1269,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // FUNCIÓN CORREGIDA - Manejo de click en eventos del calendario
   onEventClick(eventInfo: any) {
-    console.log('🔄 Event clicked:', eventInfo.event);
+    
     
   // Validar estructura antes de acceder
   if (!eventInfo || !eventInfo.event || !eventInfo.event.extendedProps || !eventInfo.event.extendedProps.session) {
@@ -1275,12 +1280,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   const session = eventInfo.event.extendedProps.session as ClassSession;
     const confirmedCount = this.getConfirmedCount(session);
     
-    console.log('📊 Session data:', {
-      session,
-      confirmedCount,
-      classTypeName: session.class_type_name,
-      classTypeId: session.class_type_id
-    });
+    
 
   // Si ya estás reservado, abrir modal directamente para opción de cancelar
   if (session.is_self_booked) {
@@ -1360,12 +1360,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   let isPersonal = false;
   isPersonal = /personal|individual/i.test(String(session.class_type_name || ''));
 
-    console.log('🔍 Verificando disponibilidad:', {
-      userId: this.userNumericId,
-      classTypeId,
-      classTypeName: session.class_type_name,
-      isPersonal
-    });
+    
 
   // Verificar si el usuario tiene clases disponibles del tipo y que caducan en el mismo mes de la sesión
     const sub = this.carteraService.tienePaqueteYCoincideMes(this.userNumericId, classTypeId, isPersonal, session.schedule_date)
@@ -1373,7 +1368,6 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         next: (res: { hasAny: boolean; matchesMonth: boolean } | any) => {
           const hasAny = !!res?.hasAny;
           const matchesMonth = !!res?.matchesMonth;
-          console.log('✅ Resultado verificación (paquete+mes):', { hasAny, matchesMonth });
 
           this.userCanBook = matchesMonth;
           this.loadingModal = false;
@@ -1449,12 +1443,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       class_type: this.selectedSession.class_type_name || ''
     };
 
-    console.log('🔄 Creando reserva:', bookingRequest);
+    
 
     const sub = this.classSessionsService.createBooking(bookingRequest)
       .subscribe({
         next: (result) => {
-          console.log('✅ Reserva creada:', result);
+          
           this.modalSuccess = 'Reserva confirmada exitosamente';
           this.loadingModal = false;
           // Forzar modo cancelación en el mismo modal inmediatamente
@@ -1518,19 +1512,68 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     const sub = this.classSessionsService.cancelBooking(bookingId, this.userNumericId)
       .subscribe({
         next: () => {
-          this.modalSuccess = 'Reserva cancelada correctamente';
-          this.loadingModal = false;
-          // Refrescar estado local inmediatamente: ya no está reservado
-          if (this.selectedSession) {
-            this.selectedSession.is_self_booked = false;
-            this.selectedSession.self_booking_id = null;
-            this.selectedSession.self_cancellation_time = null;
-          }
-          // Permitir reservar de nuevo (bono devuelto en backend)
-          this.userCanBook = true;
-          // Recargar eventos para reflejar plazas
-          this.loadEvents();
-          // No cerrar automáticamente: dejar que el usuario decida
+            this.modalSuccess = 'Reserva cancelada correctamente';
+            this.loadingModal = false;
+            // Refrescar estado local inmediatamente: ya no está reservado
+            if (this.selectedSession) {
+              this.selectedSession.is_self_booked = false;
+              this.selectedSession.self_booking_id = null;
+              this.selectedSession.self_cancellation_time = null;
+            }
+            // Permitir reservar de nuevo (bono devuelto en backend)
+            this.userCanBook = true;
+            // Recargar eventos para reflejar plazas
+            this.loadEvents();
+            // If this was a personal session, the session row is deleted on the server.
+            // Close the modal and show a toast notifying the user of the successful cancellation.
+            const isPersonal = !!(this.selectedSession && ((this.selectedSession as any).personal_user_id || /personal|individual/i.test(String(this.selectedSession.class_type_name || ''))));
+            if (isPersonal) {
+                // Capture id before clearing selectedSession in closeBookingModal
+                const sessionId = this.selectedSession?.id;
+                // Close modal first to avoid UI race
+                this.closeBookingModal();
+
+                // Attempt to delete the entire personal session on the server so it disappears
+                // (admin flow uses safeDeleteSession RPC to remove bookings then the session).
+                try {
+                  const subDel = this.classSessionsService.safeDeleteSession(sessionId!)
+                    .subscribe({
+                      next: (delRes: any) => {
+                        // If RPC returned truthy, remove event from calendar and show success
+                        if (delRes) {
+                          try {
+                            const compApi = this.calendarComponent?.getApi?.() as any;
+                            const api = compApi || this.calendarApi || (this.calendarOptions as any).calendarApi;
+                            const fcEvent = api?.getEventById?.(String(sessionId));
+                            if (fcEvent && typeof fcEvent.remove === 'function') fcEvent.remove();
+                            if (typeof api?.refetchEvents === 'function') api.refetchEvents();
+                          } catch (e) {}
+                          // Also remove locally from events so the Angular bindings update
+                          try {
+                            this.events = (this.events || []).filter(e => e && e.id !== String(sessionId));
+                            // trigger calendar update
+                            this.updateCalendarEvents();
+                          } catch (e) {}
+                          this.showToastNotification('Has cancelado la clase personalizada correctamente', 'success');
+                        } else {
+                          // RPC returned falsy: show error and reload events to reflect server state
+                          this.showToastNotification('No se pudo eliminar la sesión personalizada en servidor. Se recargará el calendario.', 'error');
+                          setTimeout(() => { try { this.loadEvents(); } catch {} }, 250);
+                        }
+                      },
+                      error: (rpcErr) => {
+                        this.showToastNotification('Error eliminando la sesión en servidor. Intenta recargar.', 'error');
+                        setTimeout(() => { try { this.loadEvents(); } catch {} }, 250);
+                      },
+                      complete: () => { try { subDel.unsubscribe(); } catch {} }
+                    });
+                  this.subscriptions.push(subDel);
+                } catch (e) {
+                  // If RPC call failed synchronously for some reason, fallback to refresh
+                  try { this.showToastNotification('Error intentando eliminar la sesión personalizada.', 'error'); } catch {}
+                  setTimeout(() => { try { this.loadEvents(); } catch {} }, 250);
+                }
+            }
         },
         error: (err) => {
           this.loadingModal = false;
@@ -1698,6 +1741,140 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isInWaitingList = false;
     this.waitingListPosition = 0;
     this.loadingModal = false;
+  }
+
+  // Small toast notification helpers
+  showToastNotification(message: string, type: 'success' | 'error' = 'success', duration = 3000) {
+    try {
+      this.toastMessage = message;
+      this.toastType = type;
+      this.showToast = true;
+  try { this.cdr.detectChanges(); } catch {}
+      setTimeout(() => {
+        this.hideToast();
+      }, duration);
+      // Also create a DOM-level toast as a robust fallback to avoid stacking/context issues
+      try {
+        this.showDomToast(message, type, duration);
+      } catch (e) {}
+    } catch (e) { }
+  }
+
+  hideToast() {
+    try {
+      this.showToast = false;
+  try { this.cdr.detectChanges(); } catch {}
+      setTimeout(() => { this.toastMessage = ''; }, 240);
+    } catch (e) { }
+  }
+
+  // Fallback: create a toast element directly in document.body to avoid any component stacking context issues
+  private showDomToast(message: string, type: 'success' | 'error' = 'success', duration = 3000) {
+    if (typeof document === 'undefined') return;
+    try {
+      // Create a host element and attach a shadow root to isolate styles
+      const host = document.createElement('div');
+      const shadow = host.attachShadow({ mode: 'open' });
+
+      // wrapper that will be fixed to the viewport with an ultra-high z-index
+      const wrap = document.createElement('div');
+      wrap.className = 'toast-wrap';
+      wrap.setAttribute('role', 'status');
+      wrap.setAttribute('aria-live', 'polite');
+
+      // toast element
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+
+      // content
+      const content = document.createElement('div');
+      content.className = 'toast-content';
+      content.innerHTML = `<div>${message}</div>`;
+
+      // close button
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'toast-close';
+      closeBtn.type = 'button';
+      closeBtn.setAttribute('aria-label', 'Cerrar');
+      closeBtn.textContent = '✕';
+      closeBtn.addEventListener('click', () => {
+        try { toast.classList.remove('show'); } catch (e) {}
+        setTimeout(() => { try { host.remove(); } catch (e) {} }, 260);
+      });
+
+      toast.appendChild(content);
+      toast.appendChild(closeBtn);
+      wrap.appendChild(toast);
+
+      // Inline styles inside the shadow root to avoid any page CSS interference
+      const style = document.createElement('style');
+      style.textContent = `
+        :host { all: initial; }
+        .toast-wrap {
+          position: fixed !important;
+          right: 16px !important;
+          bottom: 16px !important;
+          z-index: 2147483647 !important; /* max 32-bit signed int */
+          pointer-events: auto !important;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          align-items: flex-end;
+          isolation: isolate !important;
+          font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+        .toast {
+          min-width: 240px;
+          max-width: 520px;
+          color: #fff;
+          padding: 12px 14px;
+          border-radius: 10px;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          transform: translateY(10px);
+          opacity: 0;
+          transition: transform 220ms ease, opacity 220ms ease;
+          font-size: 13px;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-close {
+          background: transparent;
+          border: none;
+          color: inherit;
+          font-size: 14px;
+          cursor: pointer;
+          padding: 6px;
+        }
+      `;
+
+      // apply background color according to type (set via inline style to avoid cascade)
+      if (type === 'success') {
+        toast.style.background = '#1a7f37';
+      } else {
+        toast.style.background = '#b00020';
+      }
+
+      shadow.appendChild(style);
+      shadow.appendChild(wrap);
+      wrap.appendChild(toast);
+
+      // Append host to body (outside any app stacking context)
+      document.body.appendChild(host);
+
+      // show animation on next frame
+      requestAnimationFrame(() => { try { toast.classList.add('show'); } catch (e) {} });
+
+      // auto-remove
+      setTimeout(() => {
+        try { toast.classList.remove('show'); } catch (e) {}
+        setTimeout(() => { try { host.remove(); } catch (e) {} }, 260);
+      }, duration);
+    } catch (e) {
+      // best-effort: ignore errors here since toast shouldn't block main flow
+    }
   }
 
   // Método para reservar clase (llamado desde el template)

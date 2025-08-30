@@ -119,3 +119,11 @@
 			</div>
 	</div>
 </div>
+
+<!-- Shared admin-style toast (global styles in src/styles.css) -->
+<div class="toast-container" [class.show]="showToast" aria-live="polite" aria-atomic="true">
+	<div class="toast" [class.toast-success]="toastType === 'success'" [class.toast-error]="toastType === 'error'">
+		<div class="toast-content"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><div>{{ toastMessage }}</div></div>
+		<button class="toast-close" type="button" aria-label="Cerrar" (click)="hideToast()">✕</button>
+	</div>
+</div>

@@ -252,6 +252,106 @@ body.route-admin .mobile-list-scroll {
 .mobile-filters-content { position: relative; width: 100%; max-width: 520px; background: #fff; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 -8px 30px rgba(2,6,23,0.12); padding: 1rem; max-height: 80vh; overflow: auto; }
 .mobile-filters-panel .filters-body { margin-top: 0.5rem; }
 
+/* ==============================================
+   Shared TOAST NOTIFICATIONS (copied from admin styles)
+   Placed in global styles so admin and user calendars share the same look.
+   ============================================== */
+
+.toast-container {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  left: auto;
+  transform: none;
+  z-index: 24000; /* above modals/backdrops */
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.toast-container.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.toast {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 500px;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  margin: 0 20px;
+  border-left: 4px solid #28a745;
+  animation: slideInDown 0.3s ease-out;
+  pointer-events: auto; /* allow clicks on close */
+}
+
+.toast-success {
+  border-left-color: #28a745;
+}
+
+.toast-error {
+  border-left-color: #dc3545;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+}
+
+.toast-content i {
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+.toast-success .toast-content i {
+  color: #28a745;
+}
+
+.toast-error .toast-content i {
+  color: #dc3545;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 16px;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Backwards compatibility: keep slideInDown name working for any existing uses */
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 991.98px) {
   .desktop-filters { display: none !important; }
   .calendar-main { flex-direction: column; }
