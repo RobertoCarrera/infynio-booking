@@ -87,6 +87,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   private _boundTransitionHandlers: Array<{ el: Element; handler: (e: Event)=>void }>=[];
   private _mutationObserver: MutationObserver | null = null;
   private _vvHandlers: Array<{ type: string; handler: any }> = [];
+  // touch bindings added at runtime (so they can be removed cleanly)
+  // use a permissive handler type to avoid strict Event vs TouchEvent mismatch
+  private _touchBindings: Array<{ el: Element; name: string; handler: any }> = [];
   // Escape key handler for desktop offcanvas
   private _escapeListener = (e: KeyboardEvent) => {
     try {
@@ -152,36 +155,26 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.calendarOptions = { ...this.calendarOptions, views };
       try { this.cdr.detectChanges(); } catch {}
     } catch (e) {}
-    // attach touch listeners for swipe navigation on mobile
+    // attempt to attach swipe handlers to FullCalendar's internal scroller
     try {
-      const el = this.calendarContentRef?.nativeElement;
-      if (el && this.isMobile) {
-        let startX: number | null = null;
-        let startY: number | null = null;
-        const onTouchStart = (ev: TouchEvent) => {
-          if (ev.touches && ev.touches.length === 1) {
-            startX = ev.touches[0].clientX;
-            startY = ev.touches[0].clientY;
+      // try immediately and again after short delays to cope with async rendering
+      const tryAttach = () => { try { this.findAndAttachScrollEl(); } catch {} };
+      tryAttach();
+      setTimeout(tryAttach, 120);
+      setTimeout(tryAttach, 420);
+      // if after a short delay there are still no scroller-specific bindings,
+      // attach a global document-level handler that activates only when the
+      // touchstart originates inside the calendar container. This is a robust
+      // fallback for FullCalendar builds that render scrollers outside the
+      // wrapper element.
+      setTimeout(() => {
+        try {
+          if (this._touchBindings.length === 0) {
+            try { this.attachGlobalTouchHandlers(); } catch {}
           }
-        };
-        const onTouchEnd = (ev: TouchEvent) => {
-          if (startX == null || startY == null) return;
-          const endX = ev.changedTouches[0].clientX;
-          const endY = ev.changedTouches[0].clientY;
-          const dx = endX - startX;
-          const dy = endY - startY;
-          // require horizontal swipe with sufficient magnitude and mostly horizontal
-          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-            if (dx < 0) this.onNext(); else this.onPrev();
-          }
-          startX = null; startY = null;
-        };
-        el.addEventListener('touchstart', onTouchStart, { passive: true });
-        el.addEventListener('touchend', onTouchEnd, { passive: true });
-      }
-    } catch (e) {
-      // non-critical
-    }
+        } catch {}
+      }, 600);
+    } catch (e) {}
     // listen to resize to update isMobile
     try {
       if (typeof window !== 'undefined') {
@@ -259,6 +252,162 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   watchTransition('.modal-backdrop');
       watchTransition('.offcanvas');
     } catch {}
+  }
+
+  // Attach global handlers on document as a fallback. They only trigger when
+  // the initial touch occurs inside our calendar content element.
+  private attachGlobalTouchHandlers() {
+    try {
+      if (!this.isMobile) return;
+      const doc = document as any;
+      let startX: number | null = null;
+      let startY: number | null = null;
+      let tracking = false;
+
+      const onStart = (ev: TouchEvent) => {
+        try {
+          if (!ev.touches || ev.touches.length !== 1) return;
+          const t = ev.touches[0];
+          const root = this.calendarContentRef?.nativeElement as HTMLElement | null;
+          if (!root) return;
+          const target = ev.target as Node;
+          if (root.contains(target)) {
+            startX = t.clientX; startY = t.clientY; tracking = true;
+          }
+        } catch {}
+      };
+
+      const onMove = (ev: TouchEvent) => {
+        try {
+          if (!tracking || startX == null || startY == null) return;
+          const tx = ev.touches[0].clientX;
+          const ty = ev.touches[0].clientY;
+          const dx = tx - startX;
+          const dy = ty - startY;
+          if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
+        } catch {}
+      };
+
+      const onEnd = (ev: TouchEvent) => {
+        try {
+          if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
+          const endX = ev.changedTouches[0].clientX;
+          const endY = ev.changedTouches[0].clientY;
+          const dx = endX - startX;
+          const dy = endY - startY;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+          if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+        } catch {}
+        startX = null; startY = null; tracking = false;
+      };
+
+      const onCancel = () => { startX = null; startY = null; tracking = false; };
+
+      doc.addEventListener('touchstart', onStart, { passive: true });
+      doc.addEventListener('touchmove', onMove, { passive: false });
+      doc.addEventListener('touchend', onEnd, { passive: true });
+      doc.addEventListener('touchcancel', onCancel, { passive: true });
+
+      this._touchBindings.push({ el: doc, name: 'touchstart', handler: onStart });
+      this._touchBindings.push({ el: doc, name: 'touchmove', handler: onMove });
+      this._touchBindings.push({ el: doc, name: 'touchend', handler: onEnd });
+      this._touchBindings.push({ el: doc, name: 'touchcancel', handler: onCancel });
+    } catch (e) {}
+  }
+
+  // clear touch bindings helper
+  private clearTouchBindings() {
+    try {
+      for (const t of this._touchBindings) {
+        try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
+      }
+    } catch {}
+    this._touchBindings = [];
+  }
+
+  // attach touch handlers to a target element (scroller or fallback)
+  private attachTouchHandlersTo(target: HTMLElement) {
+    try {
+      if (!target || !this.isMobile) return;
+      // remove any previously attached handlers
+      this.clearTouchBindings();
+
+      let startX: number | null = null;
+      let startY: number | null = null;
+      let tracking = false;
+
+      const onTouchStart = (ev: TouchEvent) => {
+        if (ev.touches && ev.touches.length === 1) {
+          startX = ev.touches[0].clientX;
+          startY = ev.touches[0].clientY;
+          tracking = true;
+        }
+      };
+
+      const onTouchMove = (ev: TouchEvent) => {
+        if (!tracking || startX == null || startY == null) return;
+        const tx = ev.touches[0].clientX;
+        const ty = ev.touches[0].clientY;
+        const dx = tx - startX;
+        const dy = ty - startY;
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+          tracking = false; return;
+        }
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          try { ev.preventDefault(); } catch {}
+        }
+      };
+
+      const onTouchEnd = (ev: TouchEvent) => {
+        if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
+        const endX = ev.changedTouches[0].clientX;
+        const endY = ev.changedTouches[0].clientY;
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        if (absDx > 40 && absDx > absDy) {
+          if (dx < 0) this.onNext(); else this.onPrev();
+        }
+        startX = null; startY = null; tracking = false;
+      };
+
+      const onTouchCancel = () => { startX = null; startY = null; tracking = false; };
+
+      // attach with appropriate passive settings
+      target.addEventListener('touchstart', onTouchStart, { passive: true });
+      target.addEventListener('touchmove', onTouchMove, { passive: false });
+      target.addEventListener('touchend', onTouchEnd, { passive: true });
+      target.addEventListener('touchcancel', onTouchCancel, { passive: true });
+
+      this._touchBindings.push({ el: target, name: 'touchstart', handler: onTouchStart });
+      this._touchBindings.push({ el: target, name: 'touchmove', handler: onTouchMove });
+      this._touchBindings.push({ el: target, name: 'touchend', handler: onTouchEnd });
+      this._touchBindings.push({ el: target, name: 'touchcancel', handler: onTouchCancel });
+    } catch (e) {}
+  }
+
+  // find the internal scroll element used by FullCalendar and attach handlers to it
+  private findAndAttachScrollEl() {
+    try {
+      const root = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      if (!root || !this.isMobile) return;
+      // look for common scroller selectors used by FullCalendar
+      const selectors = ['.fc-scroller', '.fc-timegrid-body', '.fc-scrollgrid-section-liquid'];
+      let found: HTMLElement | null = null;
+      for (const s of selectors) {
+        const q = root.querySelector(s) as HTMLElement | null;
+        if (q) { found = q; break; }
+      }
+      // fallback: try the calendar element itself
+      if (!found) {
+        const fcEl = root.querySelector('full-calendar, .fc') as HTMLElement | null;
+        found = fcEl || root;
+      }
+      if (found) this.attachTouchHandlersTo(found);
+    } catch (e) {}
   }
 
   // Devuelve una versión corta del nombre para móviles: 3 letras por palabra
@@ -349,6 +498,13 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         }
         this._vvHandlers = [];
+      } catch {}
+      // remove any touch listeners we registered
+      try {
+        for (const t of this._touchBindings) {
+          try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
+        }
+        this._touchBindings = [];
       } catch {}
     } catch {}
     // Restore document overflow

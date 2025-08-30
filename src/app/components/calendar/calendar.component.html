@@ -74,7 +74,9 @@
 		</div>
 	</div>
 	<div *ngIf="typesLoaded">
-		<full-calendar #calendar [options]="calendarOptions"></full-calendar>
+		<div #calendarContent class="calendar-content">
+			<full-calendar #calendar [options]="calendarOptions"></full-calendar>
+		</div>
 	</div>
 </div>
 

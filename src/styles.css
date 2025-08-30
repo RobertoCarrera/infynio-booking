@@ -115,26 +115,30 @@ body.route-admin .mobile-list-scroll {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-height: none;
+  /* Soft cap so the scroller shows a scrollbar when content exceeds viewport
+     space; adjust the "8rem" if your toolbar/header height differs. */
+  max-height: calc(var(--calendar-vh, 92vh) - 8rem);
 }
 
 /* Make timeGrid hourly slots taller by giving each slot a min-height proportional
   to the visible calendar area. We assume visible hours 07:00-20:00 (13 slots). */
 .p-wrapper .fc .fc-timegrid-slot {
-  /* Use the wrapper variable to compute per-hour slot min-heights responsively */
-  min-height: calc((var(--calendar-vh) * 1px) / 13) !important;
+  /* Prefer the explicit slot min-height variable which is simpler and
+     robust across browsers. Avoid multiplying viewport strings by px. */
+  min-height: var(--calendar-slot-min-height) !important;
   height: auto !important;
 }
 
 /* Also ensure the slot labels line-height scales so labels stay vertically centered. */
 .p-wrapper .fc .fc-timegrid-slot-label {
-  line-height: calc(68vh / 13) !important;
+  /* Keep labels vertically centered using the same slot min-height. */
+  line-height: var(--calendar-slot-min-height) !important;
 }
 
 /* If FullCalendar uses a different internal slot element, include additional selectors */
 .p-wrapper .fc .fc-timegrid-slot > .fc-timegrid-slot-lane,
 .p-wrapper .fc .fc-timegrid-slots td {
-  min-height: calc(68vh / 13) !important;
+  min-height: var(--calendar-slot-min-height) !important;
 }
 
 /* (removed) break hour label/border overrides */
@@ -168,6 +172,48 @@ body.route-admin .mobile-list-scroll {
   min-height: var(--calendar-slot-min-height) !important;
   height: auto !important;
 }
+
+/* Ensure event columns and the scroller establish a positioning context
+   so `.fc-timegrid-event-harness` (position:absolute) moves when the
+   timegrid is scrolled. This forces the harness to be positioned relative
+   to the scrolling container rather than the viewport. */
+.p-wrapper .fc .fc-scroller,
+.p-wrapper .fc .fc-timegrid-col-events {
+  position: relative;
+}
+
+/* Some FullCalendar builds use slightly different wrapper elements for the
+   scrollable region. Include additional selectors so the rule applies
+   regardless of minor DOM differences between versions. The goal is to
+   ensure the internal timegrid becomes the only vertical scroller. */
+.p-wrapper .fc .fc-timegrid .fc-scroller,
+.p-wrapper .fc .fc-timegrid-body,
+.p-wrapper .fc .fc-scrollgrid-section-liquid,
+.p-wrapper .fc .fc-timegrid-col-events > .fc-scroller {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative; /* positioning context for absolutely positioned harnesses */
+  min-height: 0;
+  /* soft cap so the scroller shows a scrollbar when content exceeds viewport
+     space. Use a CSS var for the header/tool height so it can be tuned. */
+  max-height: calc(var(--calendar-vh, 92vh) - var(--calendar-header-height, 8rem));
+}
+
+/* Ensure the event column and harness layers are above background layers */
+.p-wrapper .fc .fc-timegrid-col-events { z-index: 3; }
+.p-wrapper .fc .fc-timegrid-event-harness { z-index: 4; }
+.p-wrapper .fc .fc-timegrid-event { z-index: 5; }
+
+/* Ensure higher-level column containers also provide a positioning context
+   for absolutely-positioned event harnesses. This anchors events to the
+   scrolled timegrid content so they move with the hours. */
+/* Avoid forcing position:relative on high-level FullCalendar columns; this
+  can interfere with internal absolute positioning. The scroller and
+  .fc-timegrid-col-events are used as the positioning context instead. */
+
+/* NOTE: do not make .fc-timegrid-slots a clipping/scroll container; the
+  internal .fc-scroller should control vertical scrolling so absolutely-
+  positioned event harnesses remain visible and move with the scroller. */
 
 /* Ensure the time labels remain vertically centered */
 .p-wrapper .fc .fc-timegrid-slot-label,
