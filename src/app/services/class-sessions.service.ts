@@ -419,24 +419,24 @@ export class ClassSessionsService {
         hover: '#b45309'
       },
       'Mat': {
-        background: '#5296A5',
-        border: '#5296A5',
-        hover: '#5296A5'
+        background: '#B7C4EE',
+        border: '#B7C4EE',
+        hover: '#B7C4EE'
       },
       'Reformer': {
-        background: '#918450', 
-        border: '#918450',
-        hover: '#918450'
+        background: '#E9D0B7', 
+        border: '#E9D0B7',
+        hover: '#E9D0B7'
       },
       'Personalizada': {
-        background: '#00A9A5', 
-        border: '#00A9A5',
-        hover: '#00A9A5'
+        background: '#D7E0EA', 
+        border: '#D7E0EA',
+        hover: '#D7E0EA'
       },
       'Funcional': {
-        background: '#CA3C25', 
-        border: '#CA3C25',
-        hover: '#CA3C25'
+        background: '#CCB7BE', 
+        border: '#CCB7BE',
+        hover: '#CCB7BE'
       }
     };
 
@@ -478,8 +478,8 @@ export class ClassSessionsService {
     } else {
       // Clases completas: versión más oscura y desaturada
       return {
-        background: '#94a3b8', // Slate más claro para "completo"
-        border: '#64748b'
+        background: '#B6C0CE', // Slate más claro para "completo"
+        border: '#B6C0CE'
       };
     }
   }

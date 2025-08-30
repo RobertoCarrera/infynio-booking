@@ -416,6 +416,7 @@ full-calendar {
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
+  color: #424242 !important;
 }
 
 ::ng-deep .fc-event-title {

@@ -35,7 +35,7 @@
 .calendar-toolbar {
   padding: 0.5rem 0.75rem;
   border-radius: 5em;
-  background: linear-gradient(135deg,#ffffff,#f8fafc);
+  background-color: #f3f3f3;
   box-shadow: 0 6px 18px rgba(15,23,42,0.06);
   margin-bottom: 1rem;
 }

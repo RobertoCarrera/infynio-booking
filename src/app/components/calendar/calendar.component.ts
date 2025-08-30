@@ -1419,9 +1419,9 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         id: session.id.toString(),
         title: `${shortName}${selfTag} (${confirmedCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
-        backgroundColor: colors.background,
-        borderColor: colors.border,
-        textColor: '#ffffff',
+  backgroundColor: colors.background,
+  borderColor: colors.border,
+  textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
         extendedProps: {
           session: session,
       available: !isFull,

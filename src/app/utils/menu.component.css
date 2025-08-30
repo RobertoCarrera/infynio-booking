@@ -10,11 +10,11 @@
 
 .navbar-nav .nav-item .nav-link{
     min-width: 10vw;
-    border: 1px solid #e4c4de;
+    border: 1px solid #424242;
     padding: 0em 1em;
     border-radius: 50em;
     /* smooth hover animation using a left-to-right background fill */
-    background-image: linear-gradient(90deg, rgba(228,196,222,0.95) 0%, rgba(228,196,222,0.95) 100%);
+    background-image: linear-gradient(90deg, #424242 0%, #424242 100%);
     background-size: 0% 100%;
     background-repeat: no-repeat;
     background-position: left center;
@@ -25,7 +25,7 @@
 .navbar-nav .nav-item .nav-link:hover{
     /* expand the gradient from left to right to create a fill effect */
     background-size: 100% 100%;
-    color: #151C2D;
+    color: #EBD4EA;
 }
 
 /* Make active/focus visible and work reliably on touch devices */
@@ -49,7 +49,7 @@
 .navbar-nav .nav-item .nav-link.active {
     /* keep the progressive fill visible for active/focus states */
     background-size: 100% 100%;
-    color: #151C2D;
+    color: #EBD4EA;
     border-radius: 50em;
 }
 
@@ -98,10 +98,8 @@
     gap: 8px;
     z-index: 4000;
     /* Ensure the bar is not transparent so content doesn't show underneath */
-    background-color: #eff5f1; /* fallback solid color */
-    background: linear-gradient(#eff5f1ea, #eff5f1ea);
+    background-color: transparent; /* fallback solid color */
     border-radius: 20px;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.12);
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
@@ -116,13 +114,13 @@
     font-size: 1em;
     padding: 0.5em 1em !important;
     min-width: 25vw;
-    border: 1px solid #e4c4de;
+    border: 1px solid #424242;
 
 }
 .mobile-nav-item svg{ color: inherit; opacity: 0.95; }
 .mobile-nav-item.active, .mobile-nav-item:active, .mobile-nav-item.router-link-active{ 
-    background: #e4c4de; 
-    color: #151C2D;
+    background: #424242; 
+    color: #EBD4EA;
 }
 
 /* Desktop: show top navbar and hide mobile bottom nav */
@@ -146,7 +144,7 @@
     /* cover the area under the nav (its height) + the 12px offset + safe area */
     height: calc(env(safe-area-inset-bottom) + var(--bottom-nav-height, 72px) + 12px);
     background-color: #eff5f1; /* fallback */
-    background: linear-gradient(#eff5f1ea, #eff5f1ea);
+    background-color: transparent;
     z-index: 3500; /* below nav (4000), above content */
     pointer-events: none; /* do not intercept taps */
 }
