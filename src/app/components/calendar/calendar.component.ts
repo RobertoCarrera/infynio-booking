@@ -301,10 +301,19 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         try {
           if (!ev.touches || ev.touches.length !== 1) return;
           const t = ev.touches[0];
-          const root = this.calendarContentRef?.nativeElement as HTMLElement | null;
-          if (!root) return;
-          const target = ev.target as Node;
-          if (root.contains(target)) {
+          const targetEl = (ev.target as HTMLElement) || null;
+          if (!targetEl) return;
+          // determine if the touch started inside the calendar area. We support
+          // several selectors because FullCalendar can render slightly different
+          // wrappers depending on version or runtime.
+          const selectors = ['.calendar-content', '.p-wrapper .fc', '.fc', 'full-calendar'];
+          const isInside = selectors.some(sel => {
+            try {
+              const node = targetEl.closest(sel);
+              return !!node;
+            } catch { return false; }
+          });
+          if (isInside) {
             startX = t.clientX; startY = t.clientY; tracking = true;
           }
         } catch {}
@@ -422,6 +431,55 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     } catch (e) {}
   }
 
+  // Attach pointer event handlers (more reliable across devices) to a target element
+  private attachPointerHandlersTo(target: HTMLElement) {
+    try {
+      if (!target || !this.isMobile) return;
+      // don't clear existing handlers here — touch handlers may already exist
+      let startX: number | null = null;
+      let startY: number | null = null;
+      let tracking = false;
+      let activePointerId: number | null = null;
+
+      const onDown = (ev: PointerEvent) => {
+        if (!ev.isPrimary) return;
+        startX = ev.clientX; startY = ev.clientY; tracking = true; activePointerId = ev.pointerId;
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          try { ev.preventDefault(); } catch {}
+        }
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) { startX = null; startY = null; tracking = false; activePointerId = null; return; }
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+        startX = null; startY = null; tracking = false; activePointerId = null;
+      };
+
+      const onCancel = () => { startX = null; startY = null; tracking = false; activePointerId = null; };
+
+      target.addEventListener('pointerdown', onDown as any, { passive: false });
+      target.addEventListener('pointermove', onMove as any, { passive: false });
+      target.addEventListener('pointerup', onUp as any, { passive: false });
+      target.addEventListener('pointercancel', onCancel as any, { passive: false });
+
+      this._touchBindings.push({ el: target, name: 'pointerdown', handler: onDown });
+      this._touchBindings.push({ el: target, name: 'pointermove', handler: onMove });
+      this._touchBindings.push({ el: target, name: 'pointerup', handler: onUp });
+      this._touchBindings.push({ el: target, name: 'pointercancel', handler: onCancel });
+    } catch (e) {}
+  }
+
   // find the internal scroll element used by FullCalendar and attach handlers to it
   private findAndAttachScrollEl() {
     try {
@@ -439,7 +497,10 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         const fcEl = root.querySelector('full-calendar, .fc') as HTMLElement | null;
         found = fcEl || root;
       }
-      if (found) this.attachTouchHandlersTo(found);
+      if (found) {
+        this.attachTouchHandlersTo(found);
+        this.attachPointerHandlersTo(found);
+      }
     } catch (e) {}
   }
 

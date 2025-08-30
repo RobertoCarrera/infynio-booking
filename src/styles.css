@@ -199,6 +199,14 @@ body.route-admin .mobile-list-scroll {
   max-height: calc(var(--calendar-vh, 92vh) - var(--calendar-header-height, 8rem));
 }
 
+/* Allow vertical pan while keeping horizontal pointer events available for swipe navigation */
+.p-wrapper .fc .fc-scroller,
+.p-wrapper .fc .fc-timegrid .fc-scroller,
+.p-wrapper .fc .fc-timegrid-body,
+.p-wrapper .fc .fc-scrollgrid-section-liquid {
+  touch-action: pan-y;
+}
+
 /* Ensure the event column and harness layers are above background layers */
 .p-wrapper .fc .fc-timegrid-col-events { z-index: 3; }
 .p-wrapper .fc .fc-timegrid-event-harness { z-index: 4; }
@@ -382,6 +390,10 @@ body.route-admin .mobile-list-scroll {
 
 .toast-close:hover {
   opacity: 1;
+}
+
+.fc-col-header-cell-cushion{
+	color: #414141;
 }
 
 @keyframes slideInUp {
