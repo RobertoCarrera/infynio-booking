@@ -97,8 +97,8 @@
     overflow-x: auto;
     gap: 8px;
     z-index: 4000;
-    /* Ensure the bar is not transparent so content doesn't show underneath */
-    background-color: transparent; /* fallback solid color */
+    /* Solid background so content never shows through */
+    background-color: #ffffff;
     border-radius: 20px;
     padding-left: 0.5em;
     padding-right: 0.5em;
