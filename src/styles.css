@@ -82,6 +82,24 @@ body.route-admin .mobile-list-scroll {
   }
 }
 
+/* On mobile web browsers, ensure content never goes under the fixed bottom nav.
+   Use dynamic viewport units when available and reserve space equal to the
+   measured nav height provided by MenuComponent via --bottom-nav-height. */
+@media (max-width: 991.98px) {
+  :root {
+    /* fallback to 100dvh if visualViewport-based height isn't set */
+    --vvh: var(--app-viewport-height, 100dvh);
+  }
+  .p-wrapper {
+    /* reduce the intended calendar area so the bottom nav + safe area fit */
+    --calendar-vh: calc(min(100dvh, var(--vvh)) - var(--bottom-nav-height, 72px) - env(safe-area-inset-bottom, 0px) - 12px);
+    /* keep content visible above the nav */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--bottom-nav-height, 72px) + 12px) !important;
+    /* avoid extra outside margin that can push content under the nav */
+    margin-bottom: 0 !important;
+  }
+}
+
 /* Ensure the calendar fills the available inner area */
 .p-wrapper > full-calendar {
   display: block;

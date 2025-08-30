@@ -337,7 +337,8 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
   /* Reserve space for mobile bottom nav so bonos content isn't hidden. This
     matches the technique used by the calendar: use the runtime CSS var set
     by the menu and the safe-area inset. */
-  .cartera-page.p-wrapper > .container { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--bottom-nav-height, 72px) + 12px) !important; }
+  /* p-wrapper already adds the necessary bottom padding; avoid doubling it here */
+  .cartera-page.p-wrapper > .container { padding-bottom: 0 !important; }
     }
   `]
 })

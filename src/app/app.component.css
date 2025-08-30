@@ -2,7 +2,9 @@
 /* App shell layout: make a column-flex that fills the viewport and prevents the document/body from scrolling.
 	 Individual pages (like the calendar) should provide their own scrollable containers. */
 .app-shell {
-    height: 100vh; /* full viewport */
+     /* Use dynamic viewport height so mobile browser UI (URL bar) doesn't
+         push content under the bottom menu. Falls back to 100dvh. */
+     height: min(100dvh, var(--app-viewport-height, 100dvh));
     display: flex;
     flex-direction: column;
     /* Allow document/page scrolling instead of forcing internal app scrolling */
