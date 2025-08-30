@@ -630,6 +630,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     this.currentView = view as any;
     try { this.triggerViewTransition(prev, view); } catch (e) { try { this.setCalendarView(view); } catch {} }
     try { localStorage.setItem('calendar:view', view); } catch {}
+    this.closeFilters();
   }
 
   // orchestrates a small out/in animation when changing FullCalendar views
@@ -1317,9 +1318,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     const isAvailable = !isFull;
       const selfTag = session.is_self_booked ? ' (Tú)' : '';
 
+      const shortName = (this.isMobile && this.currentView === 'week')
+        ? this.shortenClassType(session.class_type_name || '')
+        : (session.class_type_name || '');
       return {
         id: session.id.toString(),
-        title: `${session.class_type_name}${selfTag} (${confirmedCount}/${session.capacity})`,
+        title: `${shortName}${selfTag} (${confirmedCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
         backgroundColor: colors.background,
         borderColor: colors.border,
@@ -1339,6 +1343,18 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       console.error('[calendar] transformSessionsToEvents error', e);
       return [];
     }
+  }
+
+  // Shorten a class type name for compact display on small screens.
+  // Example: "Mat Personalizada" -> "Mat Per."
+  private shortenClassType(name: string): string {
+    try {
+      if (!name) return '';
+      return name
+        .split(/\s+/)
+        .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0,3).replace(/\W+$/,'') + '.')))
+        .join(' ');
+    } catch (e) { return name; }
   }
 
   private extractClassTypes(sessions: ClassSession[]) {

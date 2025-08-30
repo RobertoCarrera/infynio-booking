@@ -125,7 +125,6 @@
 }
 .filter-row:focus {
 	outline: 3px solid rgba(13,110,253,0.12);
-	outline-offset: 2px;
 }
 .filter-row:hover {
 	cursor: pointer;
