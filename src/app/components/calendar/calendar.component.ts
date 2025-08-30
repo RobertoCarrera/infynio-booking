@@ -55,6 +55,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   private subscriptions: Subscription[] = [];
   private isAdmin = false;
   private eventsLoaded = false;
+  // Indica si ya se han obtenido los tipos de clase para poder renderizar el calendario
+  public typesLoaded = false;
   // store previous document overflow to restore on destroy
   private _prevHtmlOverflow: string | null = null;
   private _prevBodyOverflow: string | null = null;
@@ -616,6 +618,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadEvents() {
+  // While fetching, mark types as not yet loaded so UI can show a spinner
+  this.typesLoaded = false;
     if (!this.userNumericId) return;
     if (this.isAdmin) {
       // Admin: keep wide fetch once
@@ -625,7 +629,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
         next: (sessions) => {
           this.events = this.transformSessionsToEvents(sessions);
           this.extractClassTypes(sessions);
-          this.updateCalendarEvents();
+            this.eventsLoaded = true;
+            this.updateCalendarEvents();
         },
         error: (error) => {
           console.warn('Fallo get_sessions_for_calendar, fallback a contadores:', error);
@@ -633,9 +638,14 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
             next: (sessions) => {
               this.events = this.transformSessionsToEvents(sessions);
               this.extractClassTypes(sessions);
+              this.eventsLoaded = true;
               this.updateCalendarEvents();
             },
-            error: (err2) => console.error('Error loading events (fallback):', err2)
+            error: (err2) => {
+              console.error('Error loading events (fallback):', err2);
+              // avoid leaving the UI blocked forever if fallback fails
+              try { this.typesLoaded = true; } catch {}
+            }
           });
           this.subscriptions.push(sub2);
         }
@@ -717,6 +727,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     this.lastVisibleStart = startStr;
     this.lastVisibleEnd = endStr;
     this.fetchAndRenderRange(startStr, endStr);
+  // do not force update here; fetchAndRenderRange will update when data arrives
     // update toolbar label
     try {
       const s = new Date(arg.start);
@@ -1236,20 +1247,46 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       name: typeName,
       color: typeColorsMap.get(typeName) || { background: '#6b7280', border: '#4b5563' }
     }));
-
-    // Inicializar con todos los tipos visibles
-    this.filteredClassTypes.set(new Set(Array.from(typeSet)));
+  // Inicializar con todos los tipos visibles
+  this.filteredClassTypes.set(new Set(Array.from(typeSet)));
+  // Marca que ya cargamos tipos para permitir renderizar el calendario
+  try { this.typesLoaded = true; } catch {}
   }
 
   private updateCalendarEvents() {
     const filteredTypes = this.filteredClassTypes();
+    // If no filters are set (empty set) treat it as "show all" to avoid
+    // briefly clearing events when types haven't been extracted yet.
+    const noFilter = !(filteredTypes && filteredTypes.size > 0);
     const filteredEvents = (this.events || [])
       .filter(Boolean)
-      .filter(event => event?.extendedProps?.session?.class_type_name && filteredTypes.has(event.extendedProps.session.class_type_name));
+      .filter(event => {
+        if (noFilter) return true;
+        return !!event?.extendedProps?.session?.class_type_name && filteredTypes.has(event.extendedProps.session.class_type_name);
+      });
     this.calendarOptions = {
       ...this.calendarOptions,
       events: filteredEvents
     };
+    // If FullCalendar API is available, push events directly so the UI updates
+    try {
+      const api = this.calendarComponent?.getApi?.() as any || this.calendarApi as any;
+      if (api) {
+        // Remove all current events and add our filtered set to ensure consistency
+        try { if (typeof api.removeAllEvents === 'function') api.removeAllEvents(); } catch (e) {}
+        try {
+          if (Array.isArray(filteredEvents) && filteredEvents.length) {
+            for (const ev of filteredEvents) {
+              try { api.addEvent(ev); } catch (e) { /* best-effort */ }
+            }
+          }
+          // Last resort: ask API to refetch (if using eventSources)
+          try { if (typeof api.refetchEvents === 'function') api.refetchEvents(); } catch (e) {}
+        } catch (e) {}
+      }
+    } catch (e) {
+      // non-fatal
+    }
   }
 
   toggleClassTypeFilter(typeName: string) {
