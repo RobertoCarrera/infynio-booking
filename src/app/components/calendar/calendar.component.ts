@@ -569,53 +569,72 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     try {
       const main = document.getElementById('mainContent');
       if (main) main.classList.remove('calendar-active');
-    } catch {}
-    this.subscriptions.forEach(sub => sub.unsubscribe());
-    if (typeof window !== 'undefined' && this.keyboardHandlerBound) {
-      window.removeEventListener('keydown', this.globalKeyHandler as any);
-      this.keyboardHandlerBound = false;
-    }
-  try { if (typeof window !== 'undefined') window.removeEventListener('keydown', this._escapeListener as any); } catch {}
-    try { if (typeof window !== 'undefined') window.removeEventListener('resize', this.onResizeBound as any); } catch {}
-    // Disconnect observers and transition handlers
+    } catch (e) {}
+
+    // unsubscribe all subscriptions
+    try { this.subscriptions.forEach(sub => sub.unsubscribe()); } catch (e) {}
+
+    // Remove global handlers
     try {
-      for (const ro of this._resizeObservers) { try { ro.disconnect(); } catch {} }
+      if (typeof window !== 'undefined') {
+        try { window.removeEventListener('resize', this.onResizeBound as any); } catch (e) {}
+        try { window.removeEventListener('keydown', this.globalKeyHandler as any); } catch (e) {}
+        try { window.removeEventListener('keydown', this._escapeListener as any); } catch (e) {}
+      }
+    } catch (e) {}
+
+    // Disconnect ResizeObservers and MutationObserver
+    try {
+      for (const ro of this._resizeObservers) {
+        try { ro.disconnect(); } catch (e) {}
+      }
       this._resizeObservers = [];
-      for (const b of this._boundTransitionHandlers) { try { b.el.removeEventListener('transitionend', b.handler); } catch {} }
-      this._boundTransitionHandlers = [];
-      if (this._mutationObserver) { try { this._mutationObserver.disconnect(); } catch {} this._mutationObserver = null; }
-      try {
-        const vv = (window as any).visualViewport;
-        if (vv && this._vvHandlers.length) {
-          for (const h of this._vvHandlers) {
-            try { vv.removeEventListener(h.type, h.handler); } catch {}
-          }
+    } catch (e) {}
+    try {
+      if (this._mutationObserver) { try { this._mutationObserver.disconnect(); } catch (e) {} this._mutationObserver = null; }
+    } catch (e) {}
+
+    // Remove any visualViewport handlers
+    try {
+      const vv = (window as any).visualViewport;
+      if (vv && this._vvHandlers && this._vvHandlers.length) {
+        for (const h of this._vvHandlers) {
+          try { vv.removeEventListener(h.type, h.handler); } catch (e) {}
         }
         this._vvHandlers = [];
-      } catch {}
-      // remove any touch listeners we registered
-      try {
-        for (const t of this._touchBindings) {
-          try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
-        }
-        this._touchBindings = [];
-      } catch {}
-    } catch {}
-    // Restore document overflow
+      }
+    } catch (e) {}
+
+    // Remove any touch/pointer listeners we registered
+    try {
+      for (const t of this._touchBindings) {
+        try { t.el.removeEventListener(t.name, t.handler as any); } catch (e) {}
+      }
+      this._touchBindings = [];
+    } catch (e) {}
+
+    // Remove bound transitionend handlers
+    try {
+      for (const b of this._boundTransitionHandlers) {
+        try { b.el.removeEventListener('transitionend', b.handler as any); } catch (e) {}
+      }
+      this._boundTransitionHandlers = [];
+    } catch (e) {}
+
+    // Restore document overflow and clear inline sizing
     try {
       if (typeof document !== 'undefined') {
         const html = document.documentElement as HTMLElement;
         const body = document.body as HTMLElement;
         if (this._prevHtmlOverflow !== null) html.style.overflow = this._prevHtmlOverflow; else html.style.removeProperty('overflow');
         if (this._prevBodyOverflow !== null) body.style.overflow = this._prevBodyOverflow; else body.style.removeProperty('overflow');
-        // Clear any inline sizing we applied to the calendar scroll container
         try {
           const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
           if (container) {
             container.style.removeProperty('height');
             container.style.removeProperty('padding-bottom');
           }
-        } catch {}
+        } catch (e) {}
       }
     } catch (e) {}
   }
@@ -629,7 +648,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       if (wasMobile && !this.isMobile) this.setMobileFiltersOpen(false);
   // adjust calendar internal height on resize
   try { this.adjustCalendarHeight(); } catch {}
-    } catch {}
+  } catch (e) {}
   }
 
   // global keyboard shortcuts
@@ -1454,24 +1473,43 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   private extractClassTypes(sessions: ClassSession[]) {
     const typeSet = new Set<string>();
     const typeColorsMap = new Map<string, { background: string, border: string }>();
+    const typePersonal = new Map<string, boolean>();
+
+    // Detect whether a class type should be considered 'personal' by
+    // heuristics: explicit is_personal flag, presence of personal_user_id,
+    // name containing 'personal'|'individual', or known personal type ids.
+    const KNOWN_PERSONAL_TYPE_IDS = new Set<number>([4, 22, 23]);
 
     sessions.forEach(session => {
-      if (session.class_type_name) {
-        typeSet.add(session.class_type_name);
-        if (!typeColorsMap.has(session.class_type_name)) {
-          typeColorsMap.set(session.class_type_name, this.classSessionsService.getClassTypeColors(session.class_type_name));
-        }
+      const name = session.class_type_name;
+      if (!name) return;
+      const ctId = Number(session.class_type_id || -1);
+      const assignedIsValid = Number.isFinite(Number(session.personal_user_id));
+      const isPersonalFlag = !!(session as any).is_personal;
+      const personalByName = /personal|individual/i.test(String(name));
+      const isPersonal = isPersonalFlag || assignedIsValid || personalByName || KNOWN_PERSONAL_TYPE_IDS.has(ctId);
+
+      typeSet.add(name);
+      if (!typeColorsMap.has(name)) {
+        typeColorsMap.set(name, this.classSessionsService.getClassTypeColors(name));
       }
+      // If any session for this type is personal, mark the type as personal
+      if (!typePersonal.has(name)) typePersonal.set(name, isPersonal);
+      else if (isPersonal) typePersonal.set(name, true);
     });
 
-    this.availableClassTypes = Array.from(typeSet).map(typeName => ({
-      name: typeName,
-      color: typeColorsMap.get(typeName) || { background: '#6b7280', border: '#4b5563' }
-    }));
-  // Inicializar con todos los tipos visibles
-  this.filteredClassTypes.set(new Set(Array.from(typeSet)));
-  // Marca que ya cargamos tipos para permitir renderizar el calendario
-  try { this.typesLoaded = true; } catch {}
+    // Build availableClassTypes excluding personal types
+    this.availableClassTypes = Array.from(typeSet)
+      .filter(tn => !typePersonal.get(tn))
+      .map(typeName => ({
+        name: typeName,
+        color: typeColorsMap.get(typeName) || { background: '#6b7280', border: '#4b5563' }
+      }));
+
+    // Inicializar con todos los tipos visibles (no incluir los personales)
+    this.filteredClassTypes.set(new Set(this.availableClassTypes.map(t => t.name)));
+    // Marca que ya cargamos tipos para permitir renderizar el calendario
+    try { this.typesLoaded = true; } catch {}
   }
 
   private updateCalendarEvents() {
