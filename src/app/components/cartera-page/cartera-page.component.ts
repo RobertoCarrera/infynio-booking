@@ -11,7 +11,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
   standalone: true,
   imports: [CommonModule, CarteraInfoComponent, CarteraBookingsComponent],
   template: `
-    <div class="cartera-page-container">
+    <div class="cartera-page p-wrapper">
   <div class="container pb-3 overflow-xl-hidden d-xl-flex flex-column align-items-stretch justify-content-around">
 
         <!-- Cartera Info Component -->
@@ -81,16 +81,19 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
       height: 100%;
     }
 
-    .cartera-page-container {
-      /* Fill parent and let inner container handle scrolling */
+    /* Use the shared .p-wrapper pattern (same as calendar) so the page-level
+       wrapper controls viewport sizing and the inner .container becomes the
+       single scrollable region. This mirrors the calendar implementation. */
+    .cartera-page.p-wrapper {
       height: 100%;
       display: flex;
       flex-direction: column;
       background: transparent;
     }
 
-    /* Make the Bootstrap container the scrollable region within the page */
-    .cartera-page-container > .container {
+    /* The Bootstrap container becomes the main scroller inside the p-wrapper.
+       Keep min-height:0 so nested flex scrollers behave correctly. */
+    .cartera-page.p-wrapper > .container {
       flex: 1 1 auto;
       min-height: 0; /* critical for nested flex scrollers */
       overflow-y: auto;
@@ -141,7 +144,12 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
         font-size: 1.5rem;
       }
   /* Remove inner bottom padding: app-main already reserves space in mobile */
-  .cartera-page-container > .container { padding-bottom: 0; }
+  /* Reserve space for the mobile bottom nav + safe-area inset so content (bonos) isn't hidden
+    Use the same variable set by the menu logic (--bottom-nav-height) and a small buffer. */
+  /* Reserve space for mobile bottom nav so bonos content isn't hidden. This
+    matches the technique used by the calendar: use the runtime CSS var set
+    by the menu and the safe-area inset. */
+  .cartera-page.p-wrapper > .container { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--bottom-nav-height, 72px) + 12px) !important; }
     }
   `]
 })

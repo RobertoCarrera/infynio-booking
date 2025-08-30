@@ -11,8 +11,10 @@
 }
 
 .cartera-bookings ul.list-group{
-  max-height: 47vh;
-  overflow-y: auto;
+  /* Avoid imposing a viewport-relative max-height; let the page-level
+     scroller control overflow. Keep styles for desktop if desired. */
+  max-height: none;
+  overflow: visible;
 }
 
 .cartera-bookings .list-group{
