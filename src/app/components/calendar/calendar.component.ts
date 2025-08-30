@@ -1302,6 +1302,37 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   } catch (e) {
     isPersonalClass = /personal|individual/i.test(String(session.class_type_name || ''));
   }
+  // Determine definitively whether the session should be treated as "personal".
+  // Some sessions may not include a class_type_name but will have personal_user_id or is_personal flag.
+  let sessionIsPersonal = isPersonalClass;
+  try {
+    // DEBUG: grouped info to diagnose personal session access
+  // debug logging removed
+  // Normalize assigned user id to a Number when present; treat missing/invalid as NaN
+  const assignedRaw = (session as any).personal_user_id;
+  const assignedUserNumericId = Number.isFinite(Number(assignedRaw)) ? Number(assignedRaw) : NaN;
+    const isPersonalFlag = !!(session as any).is_personal;
+    const ctId = Number((session as any).class_type_id || -1);
+    // Known personal class_type ids (legacy + current): 4, 22, 23 (and others may exist); treat presence of personal_user_id as definitive
+    const knownPersonalType = [4, 22, 23].includes(ctId);
+    sessionIsPersonal = sessionIsPersonal || !!assignedUserNumericId || isPersonalFlag || knownPersonalType;
+
+    // If session is personal, require the assigned user numeric id to match the current user.
+    // If assignedUserNumericId is missing/NaN, deny access to non-admins (defensive).
+    const currentUserNum = Number(this.userNumericId);
+    const assignedIsValid = Number.isFinite(assignedUserNumericId);
+    if (sessionIsPersonal && (!assignedIsValid || assignedUserNumericId !== currentUserNum) && !this.isAdmin) {
+      // Don't open modal; show a clear error to the user
+      this.selectedSession = null;
+      this.showBookingModal = false;
+      this.loadingModal = false;
+      this.modalError = 'No estás autorizado para ver los detalles de esta sesión personalizada.';
+      console.warn('[calendar] Acceso denegado a sesión personalizada para usuario', this.userNumericId, 'asignado:', assignedUserNumericId);
+      return;
+    }
+  } catch (e) {
+    // ignore and continue if something unexpected
+  }
   if (confirmedCount >= (session.capacity || 0) && !isPersonalClass && !session.is_self_booked) {
       this.handleWaitingList(session);
       return;
