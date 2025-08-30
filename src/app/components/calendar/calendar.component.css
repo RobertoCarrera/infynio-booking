@@ -214,6 +214,11 @@
 
 .booking-modal .badge { padding: 0.45rem 0.6rem; border-radius: 6px; font-weight:600; }
 
+/* Buttons in modal footer: slightly larger tap targets and consistent spacing */
+.booking-modal-footer .btn { min-width: 96px; padding: 0.5rem 0.75rem; }
+.booking-modal-footer .btn-primary { background-image: none; box-shadow: 0 6px 18px rgba(59,130,246,0.18); }
+.booking-modal-footer .btn-danger { box-shadow: 0 6px 18px rgba(220,38,38,0.12); }
+
 
 /* Hide the checkbox visually but keep it accessible */
 .visually-hidden { 

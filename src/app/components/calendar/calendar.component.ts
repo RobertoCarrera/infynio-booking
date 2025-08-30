@@ -1337,19 +1337,23 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
   // Verificar si el usuario tiene clases disponibles del tipo y que caducan en el mismo mes de la sesión
-  const sub = this.carteraService.tieneClasesDisponiblesEnMes(this.userNumericId, classTypeId, isPersonal, session.schedule_date)
+    const sub = this.carteraService.tienePaqueteYCoincideMes(this.userNumericId, classTypeId, isPersonal, session.schedule_date)
       .subscribe({
-        next: (hasClasses: boolean) => {
-          console.log('✅ Resultado verificación:', hasClasses);
-          
-          this.userCanBook = hasClasses;
+        next: (res: { hasAny: boolean; matchesMonth: boolean } | any) => {
+          const hasAny = !!res?.hasAny;
+          const matchesMonth = !!res?.matchesMonth;
+          console.log('✅ Resultado verificación (paquete+mes):', { hasAny, matchesMonth });
+
+          this.userCanBook = matchesMonth;
           this.loadingModal = false;
 
-          if (!hasClasses) {
-      const d = new Date(session.schedule_date);
-      const month = d.toLocaleString('es-ES', { month: 'long' });
-      const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
-      this.modalError = `No tienes un bono para ${monthCap} para clases de tipo "${session.class_type_name}".`;
+          if (!matchesMonth) {
+            const d = new Date(session.schedule_date);
+            const month = d.toLocaleString('es-ES', { month: 'long' });
+            const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
+            // If user has any package but not for this month, message explains month mismatch.
+            // If user has no applicable package at all, we still show the same guidance.
+            this.modalError = `No tienes un bono para ${monthCap} para clases de tipo "${session.class_type_name}".`;
           }
         },
         error: (error: any) => {

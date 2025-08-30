@@ -95,12 +95,19 @@
 				<div>Cargando detalles de la sesión…</div>
 			</ng-template>
 		</div>
-		<div class="booking-modal-footer">
-			<button type="button" class="btn btn-secondary" (click)="closeBookingModal()">Salir</button>
-			<button type="button" class="btn btn-primary" [disabled]="loadingModal || !userCanBook || isSelectedSessionFull()" (click)="reserveClass()">
-				<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-				Reservar
-			</button>
-		</div>
+			<div class="booking-modal-footer">
+				<button type="button" class="btn btn-secondary" (click)="closeBookingModal()">Salir</button>
+				<!-- If already booked, show Cancel button; otherwise show Reserve -->
+				<button *ngIf="selectedSession?.is_self_booked; else reserveBtn" type="button" [ngClass]="{'btn': true, 'btn-danger': true}" [disabled]="loadingModal || !canCancelSelectedBooking()" (click)="cancelOwnBooking()">
+					<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+					Cancelar
+				</button>
+				<ng-template #reserveBtn>
+					<button type="button" [ngClass]="{'btn': true, 'btn-success': true}" [disabled]="loadingModal || !userCanBook || isSelectedSessionFull()" (click)="reserveClass()">
+						<span *ngIf="loadingModal" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+						Reservar
+					</button>
+				</ng-template>
+			</div>
 	</div>
 </div>
