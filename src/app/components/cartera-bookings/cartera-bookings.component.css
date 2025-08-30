@@ -10,8 +10,9 @@
   border-radius: 12px 12px 0 0 !important;
 }
 
-.cartera-bookings ul.list-group{
-  /* On desktop we want this list to scroll internally so the card doesn't grow too tall */
+.cartera-bookings ul.list-group,
+.cartera-bookings .bonos-list{
+  /* On desktop/mobile default: avoid nested scrollers; page-level scroller will be used on small devices */
   max-height: none;
   overflow: visible;
 }
@@ -30,6 +31,7 @@
   }
   /* On small devices, avoid nested scrollers; let the page-level scroller handle it */
   .cartera-bookings ul.list-group,
+  .cartera-bookings .bonos-list,
   .cartera-bookings .list-group {
     max-height: none;
     overflow: visible;
@@ -53,7 +55,8 @@
     flex: 1 1 auto;
   }
 
-  .cartera-bookings ul.list-group {
+  .cartera-bookings ul.list-group,
+  .cartera-bookings .bonos-list {
     /* responsive max height so the list is usable across viewports */
     max-height: calc(min(55vh, 520px) - 3.5rem);
     overflow-y: auto;
@@ -62,5 +65,6 @@
     -ms-overflow-style: none;
   }
 
-  .cartera-bookings ul.list-group::-webkit-scrollbar { width: 0; height: 0; }
+  .cartera-bookings ul.list-group::-webkit-scrollbar,
+  .cartera-bookings .bonos-list::-webkit-scrollbar { width: 0; height: 0; }
 }

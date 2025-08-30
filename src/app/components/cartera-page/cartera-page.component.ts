@@ -61,7 +61,7 @@ import { CarteraBookingsComponent } from '../cartera-bookings/cartera-bookings.c
               <div class="card-body">
                 <p class="small mb-2">Si tienes dudas sobre tus bonos o necesitas adquirir más clases:</p>
                 <div class="d-grid gap-2">
-                  <a href="tel:+34123456789" class="btn btn-outline-primary btn-sm">
+                  <a href="tel:+34617377497" class="btn btn-outline-primary btn-sm">
                     <i class="fas fa-phone me-2"></i>
                     Llamar al estudio
                   </a>
