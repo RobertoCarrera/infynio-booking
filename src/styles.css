@@ -3,7 +3,7 @@
 /* FullCalendar core stylesheet (CDN fallback) - loads FullCalendar v6 styles so
   timeGrid/dayGrid render properly. Using CDN avoids bundler resolution issues.
 */
-@import url("https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/main.min.css");
+/* FullCalendar CSS is included via angular.json styles to ensure proper bundling */
 
 /* Calendar global rules removed per request.
   If calendar-specific styling is needed later, add a dedicated file such as
