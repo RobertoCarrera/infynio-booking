@@ -6,9 +6,9 @@ import interactionPlugin from '@fullcalendar/interaction';
 
 const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
 
-// calculate a stable numeric content height (in px) to avoid continuous layout
-// recalculation caused by 'auto' height combined with complex CSS and nowIndicator
-const CONTENT_HEIGHT = typeof window !== 'undefined' ? Math.max(400, Math.round(window.innerHeight * 0.7)) : 700;
+// Previously we set a fixed numeric contentHeight to avoid layout thrashing.
+// Prefer CSS-driven responsive sizing now: let FullCalendar use 'auto' so the
+// calendar fills the container controlled by CSS.
 
 export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
@@ -31,7 +31,7 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   // continuous reflows that can overload the browser
   nowIndicator: false,
   expandRows: false,
-  // provide a numeric contentHeight to avoid 'auto' sizing thrashing when the
-  // page uses complex flex/vh css rules
-  contentHeight: CONTENT_HEIGHT
+  // Let FullCalendar compute height based on its container; CSS controls
+  // the outer container sizing so use 'auto' for internal content height.
+  contentHeight: 'auto'
 };

@@ -59,9 +59,10 @@ body.route-admin .mobile-list-scroll {
 /* Make the calendar area occupy a fixed portion of the viewport and use a
    flex layout so the toolbar/header stay visible while the time grid scrolls. */
 .p-wrapper {
-  /* keep the wrapper at a fixed height so children can use flex sizing */
-  height: 88vh;
-  max-height: 88vh;
+  /* prefer responsive viewport-based sizing; allow adjustments via CSS variable */
+  --calendar-vh: 92vh;
+  height: var(--calendar-vh);
+  max-height: var(--calendar-vh);
   /* keep wrapper visible so non-time elements (toolbar, headers) remain in flow */
   overflow: visible;
   /* larger gap below the calendar so following page content doesn't stick */
@@ -86,7 +87,7 @@ body.route-admin .mobile-list-scroll {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 50vh; /* ensure reasonable minimum on small screens */
+  min-height: 56vh; /* increase minimum so more hours are visible on small screens */
 }
 
 /* Ensure only FullCalendar's internal scroller (timeGrid) becomes scrollable.
@@ -101,15 +102,17 @@ body.route-admin .mobile-list-scroll {
 /* Allow the view harness to flex and ensure children can shrink properly. */
 .p-wrapper .fc .fc-view-harness {
   flex: 1 1 auto;
-  min-height: 0; /* important for children with overflow in flex layouts */
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Let the harness expand using viewport-based height to reduce internal scroll */
+  min-height: calc(var(--calendar-vh) - 6rem);
 }
 
 /* Make only the internal scroller (timeGrid content) take remaining space */
 .p-wrapper .fc .fc-scroller {
   flex: 1 1 auto;
-  min-height: 0; /* allow it to shrink inside the flex parent */
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   max-height: none;
@@ -118,8 +121,8 @@ body.route-admin .mobile-list-scroll {
 /* Make timeGrid hourly slots taller by giving each slot a min-height proportional
   to the visible calendar area. We assume visible hours 07:00-20:00 (13 slots). */
 .p-wrapper .fc .fc-timegrid-slot {
-  /* fallback: each hour at least ~7.0vh when wrapper max-height is 90vh */
-  min-height: calc(68vh / 13) !important;
+  /* Use the wrapper variable to compute per-hour slot min-heights responsively */
+  min-height: calc((var(--calendar-vh) * 1px) / 13) !important;
   height: auto !important;
 }
 

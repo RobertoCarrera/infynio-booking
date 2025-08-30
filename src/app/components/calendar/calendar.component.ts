@@ -834,123 +834,78 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   // Adjust FullCalendar's contentHeight to match the available height inside our layout.
-  // This prevents the last time slot from being clipped when side filters are visible
-  // and avoids extra bottom space when filters are hidden.
+  // Tweak: reserve minimal bottom space so the calendar can grow vertically and avoid large gaps.
   private adjustCalendarHeight() {
     try {
       // resolve calendar API if not already
       if (!this.calendarApi && this.fullCalRef && this.fullCalRef.nativeElement && typeof this.fullCalRef.nativeElement.getApi === 'function') {
         try { this.calendarApi = this.fullCalRef.nativeElement.getApi(); } catch {}
       }
-  const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
+      const container = this.calendarContentRef?.nativeElement as HTMLElement | null;
       if (!container) return;
-      // Instead of trusting a 100vh-like container height, compute the usable
-      // vertical space from the viewport. This handles cases where fixed or
-      // absolutely positioned navs/panels overlap the calendar without affecting
-      // its clientHeight. Start from viewport bottom and subtract the distance
-      // from the top of the calendar to the viewport top.
-  let available = 0;
-  // padding to apply at the bottom of FullCalendar internal scrollers so
-  // the last time slot appears 'raised' above overlapping fixed elements
-  // (e.g. bottom nav). Calculated from overlaps + safety margin below.
-  let padBottom = 0;
+
+      // Determine viewport height (prefer visualViewport when available on mobile)
+      let viewportH = 0;
       try {
-        let viewportH = 0;
-        try {
-          const vv = (window as any).visualViewport;
-          viewportH = (vv && typeof vv.height === 'number') ? Math.floor(vv.height) : 0;
-        } catch {}
-        if (!viewportH) {
-          viewportH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : (document.documentElement.clientHeight || 0);
-        }
-        const crect = container.getBoundingClientRect();
-        // base available height is viewport height minus the top offset of the calendar
-        available = Math.floor(Math.max(0, viewportH - (crect.top || 0)));
-
-        // subtract overlaps from other visible, positioned elements (menus, bottom navs,
-        // info panels) that may sit above the calendar area even if they don't affect
-        // the container's height. We look for visible elements with position fixed/sticky/absolute
-        // and subtract their vertical intersection with the calendar area.
-  try {
-          const elems = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
-          let totalOverlap = 0;
-          const containerBottom = crect.top + available;
-          for (const el of elems) {
-            try {
-              if (!el || el === container || container.contains(el)) continue;
-              if (!(el.offsetWidth || el.offsetHeight)) continue; // not visible
-              const style = (typeof window !== 'undefined') ? window.getComputedStyle(el) : null;
-              if (!style) continue;
-              const pos = style.position;
-              if (pos !== 'fixed' && pos !== 'sticky' && pos !== 'absolute') continue;
-              // We'll handle the mobile bottom nav explicitly below to avoid double counting
-              if (el.classList && el.classList.contains('mobile-bottom-nav')) continue;
-              const er = el.getBoundingClientRect();
-              // compute vertical intersection between element and the calendar visible area
-              const overlap = Math.max(0, Math.min(er.bottom, containerBottom) - Math.max(er.top, crect.top));
-              if (overlap > 0) {
-                totalOverlap += overlap;
-              }
-            } catch {}
-          }
-          if (totalOverlap > 0) {
-            // subtract overlap from available height so FC's contentHeight fits
-            available = Math.max(0, Math.floor(available - totalOverlap));
-            // compute a bottom padding so content appears from above overlapping items
-            padBottom = Math.ceil(totalOverlap + 8); // 8px safety margin
-            // clamp to reasonable maximum to avoid absurd padding
-            if (padBottom > 300) padBottom = 300;
-          }
-        } catch {}
-
-        // If a mobile bottom nav is present, reserve its height from available area
-        // so the calendar fits fully above it, and add a breathing space equal to
-        // the toolbar's bottom margin to keep visual rhythm consistent.
-        try {
-          const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
-          if (bottomNav) {
-            const navRect = bottomNav.getBoundingClientRect();
-            const navH = Math.ceil(navRect && navRect.height ? navRect.height : (bottomNav as any).offsetHeight || 0);
-            // Compute the toolbar's margin-bottom as the spacing reference
-            let extra = 16; // default fallback
-            try {
-              const tb = document.querySelector('.calendar-toolbar') as HTMLElement | null;
-              if (tb) {
-                const mb = window.getComputedStyle(tb).marginBottom || '0px';
-                const parsed = parseFloat(mb) || 0;
-                if (parsed > 0) extra = Math.round(parsed);
-              }
-            } catch {}
-            if (navH > 0) {
-              available = Math.max(0, available - navH - extra);
-              padBottom = Math.max(padBottom, extra);
-            } else {
-              // fallback: still ensure a minimal breathing space
-              padBottom = Math.max(padBottom, 16);
-            }
-          }
-        } catch {}
-
-  // Note: do not subtract toolbar or top menu heights again here.
-  // They are already accounted for in `crect.top` baseline and overlap detection above.
+        const vv = (window as any).visualViewport;
+        viewportH = (vv && typeof vv.height === 'number') ? Math.floor(vv.height) : 0;
       } catch {}
-      // Apply height/padding to the actual scroll container so styles cannot block it.
-      // Our layout makes .calendar-content the scroller; ensure its height matches available
-      // and add breathing space at the bottom so content never hides under the bottom nav.
-      if (available > 80) {
-        try { container.style.height = available + 'px'; } catch {}
-        try { container.style.paddingBottom = (padBottom && padBottom > 0 ? padBottom : 0) + 'px'; } catch {}
-      }
+      if (!viewportH) viewportH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : (document.documentElement.clientHeight || 0);
 
-      // Also inform FullCalendar in case it uses its own scroller in some views.
-      if (this.calendarApi && typeof this.calendarApi.setOption === 'function' && available > 100) {
-        try {
-          this.calendarApi.setOption('contentHeight', available);
-          if (typeof this.calendarApi.updateSize === 'function') this.calendarApi.updateSize();
-        } catch {}
-      }
+      const crect = container.getBoundingClientRect();
+      // Base available is viewport height minus distance from top of viewport to calendar top
+      let available = Math.floor(Math.max(0, viewportH - (crect.top || 0)));
+
+      // We will compute overlaps but keep the final bottom reserve small so calendar can expand.
+      let padBottom = 0;
+      try {
+        const elems = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
+        let totalOverlap = 0;
+        const containerBottom = crect.top + available;
+        for (const el of elems) {
+          try {
+            if (!el || el === container || container.contains(el)) continue;
+            if (!(el.offsetWidth || el.offsetHeight)) continue;
+            const style = (typeof window !== 'undefined') ? window.getComputedStyle(el) : null;
+            if (!style) continue;
+            const pos = style.position;
+            if (pos !== 'fixed' && pos !== 'sticky' && pos !== 'absolute') continue;
+            if (el.classList && el.classList.contains('mobile-bottom-nav')) continue;
+            const er = el.getBoundingClientRect();
+            const overlap = Math.max(0, Math.min(er.bottom, containerBottom) - Math.max(er.top, crect.top));
+            if (overlap > 0) totalOverlap += overlap;
+          } catch {}
+        }
+        if (totalOverlap > 0) {
+          // Subtract overlaps but do not allow huge pad values. We convert overlap into a small breathing pad.
+          available = Math.max(120, Math.floor(available - totalOverlap));
+          padBottom = Math.min(Math.ceil(totalOverlap * 0.25) + 8, 40); // keep pad modest (max 40px)
+        }
+      } catch {}
+
+      // If a mobile bottom nav exists, reserve a small fixed amount (don't over-reserve)
+      try {
+        const bottomNav = document.querySelector('.mobile-bottom-nav') as HTMLElement | null;
+        if (bottomNav) {
+          const navRect = bottomNav.getBoundingClientRect();
+          const navH = Math.ceil(navRect && navRect.height ? navRect.height : (bottomNav as any).offsetHeight || 0);
+          if (navH > 0) {
+            // Reserve only a small portion of nav height; prefer letting calendar extend behind it slightly
+            const reserve = Math.min(navH, 20);
+            available = Math.max(120, available - reserve);
+            padBottom = Math.max(padBottom, 8);
+          } else {
+            padBottom = Math.max(padBottom, 8);
+          }
+        }
+      } catch {}
+
+  // Apply only a small bottom padding so the last slot is readable.
+  try { container.style.paddingBottom = (padBottom && padBottom > 0 ? padBottom : 8) + 'px'; } catch {}
+  // Do not force container height or FullCalendar contentHeight: allow CSS to size the outer container
+  // and let FullCalendar compute its internal sizes automatically.
     } catch (e) {
-      // swallow errors; non-critical
+      // swallow errors
     }
   }
 
