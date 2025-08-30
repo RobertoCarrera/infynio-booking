@@ -12,6 +12,7 @@
 .filters-btn {
   position: relative;
   overflow: hidden;
+  color: #E2D9E2;
 }
 .filters-btn::after {
   content: '';
@@ -35,9 +36,12 @@
 .calendar-toolbar {
   padding: 0.5rem 0.75rem;
   border-radius: 5em;
-  background-color: #f3f3f3;
+  background-color: #424242;
   box-shadow: 0 6px 18px rgba(15,23,42,0.06);
   margin-bottom: 1rem;
+}
+.txt-cta{
+  color: #E2D9E2;
 }
 
 .calendar-toolbar .nav-group{
@@ -46,7 +50,7 @@
 
 .calendar-toolbar .view-group{display:flex;gap:0.5rem;align-items:center}
 
-.calendar-toolbar .current-range{font-weight:700;color:#334155;margin-left:0.5rem}
+.calendar-toolbar .current-range{color:#E2D9E2;margin-left:0.5rem}
 
 /* Desktop: show label; Mobile: hide label to save space */
 .filters-label { display: inline-block; }
