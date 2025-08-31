@@ -63,40 +63,31 @@ BEGIN
     v_is_personal := (v_ct_name ILIKE '%personal%' OR v_ct_name ILIKE '%personalizada%' OR v_ct_name ILIKE '%personalizado%');
   END IF;
 
-  -- Prefer packages tied to the same month/year as the session (expires_at logic)
-  WITH candidates AS (
-    SELECT
-      up.id,
-      up.current_classes_remaining,
-      up.expires_at,
-      up.purchase_date,
-      pa.class_type,
-      pa.is_personal,
-      EXISTS (
+  -- Select a candidate package and lock it to avoid races. Prefer packages that expire sooner (NULLs last).
+  SELECT up.id, up.current_classes_remaining
+    INTO v_user_package_id, v_classes_remaining
+  FROM user_packages up
+  JOIN packages pa ON pa.id = up.package_id
+  WHERE up.user_id = p_target_user_id
+    AND up.status = 'active'
+    AND up.current_classes_remaining > 0
+    AND pa.is_personal = v_is_personal
+    AND up.expires_at IS NOT NULL
+    AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
+    AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
+    AND (
+      pa.class_type = v_session.class_type_id
+      OR EXISTS (
         SELECT 1 FROM package_allowed_class_types pact
         WHERE pact.package_id = pa.id AND pact.class_type_id = v_session.class_type_id
-      ) AS has_mapping
-    FROM user_packages up
-    JOIN packages pa ON pa.id = up.package_id
-    WHERE up.user_id = p_target_user_id
-      AND up.status = 'active'
-      AND up.current_classes_remaining > 0
-      AND pa.is_personal = v_is_personal
-      -- package is considered valid for the session month if its expires_at falls within the same month/year as the session
-      AND up.expires_at IS NOT NULL
-      AND date_part('year', up.expires_at) = date_part('year', v_session.schedule_date)
-      AND date_part('month', up.expires_at) = date_part('month', v_session.schedule_date)
-  ), filtered AS (
-    SELECT c.*
-    FROM candidates c
-    WHERE (
-      c.class_type = v_session.class_type_id
-      OR c.has_mapping
+      )
     )
-    ORDER BY c.purchase_date ASC
-    LIMIT 1
-  )
-  SELECT id, current_classes_remaining INTO v_user_package_id, v_classes_remaining FROM filtered;
+  ORDER BY (up.expires_at IS NULL) ASC, up.expires_at ASC, up.purchase_date ASC
+  LIMIT 1
+  FOR UPDATE SKIP LOCKED;
+
+  -- We lock the chosen user_package with FOR UPDATE SKIP LOCKED above and will
+  -- decrement/update it once after inserting the booking to avoid double-decrement.
 
   IF v_user_package_id IS NULL THEN
     RETURN QUERY SELECT FALSE, NULL::INTEGER, 'Usuario no tiene bonos válidos para este mes y tipo de clase'::TEXT;

@@ -1950,8 +1950,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
       // MÉTODO MEJORADO: Usar función SQL atómica para validaciones
       const { data: result, error: functionError } = await this.supabaseService.supabase
-        .rpc('create_booking_with_validations', {
-          p_user_id: user.id,
+        .rpc('admin_create_booking_for_user', {
+          p_target_user_id: user.id,
           p_class_session_id: sessionId,
           p_booking_date_time: new Date().toISOString()
         });
@@ -2150,9 +2150,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     const sessionId = this.selectedSession.id;
       // MÉTODO MEJORADO: Usar función SQL atómica para validaciones
       const { data: result, error: functionError } = await this.supabaseService.supabase
-        .rpc('create_booking_with_validations', {
-          p_user_id: user.id,
-      p_class_session_id: sessionId,
+        .rpc('admin_create_booking_for_user', {
+          p_target_user_id: user.id,
+          p_class_session_id: sessionId,
           p_booking_date_time: new Date().toISOString()
         });
 
@@ -2267,183 +2267,127 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   private async createBookingManuallyFallback(user: any) {
     if (!this.selectedSession) return;
 
-    // MÉTODO TEMPORAL: Crear reserva e actualizar paquete manualmente
-    // 1. Primero, obtener el paquete activo del usuario
-    const { data: userPackages, error: packageQueryError } = await this.supabaseService.supabase
-      .from('user_packages')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .gt('current_classes_remaining', 0)
-      .order('purchase_date', { ascending: true })
-      .limit(1);
-
-    if (packageQueryError || !userPackages || userPackages.length === 0) {
-      throw new Error('Usuario no tiene bonos disponibles');
-    }
-
-    const userPackage = userPackages[0];
-
-    // 2. Crear la reserva
-    const { data: bookingData, error: bookingError } = await this.supabaseService.supabase
-      .from('bookings')
-      .insert({
-        user_id: user.id,
-        class_session_id: this.selectedSession.id,
-        booking_date_time: new Date().toISOString(),
-        status: 'CONFIRMED',
-        is_from_package: true,
-  cancellation_time: null,
-        payment_id: null
-  ,
-  user_package_id: userPackage.id
+    // Use server-side RPC so logic is consistent with create_booking_with_validations
+    const { data: rpcResult, error: rpcError } = await this.supabaseService.supabase
+      .rpc('admin_create_booking_for_user', {
+        p_target_user_id: user.id,
+        p_class_session_id: this.selectedSession.id,
+        p_booking_date_time: new Date().toISOString()
       });
 
-    if (bookingError) {
-      throw new Error(`Error creando reserva: ${bookingError.message}`);
+    if (rpcError) {
+      console.warn('Error calling admin_create_booking_for_user RPC, falling back to manual method:', rpcError);
+      throw new Error(`Error en backend: ${rpcError.message}`);
     }
 
-    // 3. Actualizar el paquete del usuario
-    const newClassesRemaining = userPackage.current_classes_remaining - 1;
-    const newClassesUsed = userPackage.classes_used_this_month + 1;
-  const newStatus = newClassesRemaining <= 0 ? 'depleted' : 'active';
-
-    const { error: packageUpdateError } = await this.supabaseService.supabase
-      .from('user_packages')
-      .update({
-        current_classes_remaining: newClassesRemaining,
-        classes_used_this_month: newClassesUsed,
-        status: newStatus
-      })
-      .eq('id', userPackage.id);
-
-    if (packageUpdateError) {
-      console.warn('Warning: No se pudo actualizar el paquete automáticamente:', packageUpdateError);
+    const resultRow = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+    if (!resultRow || resultRow.success !== true) {
+      const msg = resultRow?.message || 'No se pudo crear la reserva (admin RPC)';
+      throw new Error(msg);
     }
 
-    // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+    const bookingId = resultRow.booking_id;
+
+    // Obtener la reserva completa con información del usuario y actualizar UI
+    const { data: bookingData, error: bookingDataError } = await this.supabaseService.supabase
+      .rpc('get_booking_with_user', { p_booking_id: bookingId });
+
+    if (bookingDataError || !bookingData || bookingData.length === 0) {
+      // If we can't fetch detailed booking, reload attendees as fallback
+      console.warn('No se pudo obtener booking completo, recargando asistentes...', bookingDataError);
+      await this.loadSessionAttendees(this.selectedSession.id);
+      return;
+    }
+
+    const completeBooking = bookingData[0];
+
     const newBooking: Booking & { users?: { name: string; surname: string; email: string } } = {
-      id: Date.now(), // ID temporal
-      user_id: user.id,
-      class_session_id: this.selectedSession.id,
-      booking_date_time: new Date().toISOString(),
-      status: 'CONFIRMED',
-      cancellation_time: '', // String vacío en lugar de null
+      id: completeBooking.id,
+      user_id: completeBooking.user_id,
+      class_session_id: completeBooking.class_session_id,
+      booking_date_time: completeBooking.booking_date_time,
+      status: completeBooking.status,
+      cancellation_time: completeBooking.cancellation_time || '',
       user: {
-        name: user.name,
-        surname: user.surname,
-        email: user.email
+        name: completeBooking.user_name,
+        surname: completeBooking.user_surname,
+        email: completeBooking.user_email
       },
-      // Duplicamos en 'users' para coincidir con la forma del join de Supabase y evitar UI nulls
       users: {
-        name: user.name,
-        surname: user.surname,
-        email: user.email
+        name: completeBooking.user_name,
+        surname: completeBooking.user_surname,
+        email: completeBooking.user_email
       }
     };
 
-    // Agregar a la lista local inmediatamente
     this.sessionAttendees.push(newBooking);
-
     this.successMessage = `${user.name} añadido correctamente a la clase`;
-
-    // Actualizar contador del evento inmediatamente (sin recargar todo el calendario)
     this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
-
-    // Recargar asistentes desde la BD para confirmar (sin recargar todo el calendario)
     await this.loadSessionAttendees(this.selectedSession.id);
   }
 
   private async addAttendeeWithPackageFallback(user: any) {
     if (!this.selectedSession) return;
 
-    // MÉTODO TEMPORAL: Crear reserva e actualizar paquete manualmente
-    // 1. Primero, obtener el paquete activo del usuario
-    const { data: userPackages, error: packageQueryError } = await this.supabaseService.supabase
-      .from('user_packages')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .gt('current_classes_remaining', 0)
-      .order('purchase_date', { ascending: true })
-      .limit(1);
-
-    if (packageQueryError || !userPackages || userPackages.length === 0) {
-      throw new Error('Usuario no tiene bonos disponibles');
-    }
-
-    const userPackage = userPackages[0];
-
-    // 2. Crear la reserva
-    const { data: bookingData, error: bookingError } = await this.supabaseService.supabase
-      .from('bookings')
-      .insert({
-        user_id: user.id,
-        class_session_id: this.selectedSession.id,
-        booking_date_time: new Date().toISOString(),
-        status: 'CONFIRMED',
-        is_from_package: true,
-  cancellation_time: null,
-  payment_id: null,
-  user_package_id: userPackage.id
+    // Use admin RPC to ensure server-side logic (expiry, selection) is used
+    const { data: rpcResult, error: rpcError } = await this.supabaseService.supabase
+      .rpc('admin_create_booking_for_user', {
+        p_target_user_id: user.id,
+        p_class_session_id: this.selectedSession.id,
+        p_booking_date_time: new Date().toISOString()
       });
 
-    if (bookingError) {
-      throw new Error(`Error creando reserva: ${bookingError.message}`);
+    if (rpcError) {
+      console.warn('Error calling admin_create_booking_for_user RPC:', rpcError);
+      throw new Error(`Error en backend: ${rpcError.message}`);
     }
 
-    // 3. Actualizar el paquete del usuario
-    const newClassesRemaining = userPackage.current_classes_remaining - 1;
-    const newClassesUsed = userPackage.classes_used_this_month + 1;
-  const newStatus = newClassesRemaining <= 0 ? 'depleted' : 'active';
-
-    const { error: packageUpdateError } = await this.supabaseService.supabase
-      .from('user_packages')
-      .update({
-        current_classes_remaining: newClassesRemaining,
-        classes_used_this_month: newClassesUsed,
-        status: newStatus
-      })
-      .eq('id', userPackage.id);
-
-    if (packageUpdateError) {
-      console.warn('Warning: No se pudo actualizar el paquete automáticamente:', packageUpdateError);
+    const resultRow = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+    if (!resultRow || resultRow.success !== true) {
+      const msg = resultRow?.message || 'No se pudo crear la reserva (admin RPC)';
+      throw new Error(msg);
     }
 
-    // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+    const bookingId = resultRow.booking_id;
+
+    const { data: bookingData, error: bookingDataError } = await this.supabaseService.supabase
+      .rpc('get_booking_with_user', { p_booking_id: bookingId });
+
+    if (bookingDataError || !bookingData || bookingData.length === 0) {
+      console.warn('No se pudo obtener booking completo, recargando asistentes...', bookingDataError);
+      await this.loadSessionAttendees(this.selectedSession.id);
+      return;
+    }
+
+    const completeBooking = bookingData[0];
+
     const newBooking: Booking & { users?: { name: string; surname: string; email: string } } = {
-      id: Date.now(), // ID temporal
-      user_id: user.id,
-      class_session_id: this.selectedSession.id,
-      booking_date_time: new Date().toISOString(),
-      status: 'CONFIRMED',
-      cancellation_time: '', // String vacío en lugar de null
+      id: completeBooking.id,
+      user_id: completeBooking.user_id,
+      class_session_id: completeBooking.class_session_id,
+      booking_date_time: completeBooking.booking_date_time,
+      status: completeBooking.status,
+      cancellation_time: completeBooking.cancellation_time || '',
       user: {
-        name: user.name,
-        surname: user.surname,
-        email: user.email
+        name: completeBooking.user_name,
+        surname: completeBooking.user_surname,
+        email: completeBooking.user_email
       },
       users: {
-        name: user.name,
-        surname: user.surname,
-        email: user.email
+        name: completeBooking.user_name,
+        surname: completeBooking.user_surname,
+        email: completeBooking.user_email
       }
     };
 
-    // Agregar a la lista local inmediatamente
-    this.sessionAttendees.push(newBooking);
-
-    this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
-
-    // Actualizar contador del evento inmediatamente
-    this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
-
-    // Recargar asistentes desde la BD para confirmar (sin recargar todo el calendario)
-    await this.loadSessionAttendees(this.selectedSession.id);
-    
-    // Resetear búsqueda
-    this.searchTerm = '';
-    this.showAddUserSection = false;
+  // Update UI with the booking returned from the server
+  this.sessionAttendees.push(newBooking);
+  this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
+  this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+  await this.loadSessionAttendees(this.selectedSession.id);
+  // Reset search/UI
+  this.searchTerm = '';
+  this.showAddUserSection = false;
   }
 
   // ==============================================

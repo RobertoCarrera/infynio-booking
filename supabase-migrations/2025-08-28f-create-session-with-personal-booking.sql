@@ -77,7 +77,8 @@ BEGIN
           )
       )
     )
-  ORDER BY up.purchase_date ASC
+  -- Prefer packages that expire sooner (NULLs last), then older purchase_date as tiebreaker
+  ORDER BY (up.expires_at IS NULL) ASC, up.expires_at ASC, up.purchase_date ASC
   LIMIT 1
   FOR UPDATE SKIP LOCKED;
 

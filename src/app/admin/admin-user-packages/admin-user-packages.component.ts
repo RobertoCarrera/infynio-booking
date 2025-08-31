@@ -441,7 +441,7 @@ export class AdminUserPackagesComponent implements OnInit {
 
   // Handler para eliminar un user_package desde la UI (admin)
   async onDeleteUserPackage(userPackageId: number) {
-  if (!confirm('Confirma que deseas RESTAR 1 clase de este bono (esto será registrado en el historial) en lugar de borrarlo?')) {
+  if (!confirm('Confirmar: ELIMINAR este bono si no tiene reservas asociadas. Si existen bookings asociados, la operación fallará.')) {
       return;
     }
 
@@ -456,9 +456,9 @@ export class AdminUserPackagesComponent implements OnInit {
         String(res.success) === '1'
       );
       if (res?.success === true || String(res?.success) === 't' || String(res?.success) === 'true') {
-        alert(res.message || 'Se restó 1 clase del bono (soft-update) correctamente.');
+        alert(res.message || 'Bono eliminado correctamente.');
       } else {
-        alert('Error al actualizar bono: ' + (res?.error || res?.message || JSON.stringify(res)));
+        alert('No se pudo eliminar el bono: ' + (res?.error || res?.message || JSON.stringify(res)));
       }
       await this.loadUsersWithPackages();
     } catch (err: any) {

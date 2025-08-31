@@ -250,7 +250,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   eliminarPackage(entrada: CarteraClase) {
-  if (!confirm('¿Confirmas restar 1 clase de este bono (acción reversible en el historial) en lugar de borrarlo?')) {
+  if (!confirm('Confirmar: ELIMINAR este bono si no tiene reservas asociadas. Si existen bookings asociados, la operación fallará.')) {
       return;
     }
 
@@ -260,10 +260,10 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
       try {
         const res = await this.packagesService.adminDeleteUserPackage(entrada.id);
         if (res?.success === true || String(res?.success) === 't' || String(res?.success) === 'true') {
-          this.successMessage = res.message || 'Se ha restado 1 clase del bono (soft-update)';
+          this.successMessage = res.message || 'Bono eliminado correctamente';
         } else {
           // Show RPC-level error (e.g., active bookings using this package)
-          this.error = res?.error || res?.message || 'Error al actualizar el bono';
+          this.error = res?.error || res?.message || 'No se pudo eliminar el bono';
         }
       } catch (err: any) {
         console.error('Error al eliminar package:', err);

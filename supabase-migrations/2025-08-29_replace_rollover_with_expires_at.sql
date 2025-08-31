@@ -127,7 +127,8 @@ BEGIN
             AND (c.expires_at IS NULL OR v_session.schedule_date <= c.expires_at)
         )
     )
-    ORDER BY c.purchase_date ASC
+  -- Prefer packages that expire sooner (NULLs last), then older purchase_date as tiebreaker
+  ORDER BY (c.expires_at IS NULL) ASC, c.expires_at ASC, c.purchase_date ASC
     LIMIT 1
   )
   SELECT id, current_classes_remaining INTO v_user_package_id, v_classes_remaining FROM filtered;

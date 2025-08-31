@@ -35,10 +35,18 @@ BEGIN
   END IF;
 END $$;
 
--- 2) Backfill: if a previous end-of-month date was stored in next_rollover_reset_date, use it as initial expires_at
-UPDATE public.user_packages
-   SET expires_at = next_rollover_reset_date
- WHERE expires_at IS NULL AND next_rollover_reset_date IS NOT NULL;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'user_packages' AND column_name = 'next_rollover_reset_date'
+  ) THEN
+    UPDATE public.user_packages
+       SET expires_at = next_rollover_reset_date
+     WHERE expires_at IS NULL AND next_rollover_reset_date IS NOT NULL;
+  END IF;
+END;
+$$;
 
 -- 3) RPC: Admin assigns package to user with explicit expiry
 CREATE OR REPLACE FUNCTION public.admin_assign_package_to_user(
@@ -169,15 +177,20 @@ BEGIN
   -- Look up the session date for consistent expiry checks
   SELECT schedule_date INTO v_session_date FROM class_sessions WHERE id = p_class_session_id;
 
-  SELECT id, current_classes_remaining, classes_used_this_month, expires_at
+  -- Select candidate package locking it to avoid concurrent claims. Prefer packages with nearest expires_at.
+  SELECT up.id, up.current_classes_remaining, up.classes_used_this_month, up.expires_at
     INTO v_user_package_id, v_classes_remaining, v_classes_used, v_expires_at
-  FROM user_packages
-  WHERE user_id = p_target_user_id
-    AND status = 'active'
-    AND current_classes_remaining > 0
-    AND (expires_at IS NULL OR COALESCE(v_session_date, now()::date) <= expires_at)
-  ORDER BY purchase_date ASC
-  LIMIT 1;
+  FROM user_packages up
+  WHERE up.user_id = p_target_user_id
+    AND up.status = 'active'
+    AND up.current_classes_remaining > 0
+    AND (up.expires_at IS NULL OR COALESCE(v_session_date, now()::date) <= up.expires_at)
+  ORDER BY (up.expires_at IS NULL) ASC, up.expires_at ASC, up.purchase_date ASC
+  LIMIT 1
+  FOR UPDATE SKIP LOCKED;
+
+  -- We lock the chosen user_package above and will decrement it after inserting the booking
+  -- to avoid double-decrement that could trigger nonnegative constraint violations.
 
   IF v_user_package_id IS NULL THEN
     RETURN QUERY SELECT FALSE, NULL::INTEGER, 'Usuario no tiene bonos disponibles'::TEXT;
@@ -207,11 +220,15 @@ BEGIN
 
     v_classes_remaining := v_classes_remaining - 1;
     v_classes_used := v_classes_used + 1;
-  v_new_status := CASE 
-            WHEN v_classes_remaining <= 0 OR (v_expires_at IS NOT NULL AND COALESCE(v_session_date, now()::date) > v_expires_at) 
-                        THEN 'expired' 
-                      ELSE 'active' 
-                    END;
+  -- Determine new status:
+  -- 1) If the package has already passed its expiry date for this session, mark as 'expired'.
+  -- 2) Else if classes have been depleted (<= 0) but not yet expired, mark as 'depleted'.
+  -- 3) Otherwise keep as 'active'.
+  v_new_status := CASE
+    WHEN v_expires_at IS NOT NULL AND COALESCE(v_session_date, now()::date) > v_expires_at THEN 'expired'
+    WHEN v_classes_remaining <= 0 THEN 'depleted'
+    ELSE 'active'
+  END;
 
     UPDATE user_packages
     SET 

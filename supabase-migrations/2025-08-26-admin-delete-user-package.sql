@@ -25,27 +25,24 @@ BEGIN
   END IF;
 
   -- If there are active bookings using this user_package, refuse to decrement/delete
-  IF EXISTS (SELECT 1 FROM bookings WHERE user_package_id = p_user_package_id AND status = 'CONFIRMED') THEN
-    RETURN json_build_object('success', false, 'error', 'No se puede modificar el bono: hay reservas activas usando este bono');
+  -- If there are any bookings (confirmed or cancelled) referencing this user_package, refuse to delete
+  IF EXISTS (SELECT 1 FROM bookings WHERE user_package_id = p_user_package_id) THEN
+    RETURN json_build_object('success', false, 'error', 'No se puede eliminar el bono: existen bookings asociados (usa reconciliación o cancela las reservas primero)');
   END IF;
 
-  -- Decrementar 1 clase de forma segura
-  -- Compute new remaining in a single expression to derive status deterministically
-  UPDATE user_packages
-  SET current_classes_remaining = greatest(0, coalesce(current_classes_remaining, 0) - 1),
-  status = CASE WHEN greatest(0, coalesce(current_classes_remaining, 0) - 1) > 0 THEN 'active' ELSE 'depleted' END,
-      updated_at = now()
-  WHERE id = p_user_package_id;
+  -- No bookings reference this package: perform hard delete
+  DELETE FROM user_packages WHERE id = p_user_package_id;
 
-  -- Registrar la acción para auditoría
+  -- Registrar la acción para auditoría (opcional)
   BEGIN
-  -- Logging to package_claim_logs removed per cleanup decision. Previously recorded audit entries here.
+    -- Logging removed per cleanup decision; place audit insertion here if needed
+    NULL;
   EXCEPTION WHEN OTHERS THEN
     -- ignore logging failures
     NULL;
   END;
 
-  RETURN json_build_object('success', true, 'message', 'user_package actualizado: 1 clase restada (soft-delete behavior)');
+  RETURN json_build_object('success', true, 'message', 'Bono eliminado correctamente');
 EXCEPTION WHEN OTHERS THEN
   RETURN json_build_object('success', false, 'error', SQLERRM);
 END;
