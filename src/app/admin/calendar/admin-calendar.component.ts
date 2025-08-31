@@ -103,6 +103,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   private pendingEvents: any[] | null = null;
   
   private subscriptions: Subscription[] = [];
+  // touch bindings added at runtime to support swipe navigation
+  private _touchBindings: Array<{ el: Element; name: string; handler: any }> = [];
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -257,6 +259,205 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     } catch (e) {
       // Non-fatal
     }
+
+    // Attach swipe gesture handlers (parity with user calendar)
+    try {
+      const tryAttach = () => { try { this.findAndAttachScrollEl(); } catch {} };
+      tryAttach();
+      setTimeout(tryAttach, 120);
+      setTimeout(tryAttach, 420);
+      setTimeout(() => {
+        try { if (this._touchBindings.length === 0) this.attachGlobalTouchHandlers(); } catch {}
+      }, 600);
+    } catch {}
+  }
+
+  // ==== Swipe gesture helpers (mobile) ====
+  private clearTouchBindings() {
+    try {
+      for (const t of this._touchBindings) {
+        try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
+      }
+    } catch {}
+    this._touchBindings = [];
+  }
+
+  private attachTouchHandlersTo(target: HTMLElement) {
+    try {
+      if (!target || !this.isMobile) return;
+      this.clearTouchBindings();
+      let startX: number | null = null;
+      let startY: number | null = null;
+      let tracking = false;
+
+      const onTouchStart = (ev: TouchEvent) => {
+        if (ev.touches && ev.touches.length === 1) {
+          startX = ev.touches[0].clientX;
+          startY = ev.touches[0].clientY;
+          tracking = true;
+        }
+      };
+      const onTouchMove = (ev: TouchEvent) => {
+        if (!tracking || startX == null || startY == null) return;
+        const tx = ev.touches[0].clientX;
+        const ty = ev.touches[0].clientY;
+        const dx = tx - startX;
+        const dy = ty - startY;
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
+      };
+      const onTouchEnd = (ev: TouchEvent) => {
+        if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
+        const endX = ev.changedTouches[0].clientX;
+        const endY = ev.changedTouches[0].clientY;
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+        startX = null; startY = null; tracking = false;
+      };
+      const onTouchCancel = () => { startX = null; startY = null; tracking = false; };
+
+      target.addEventListener('touchstart', onTouchStart, { passive: true });
+      target.addEventListener('touchmove', onTouchMove, { passive: false });
+      target.addEventListener('touchend', onTouchEnd, { passive: true });
+      target.addEventListener('touchcancel', onTouchCancel, { passive: true });
+
+      this._touchBindings.push({ el: target, name: 'touchstart', handler: onTouchStart });
+      this._touchBindings.push({ el: target, name: 'touchmove', handler: onTouchMove });
+      this._touchBindings.push({ el: target, name: 'touchend', handler: onTouchEnd });
+      this._touchBindings.push({ el: target, name: 'touchcancel', handler: onTouchCancel });
+    } catch {}
+  }
+
+  private attachPointerHandlersTo(target: HTMLElement) {
+    try {
+      if (!target || !this.isMobile) return;
+      let startX: number | null = null;
+      let startY: number | null = null;
+      let tracking = false;
+      let activePointerId: number | null = null;
+
+      const onDown = (ev: PointerEvent) => { if (!ev.isPrimary) return; startX = ev.clientX; startY = ev.clientY; tracking = true; activePointerId = ev.pointerId; };
+      const onMove = (ev: PointerEvent) => {
+        if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) return;
+        const dx = ev.clientX - startX; const dy = ev.clientY - startY;
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
+      };
+      const onUp = (ev: PointerEvent) => {
+        if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) { startX = null; startY = null; tracking = false; activePointerId = null; return; }
+        const dx = ev.clientX - (startX as number); const dy = ev.clientY - (startY as number);
+        const absDx = Math.abs(dx); const absDy = Math.abs(dy);
+        if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+        startX = null; startY = null; tracking = false; activePointerId = null;
+      };
+      const onCancel = () => { startX = null; startY = null; tracking = false; activePointerId = null; };
+
+      target.addEventListener('pointerdown', onDown as any, { passive: false });
+      target.addEventListener('pointermove', onMove as any, { passive: false });
+      target.addEventListener('pointerup', onUp as any, { passive: false });
+      target.addEventListener('pointercancel', onCancel as any, { passive: false });
+
+      this._touchBindings.push({ el: target, name: 'pointerdown', handler: onDown });
+      this._touchBindings.push({ el: target, name: 'pointermove', handler: onMove });
+      this._touchBindings.push({ el: target, name: 'pointerup', handler: onUp });
+      this._touchBindings.push({ el: target, name: 'pointercancel', handler: onCancel });
+    } catch {}
+  }
+
+  private findAndAttachScrollEl() {
+    try {
+      if (!this.isMobile || typeof document === 'undefined') return;
+      // Prefer the calendar scroller if present
+      const root = document.querySelector('.p-wrapper') as HTMLElement | null;
+      const selectors = ['.fc-scroller', '.fc-timegrid-body', '.fc-scrollgrid-section-liquid', '.fc'];
+      let found: HTMLElement | null = null;
+      for (const s of selectors) {
+        const q = (root || document).querySelector(s) as HTMLElement | null;
+        if (q) { found = q; break; }
+      }
+      if (!found) found = document.querySelector('.fc') as HTMLElement | null;
+      if (found) {
+        this.attachTouchHandlersTo(found);
+        this.attachPointerHandlersTo(found);
+      }
+    } catch {}
+  }
+
+  private attachGlobalTouchHandlers() {
+    try {
+      if (!this.isMobile || typeof document === 'undefined') return;
+      const doc = document as any;
+      let startX: number | null = null;
+      let startY: number | null = null;
+      let tracking = false;
+      const onStart = (ev: TouchEvent) => {
+        try {
+          if (!ev.touches || ev.touches.length !== 1) return;
+          const t = ev.touches[0];
+          const targetEl = (ev.target as HTMLElement) || null;
+          if (!targetEl) return;
+          const selectors = ['.calendar-container', '.p-wrapper .fc', '.fc', 'full-calendar'];
+          const isInside = selectors.some(sel => {
+            try { return !!targetEl.closest(sel); } catch { return false; }
+          });
+          if (isInside) { startX = t.clientX; startY = t.clientY; tracking = true; }
+        } catch {}
+      };
+      const onMove = (ev: TouchEvent) => {
+        try {
+          if (!tracking || startX == null || startY == null) return;
+          const tx = ev.touches[0].clientX; const ty = ev.touches[0].clientY;
+          const dx = tx - startX; const dy = ty - startY;
+          if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
+        } catch {}
+      };
+      const onEnd = (ev: TouchEvent) => {
+        try {
+          if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
+          const endX = ev.changedTouches[0].clientX; const endY = ev.changedTouches[0].clientY;
+          const dx = endX - startX; const dy = endY - startY; const absDx = Math.abs(dx); const absDy = Math.abs(dy);
+          if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+        } catch {}
+        startX = null; startY = null; tracking = false;
+      };
+      const onCancel = () => { startX = null; startY = null; tracking = false; };
+      doc.addEventListener('touchstart', onStart, { passive: true });
+      doc.addEventListener('touchmove', onMove, { passive: false });
+      doc.addEventListener('touchend', onEnd, { passive: true });
+      doc.addEventListener('touchcancel', onCancel, { passive: true });
+      this._touchBindings.push({ el: doc, name: 'touchstart', handler: onStart });
+      this._touchBindings.push({ el: doc, name: 'touchmove', handler: onMove });
+      this._touchBindings.push({ el: doc, name: 'touchend', handler: onEnd });
+      this._touchBindings.push({ el: doc, name: 'touchcancel', handler: onCancel });
+    } catch {}
+  }
+
+  // Return text color with good contrast for a given bg color
+  getContrastColor(color: string): string {
+    try {
+      if (!color) return '#000';
+      color = color.trim();
+      if (color.startsWith('#')) {
+        const hex = color.substring(1);
+        if (hex.length >= 6) {
+          const r = parseInt(hex.substring(0,2), 16);
+          const g = parseInt(hex.substring(2,4), 16);
+          const b = parseInt(hex.substring(4,6), 16);
+          const yiq = (r*299 + g*587 + b*114) / 1000;
+          return yiq >= 128 ? '#000000' : '#ffffff';
+        }
+      } else if (color.startsWith('rgb')) {
+        const nums = color.replace(/[rgba\(\)\s]/g, '').split(',').map(s => parseFloat(s));
+        const [r,g,b] = [nums[0]||0, nums[1]||0, nums[2]||0];
+        const yiq = (r*299 + g*587 + b*114) / 1000;
+        return yiq >= 128 ? '#000000' : '#ffffff';
+      }
+    } catch {}
+    return '#ffffff';
   }
 
   // Helper: normalize time-only strings like '09:00:00' to a Date for template formatting
@@ -335,6 +536,13 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.subscriptions.forEach(sub => sub.unsubscribe());
   this.stopRenderPhaseTimer();
   this.stopFakeProgress();
+    // Remove any touch/pointer listeners we registered for swipe gestures
+    try {
+      for (const t of this._touchBindings) {
+        try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
+      }
+      this._touchBindings = [];
+    } catch {}
   }
 
   loadData() {
@@ -376,20 +584,24 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   private loadSessionsData(sessions: ClassSession[]) {
     this.events = sessions.map(session => {
-      const bookingCount = session.bookings ? session.bookings.length : 0;
+      const bookingCount = typeof session.confirmed_bookings_count === 'number'
+        ? session.confirmed_bookings_count
+        : (session.bookings ? session.bookings.length : 0);
+      // Ensure class_type_name is present for color mapping
       const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
-      // Format time as HH:mm and use line breaks for separation
+      const safeSession: ClassSession = { ...session, class_type_name: className };
+      const colors = this.classSessionsService.getEventColors(safeSession);
       const time = session.schedule_time?.slice(0,5) || '';
       return {
         id: session.id.toString(),
-        title: `${time}\n${className}\n(${bookingCount}/${session.capacity})`,
+        title: `${time} • ${className} • (${bookingCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
         end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
-        backgroundColor: this.getClassTypeColor(session.class_type_id),
-        borderColor: this.getClassTypeColor(session.class_type_id),
-        textColor: '#ffffff',
+        backgroundColor: colors.background,
+        borderColor: colors.border,
+        textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
         extendedProps: {
-          session: session,
+          session: safeSession,
           capacity: session.capacity,
           bookings: bookingCount
         }
@@ -433,18 +645,19 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
               ? session.confirmed_bookings_count
               : (session.bookings ? session.bookings.length : 0);
             const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
-            // Format time as HH:mm and use line breaks for separation
+            const safeSession: ClassSession = { ...session, class_type_name: className };
+            const colors = this.classSessionsService.getEventColors(safeSession);
             const time = session.schedule_time?.slice(0,5) || '';
             return {
               id: String(session.id),
-              title: `${time}\n${className}\n(${bookingCount}/${session.capacity})`,
+              title: `${time} • ${className} • (${bookingCount}/${session.capacity})`,
               start: `${session.schedule_date}T${session.schedule_time}`,
               end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
-              backgroundColor: this.getClassTypeColor(session.class_type_id),
-              borderColor: this.getClassTypeColor(session.class_type_id),
-              textColor: '#ffffff',
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+              textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
               extendedProps: {
-                session: session,
+                session: safeSession,
                 capacity: session.capacity,
                 bookings: bookingCount
               }
@@ -660,15 +873,24 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
           const className = this.getClassTypeName(classTypeId);
           const start = `${createdSession.schedule_date}T${createdSession.schedule_time}`;
           const end = this.calculateEndTime(createdSession.schedule_date, createdSession.schedule_time, classTypeId);
-          const color = this.getClassTypeColor(classTypeId);
+          // Ensure name present for color mapping
+          const classNameForColors = className;
+          const colors = this.classSessionsService.getEventColors({
+            id: createdSession.id,
+            class_type_id: classTypeId,
+            capacity: createdSession.capacity,
+            schedule_date: createdSession.schedule_date,
+            schedule_time: createdSession.schedule_time,
+            class_type_name: classNameForColors
+          } as ClassSession);
           const event = {
             id: String(createdSession.id),
             title: `${createdSession.schedule_time} • ${className} • (${bookingCount}/${createdSession.capacity})`,
             start,
             end,
-            backgroundColor: color,
-            borderColor: color,
-            textColor: '#ffffff',
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
               extendedProps: {
               session: createdSession,
               capacity: createdSession.capacity,
@@ -746,15 +968,23 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             const className = this.getClassTypeName(classTypeId);
             const start = `${createdSession.schedule_date}T${createdSession.schedule_time}`;
             const end = this.calculateEndTime(createdSession.schedule_date, createdSession.schedule_time, classTypeId);
-            const color = this.getClassTypeColor(classTypeId);
+            const classNameForColors = className;
+            const colors = this.classSessionsService.getEventColors({
+              id: createdSession.id,
+              class_type_id: classTypeId,
+              capacity: createdSession.capacity,
+              schedule_date: createdSession.schedule_date,
+              schedule_time: createdSession.schedule_time,
+              class_type_name: classNameForColors
+            } as ClassSession);
             const event = {
               id: String(createdSession.id),
               title: `${createdSession.schedule_time} • ${className} • (${bookingCount}/${createdSession.capacity})`,
               start,
               end,
-              backgroundColor: color,
-              borderColor: color,
-              textColor: '#ffffff',
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+              textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
               extendedProps: {
                 session: createdSession,
                 capacity: createdSession.capacity,
