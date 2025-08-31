@@ -446,3 +446,52 @@ body.route-admin .mobile-list-scroll {
 }
 
 /* end of file */
+
+/* ======================================================
+   Mobile: force hide of day numbers (headers) and event
+   time labels in the calendar when rendered inside .p-wrapper
+   Put these rules in global styles so Angular component
+   encapsulation can't accidentally override them.
+   ====================================================== */
+@media (max-width: 991.98px) {
+  /* Hide inline event times in the timeGrid summary boxes */
+  .p-wrapper .fc .fc-timegrid-event .fc-event-time,
+  .p-wrapper .fc .fc-timegrid-event .fc-event-start,
+  .p-wrapper .fc .fc-timegrid-event .fc-time {
+    display: none !important;
+  }
+
+  /* Hide several possible header day-number selectors used by FullCalendar
+     Keep the weekday label visible. Use !important to ensure override. */
+  .p-wrapper .fc .fc-col-header-cell .fc-daygrid-day-number,
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-day-number,
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-number,
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-cushion span,
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-cushion .fc-day-number {
+    display: none !important;
+  }
+
+  /* Fallback: if the header cushion contains weekday + number as separate
+     child nodes, hide the second child (often the numeric date). */
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-cushion > *:nth-child(2) {
+    display: none !important;
+  }
+
+  /* Extra fallback: hide any trailing numeric text node wrapped in a span/div */
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-cushion > span:last-child,
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-cushion > div:last-child {
+    display: none !important;
+  }
+
+  /* Keep heading text centered when the numeric part is removed */
+  .p-wrapper .fc .fc-col-header-cell .fc-col-header-cell-cushion {
+    display: block !important;
+    text-align: center !important;
+  }
+
+  /* Tweak event title spacing after removing the time */
+  .p-wrapper .fc .fc-timegrid-event .fc-event-title,
+  .p-wrapper .fc .fc-timegrid-event .fc-event-main {
+    padding-top: 0.125rem !important;
+  }
+}

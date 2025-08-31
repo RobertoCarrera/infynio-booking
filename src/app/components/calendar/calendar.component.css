@@ -231,5 +231,57 @@
 
 /* Toast styles (top-right) */
 
+/* Make calendar events show pointer on hover (class sessions) */
+:host ::ng-deep .fc .fc-event,
+:host ::ng-deep .fc .fc-timegrid-event,
+:host ::ng-deep .fc .fc-daygrid-event,
+:host ::ng-deep .fc .fc-event-main {
+	cursor: pointer;
+}
+
+:host ::ng-deep .fc .fc-event:hover,
+:host ::ng-deep .fc .fc-timegrid-event:hover,
+:host ::ng-deep .fc .fc-daygrid-event:hover,
+:host ::ng-deep .fc .fc-event-main:hover {
+	filter: brightness(0.98);
+}
+
+/* On small screens (mobile), hide the inline time shown inside event summaries
+	 in the timeGrid (weekly) view so the box is cleaner. This does NOT affect
+	 modal content or detailed views — only the small event element inside the
+	 calendar rendering. */
+@media (max-width: 991.98px) {
+	:host ::ng-deep .fc .fc-timegrid-event .fc-event-time,
+	:host ::ng-deep .fc .fc-timegrid-event .fc-event-start,
+	:host ::ng-deep .fc .fc-timegrid-event .fc-time {
+		display: none !important;
+	}
+
+	/* Reduce top padding so title aligns nicely when the time is removed */
+	:host ::ng-deep .fc .fc-timegrid-event .fc-event-title,
+	:host ::ng-deep .fc .fc-timegrid-event .fc-event-main {
+		padding-top: 0.125rem !important;
+	}
+}
+
+/* Mobile: hide the numeric day (date) in the column header for week view.
+	 Keep only the weekday name (e.g., Lun, Mar). Scoped via ::ng-deep. */
+@media (max-width: 991.98px) {
+	:host ::ng-deep .fc .fc-col-header-cell .fc-col-header-cell-cushion { color: inherit; }
+	/* FullCalendar may render the day number in a separate element; hide common ones */
+	:host ::ng-deep .fc .fc-col-header-cell .fc-daygrid-day-number,
+	:host ::ng-deep .fc .fc-col-header-cell .fc-col-header-day-number,
+	:host ::ng-deep .fc .fc-col-header-cell .fc-col-header-cell-number,
+	:host ::ng-deep .fc .fc-col-header-cell .fc-col-header-cell-cushion span[data-time],
+	:host ::ng-deep .fc .fc-col-header-cell .fc-col-content .fc-daygrid-day-top .fc-daygrid-day-number {
+		display: none !important;
+	}
+	/* If the header is constructed with two lines, ensure weekday label stays centered */
+	:host ::ng-deep .fc .fc-col-header-cell .fc-col-header-cell-cushion {
+		display: block;
+		text-align: center;
+	}
+}
+
 
 

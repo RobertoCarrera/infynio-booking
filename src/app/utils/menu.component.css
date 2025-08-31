@@ -98,13 +98,13 @@
     gap: 8px;
     z-index: 4000;
     /* Solid background so content never shows through */
-    background-color: #ffffff;
-    border-radius: 20px;
+    background-color: #424242;
+    border-radius: 50em;
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
 .mobile-nav-item{
-    color: #191919;
+    color: #EBD4EA;
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -119,8 +119,9 @@
 }
 .mobile-nav-item svg{ color: inherit; opacity: 0.95; }
 .mobile-nav-item.active, .mobile-nav-item:active, .mobile-nav-item.router-link-active{ 
-    background: #424242; 
-    color: #EBD4EA;
+    background: #EBD4EA; 
+    color: #424242;
+    border: 1px solid #EBD4EA;
 }
 
 /* Desktop: show top navbar and hide mobile bottom nav */

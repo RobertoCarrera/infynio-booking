@@ -145,7 +145,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           return `${cap}${dayStr ? ' ' + dayStr : ''}`;
         } catch (e) { return ''; }
       };
-      // Short weekday for mobile week view: 3 letters + day number, first letter capitalized
+      // Short weekday for mobile week view: by default 3 letters + day number,
+      // but map miércoles to the special 'Miérco.' label per UX request.
       const weekdayShortContent = (arg: any) => {
         try {
           const d = (arg && arg.date) ? new Date(arg.date) : new Date();
@@ -157,6 +158,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
             if (p.type === 'day') daynum = p.value || '';
           }
           if (!weekday) return '';
+          const low = weekday.toLowerCase();
+          // Special-case miércoles -> Miérco.
+          if (low.startsWith('miér') || low.startsWith('mier')) {
+            const dayStr = daynum ? ' ' + String(daynum).padStart(2, '0') : '';
+            return `Miérco.${dayStr}`;
+          }
           const short = weekday.slice(0, 3);
           const cap = short.charAt(0).toUpperCase() + short.slice(1);
           const dayStr = daynum ? String(daynum).padStart(2, '0') : '';
@@ -172,6 +179,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           let weekday = '';
           for (const p of parts) if (p.type === 'weekday') weekday = p.value || '';
           if (!weekday) return '';
+          const low = weekday.toLowerCase();
+          if (low.startsWith('miér') || low.startsWith('mier')) return 'Miérco.';
           const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
           return cap;
         } catch (e) { return ''; }
@@ -179,8 +188,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       // Always show full weekday in single-day view (mobile and desktop)
   // On single-day view, show only the weekday name on mobile (the toolbar already shows the date)
   views.timeGridDay = { ...(views.timeGridDay || {}), dayHeaderContent: (this.isMobile ? weekdayNameOnly : weekdayContent) };
-      // On week view use a short header on mobile, full weekday on desktop
-      views.timeGridWeek = { ...(views.timeGridWeek || {}), dayHeaderContent: (this.isMobile ? weekdayShortContent : weekdayContent) };
+  // On week view: on mobile show just the weekday name (no numeric day), on desktop show full weekday+day
+  views.timeGridWeek = { ...(views.timeGridWeek || {}), dayHeaderContent: (this.isMobile ? weekdayNameOnly : weekdayContent) };
       if (!this.isMobile) {
         // On desktop use full weekday names in month view as well
         views.dayGridMonth = { ...(views.dayGridMonth || {}), dayHeaderContent: weekdayContent };
