@@ -1,9 +1,22 @@
 <div class="admin-calendar-container admin-calendar-active">
-  <!-- Floating 'Nueva Sesión' button at bottom right -->
-  <button class="btn btn-primary floating-create-session" (click)="openCreateModal()">
-    <i class="bi bi-plus"></i>
-    <span class="d-none d-md-inline ms-2">Nueva Sesión</span>
-  </button>
+  <!-- User calendar toolbar (shared) -->
+  <div class="container-fluid px-0">
+    <div class="row justify-content-center">
+      <div class="col-12">
+        <app-calendar-toolbar
+          [currentRangeLabel]="currentRangeLabel"
+          [currentView]="currentView"
+          [isMobile]="isMobile"
+          [filtersCollapsed]="false"
+          (prev)="onPrev()"
+          (next)="onNext()"
+          (today)="goToday()"
+          (changeView)="setView($event)"
+          (toggleFilters)="onToggleFiltersNoop()"
+        ></app-calendar-toolbar>
+      </div>
+    </div>
+  </div>
 
   <!-- Messages -->
   <div *ngIf="error" class="alert alert-danger alert-dismissible fade show">
@@ -27,8 +40,9 @@
 
   <!-- Calendar: mantener siempre montado para no perder vista/fecha -->
   <div class="calendar-container">
-    <div class="full-calendar-wrapper" style="flex:1 1 auto; display:flex; flex-direction:column; min-height:100%;">
-      <full-calendar #calendar [options]="calendarOptions" style="flex:1 1 auto; min-height:100%; height:100%; width:100%;"></full-calendar>
+    <!-- Use the same wrapper class as the user calendar so global styles apply identically -->
+    <div class="p-wrapper">
+  <full-calendar #calendar [options]="calendarOptions"></full-calendar>
     </div>
   </div>
 

@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, OnDestroy, ChangeDetectorRef, ViewChi
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FullCalendarModule, FullCalendarComponent } from '@fullcalendar/angular';
+import { CalendarToolbarComponent } from '../../components/calendar/calendar-toolbar.component';
 import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
@@ -14,7 +15,7 @@ import { Subscription, forkJoin, firstValueFrom } from 'rxjs';
 @Component({
   selector: 'app-admin-calendar',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, FullCalendarModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, FullCalendarModule, CalendarToolbarComponent],
   templateUrl: './admin-calendar.component.html',
   styleUrls: ['./admin-calendar.component.css']
 })
@@ -24,6 +25,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   calendarOptions: CalendarOptions;
   events: any[] = [];
   classTypes: ClassType[] = [];
+  // Toolbar state (mirror user calendar visuals)
+  currentRangeLabel: string | null = null;
+  currentView: 'day' | 'week' | 'month' = 'week';
+  isMobile = false;
   
   // Modal states
   showModal = false;
@@ -126,6 +131,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // Configuración del calendario adaptada para admin
   const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+  this.isMobile = isMobile;
   this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       selectable: true,
@@ -133,30 +139,22 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       select: this.onDateSelect.bind(this),
   dateClick: this.onDateClick.bind(this),
       eventClick: this.onEventClick.bind(this),
-      editable: true,
+  editable: true,
       eventDrop: this.onEventDrop.bind(this),
       eventResizableFromStart: false,
       eventDurationEditable: false,
       events: (info: any, success: any, failure: any) => this.fetchEventsForRange(info, success, failure),
       loading: (isLoading: boolean) => this.onCalendarLoading(isLoading),
       eventsSet: (_events: any[]) => this.onEventsSet(_events),
-      height: 'calc(100vh - 100px)',
+      // Height managed by CSS via .p-wrapper for parity with user calendar
+      height: undefined,
       dayMaxEvents: false,
       moreLinkClick: 'popover',
       eventDisplay: 'block',
       displayEventTime: false,
       eventContent: this.renderEventContent.bind(this),
-      headerToolbar: (isMobile || window.innerWidth <= 1024)
-        ? {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'timeGridDay,timeGridWeek'
-          }
-        : {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-          },
+      headerToolbar: false,
+      datesSet: (arg: any) => this.onDatesSet(arg),
       initialView: (isMobile || window.innerWidth <= 1024) ? 'timeGridDay' : 'timeGridWeek',
       buttonText: {
         today: 'Hoy',
@@ -166,21 +164,59 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       // Forzar selección en móvil para admin
       selectAllow: () => true,
-      /* Business hours and visible time range (admin calendar) */
-      // Show slots from 07:00 up to 21:00, but businessHours will mark active ranges
-      slotMinTime: '07:00:00',
-      slotMaxTime: '21:00:00',
-      // Hide Sunday (0) and Saturday (6)
-      hiddenDays: [0, 6],
-      // Define two business-hour ranges: 07:00-14:00 and 16:00-21:00 on Mon-Fri
-      businessHours: [
-        { daysOfWeek: [1, 2, 3, 4, 5], startTime: '07:00', endTime: '14:00' },
-        { daysOfWeek: [1, 2, 3, 4, 5], startTime: '16:00', endTime: '21:00' }
-      ],
-      // make slots readable and reasonably sized
-      slotDuration: '00:30:00',
-      slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
+  /* Visual config inherits from FULLCALENDAR_OPTIONS for parity with user calendar */
+  slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
     };
+  }
+
+  // Toolbar handlers (match user calendar API usage)
+  onPrev() {
+    try { const api = this.calendarComponent?.getApi(); api?.prev(); } catch {}
+  }
+  onNext() {
+    try { const api = this.calendarComponent?.getApi(); api?.next(); } catch {}
+  }
+  goToday() {
+    try { const api = this.calendarComponent?.getApi(); api?.today(); } catch {}
+  }
+  setView(view: string) {
+    const map: any = { day: 'timeGridDay', week: 'timeGridWeek', month: 'dayGridMonth' };
+    const fc = map[view];
+    if (!fc) return;
+    try { const api = this.calendarComponent?.getApi(); api?.changeView(fc); } catch {}
+  }
+
+  onToggleFiltersNoop() { /* no-op in admin; toolbar button kept for visual parity */ }
+
+  private onDatesSet(arg: any) {
+    // Update currentView to reflect FC type
+    try {
+      const t = arg?.view?.type;
+      if (t === 'timeGridDay') this.currentView = 'day';
+      else if (t === 'timeGridWeek') this.currentView = 'week';
+      else if (t === 'dayGridMonth') this.currentView = 'month';
+    } catch {}
+    // Build range label (es-ES)
+    try {
+      const s = new Date(arg.start);
+      const e = new Date(arg.end);
+      const fmt = (d: Date, monthStyle: 'short'|'long' = 'long') => {
+        const parts = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: monthStyle }).formatToParts(d);
+        let wd = '', day = '', mon = '';
+        for (const p of parts) { if (p.type==='weekday') wd=p.value; if (p.type==='day') day=p.value; if (p.type==='month') mon=p.value; }
+        const cap = wd ? (wd.charAt(0).toUpperCase()+wd.slice(1)) : '';
+        return `${cap} ${day} ${mon ? 'de '+mon : ''}`.trim();
+      };
+      const monthStyle: 'short'|'long' = (this.currentView==='day') ? 'long' : (this.isMobile ? 'short':'long');
+      let label: string;
+      if (this.currentView==='day') label = fmt(s, monthStyle);
+      else {
+        const left = fmt(s, monthStyle);
+        const right = fmt(new Date(e.getTime()-1), monthStyle);
+        label = `${left} - ${right}`;
+      }
+      this.currentRangeLabel = label;
+    } catch {}
   }
 
   onDateClick(clickInfo: any) {

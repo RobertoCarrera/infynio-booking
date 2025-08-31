@@ -9,23 +9,7 @@
   pointer-events: auto !important;
   user-select: auto !important;
 }
-.fc-event {
-  border: 2px solid rgba(0, 0, 0, 0.3) !important;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
-  font-weight: 700 !important;
-  font-size: 13px !important;
-  padding: 0 !important;
-  border-radius: 6px !important;
-  opacity: 0.95 !important;
-  background-clip: padding-box !important;
-  transition: all 0.2s ease !important;
-  min-height: 70px !important;
-  height: auto !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-}
+.fc-event { border: 1px solid rgba(0,0,0,0.1) !important; box-shadow: none !important; font-weight: 600 !important; font-size: 13px !important; padding: 4px 6px !important; border-radius: 6px !important; opacity: 0.98 !important; background-clip: padding-box !important; transition: filter 0.18s ease !important; min-height: 52px !important; height: auto !important; display:flex !important; align-items:center !important; justify-content:center !important; text-align:center !important; }
 
 .fc-event:hover {
   transform: translateY(-1px) !important;
@@ -40,7 +24,7 @@
   justify-content: center !important;
   text-align: center !important;
   padding: 4px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   font-size: 12px !important;
   line-height: 1.2 !important;
   color: white !important;
@@ -50,7 +34,9 @@
 .admin-calendar-container {
   padding: 8px;
   background-color: transparent;
-  height: 100vh;
+  /* allow height to be controlled by inner wrappers (user calendar styles) */
+  min-height: 0;
+  height: auto;
   display: flex;
   flex-direction: column;
 }
@@ -73,10 +59,9 @@ full-calendar {
   display: block;
 }
 
-/* Ensure FullCalendar's internal containers use available height */
+/* Ensure scrollers can shrink; let global user calendar CSS define heights */
 ::ng-deep .fc-view-harness,
 ::ng-deep .fc .fc-scroller {
-  height: 100% !important;
   min-height: 0 !important;
 }
 
@@ -103,17 +88,7 @@ full-calendar {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.calendar-container {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  padding: 12px;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  /* reduce header+footroom so the timeGrid fits fully (08:00-20:00) */
-  max-height: 80vh;
-}
+.calendar-container { background: transparent; padding: 0; }
 
 /* Attendees Modal Styles */
 .attendee-item {
@@ -329,22 +304,7 @@ full-calendar {
   -webkit-overflow-scrolling: touch !important;
 }
 
-/* Slightly reduce per-slot min-height so full 12 slots (08:00-20:00) fit in typical viewports */
-::ng-deep .fc .fc-timegrid-slot,
-::ng-deep .fc .fc-timegrid-slots {
-  --fc-timegrid-slot-height: 48px !important;
-}
-
-@media (max-width: 1024px) {
-  /* On narrower screens give a bit more vertical room */
-  .calendar-container {
-    height: calc(100vh - 84px);
-  }
-  ::ng-deep .fc .fc-timegrid-slot,
-  ::ng-deep .fc .fc-timegrid-slots {
-    --fc-timegrid-slot-height: 46px !important;
-  }
-}
+/* Remove slot-height overrides; user calendar CSS controls slot sizing via .p-wrapper */
 
 /* FullCalendar customizations */
 ::ng-deep .fc {
@@ -372,60 +332,28 @@ full-calendar {
   height: 100% !important;
 }
 
-::ng-deep .fc-daygrid-day {
-  height: auto !important;
-  min-height: 300px !important;
-}
+/* Use default daygrid sizing */
+::ng-deep .fc-daygrid-day { height: auto !important; }
 
-::ng-deep .fc-daygrid-day-frame {
-  height: 100% !important;
-  min-height: 300px !important;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-}
+::ng-deep .fc-daygrid-day-frame { padding: 8px; display: flex; flex-direction: column; }
 
 ::ng-deep .fc-daygrid-day-top {
   flex-shrink: 0;
   margin-bottom: 8px;
 }
 
-::ng-deep .fc-daygrid-day-events {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 250px;
-}
+::ng-deep .fc-daygrid-day-events { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; }
 
 ::ng-deep .fc-daygrid-event-harness {
   margin: 0 !important;
   margin-bottom: 3px !important;
 }
 
-::ng-deep .fc-daygrid-event {
-  margin: 0 !important;
-  height: auto !important;
-  min-height: 70px !important;
-}
+::ng-deep .fc-daygrid-event { margin: 0 !important; height: auto !important; }
 
-::ng-deep .fc-event-main {
-  padding: 12px !important;
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-  color: #424242 !important;
-}
+::ng-deep .fc-event-main { padding: 6px 8px !important; height: 100% !important; display:flex !important; align-items:center !important; justify-content:center !important; text-align:center !important; }
 
-::ng-deep .fc-event-title {
-  line-height: 1.4 !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  word-wrap: break-word !important;
-  white-space: normal !important;
-}
+::ng-deep .fc-event-title { line-height: 1.2 !important; font-size: 13px !important; font-weight: 600 !important; word-wrap: break-word !important; white-space: normal !important; }
 
 ::ng-deep .fc-header-toolbar {
   margin-bottom: 20px;
