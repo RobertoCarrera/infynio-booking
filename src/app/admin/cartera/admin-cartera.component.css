@@ -323,4 +323,39 @@
   .btn-group-sm .btn {
     padding: 0.125rem 0.25rem;
   }
+
+  /* Ensure the admin container on mobile uses the viewport height minus the bottom
+     navigation (if present) so internal scrolling works. The --bottom-nav-height
+     variable is used by the MenuComponent when available; fallback to 90px. */
+  .admin-cartera-container {
+    /* Reserve space for top bars (if any) and the bottom nav so local scroll works */
+    min-height: unset;
+    height: calc(100vh - var(--bottom-nav-height, 90px) - var(--top-bar-height, 56px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-usuarios-bonos .card{
+    max-height: 30dvh;
+  }
+
+  .admin-usuarios-bonos .usuario-item:last-child{
+    margin-bottom: 4.2em;
+  }
+
+  /* Mobile: allow the bonos (cartera) card body to scroll vertically so the list is reachable
+     even when the page layout is stacked and the card may be taller than the viewport. */
+  .bonos-info .card .card-body {
+    /* undo the global overflow: hidden set earlier and enable vertical scrolling */
+    overflow: visible;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Bound the card body so it doesn't exceed the available viewport space */
+    max-height: 30dvh;
+  }
+
+  /* Give the internal cartera list more room on mobile when scrolling within card body */
+  .bonos-info .cartera-scroll {
+    max-height: calc(100vh - var(--bottom-nav-height, 90px) - 200px);
+  }
 }
