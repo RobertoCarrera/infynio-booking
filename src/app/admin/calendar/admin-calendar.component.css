@@ -197,6 +197,28 @@ full-calendar {
   z-index: 1040;
 }
 
+/* Offcanvas filters overlay layering and interaction (ensure panel above backdrop) */
+.admin-calendar-container .offcanvas {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  max-height: 100vh;
+  overflow: auto;
+  background: #fff;
+  z-index: 4300 !important; /* above the custom backdrop */
+  pointer-events: auto;
+}
+
+.admin-calendar-container .offcanvas.offcanvas-start { left: 0; width: min(360px, 90vw); box-shadow: 4px 0 16px rgba(0,0,0,0.2); }
+.admin-calendar-container .offcanvas.offcanvas-end { right: 0; width: min(360px, 90vw); box-shadow: -4px 0 16px rgba(0,0,0,0.2); }
+
+.admin-calendar-container .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 4290 !important; /* below offcanvas */
+}
+
 /* Ensure admin calendar modals are centered on desktop and sit above the main menu (menu z-index: 4000).
    Keep mobile behaviour unchanged (margins on small screens). We use !important to override
    inline styles that set z-index on some modal instances. */
@@ -302,6 +324,14 @@ full-calendar {
   box-sizing: border-box !important;
   overflow-y: auto !important; /* permit vertical scrolling inside admin calendar */
   -webkit-overflow-scrolling: touch !important;
+  /* No global touch-action here; we restrict to timegrid elements below */
+}
+
+/* Improve swipe recognition over time grid slots while keeping vertical scroll */
+.admin-calendar-container ::ng-deep .fc .fc-timegrid-body,
+.admin-calendar-container ::ng-deep .fc .fc-timegrid-slots,
+.admin-calendar-container ::ng-deep .fc .fc-timegrid-slot-lane {
+  touch-action: pan-y !important;
 }
 
 /* Remove slot-height overrides; user calendar CSS controls slot sizing via .p-wrapper */

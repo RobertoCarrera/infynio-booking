@@ -24,11 +24,21 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   
   calendarOptions: CalendarOptions;
   events: any[] = [];
+  // Keep an unfiltered snapshot of current range events to apply filters locally without refetching
+  private allEventsCurrentRange: any[] = [];
   classTypes: ClassType[] = [];
   // Toolbar state (mirror user calendar visuals)
   currentRangeLabel: string | null = null;
   currentView: 'day' | 'week' | 'month' = 'week';
   isMobile = false;
+  private _globalTouchBound = false;
+  // Filters UI state and data (parity with user calendar)
+  desktopFiltersOpen = false;
+  mobileFiltersOpen = false;
+  private mobileFiltersTimeout: any = null;
+  typesLoaded = false;
+  availableClassTypes: { name: string, color: { background: string, border: string } }[] = [];
+  filteredClassTypes: Set<string> = new Set();
   
   // Modal states
   showModal = false;
@@ -105,6 +115,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   private subscriptions: Subscription[] = [];
   // touch bindings added at runtime to support swipe navigation
   private _touchBindings: Array<{ el: Element; name: string; handler: any }> = [];
+  // Prevent double handling (touch + pointer) and rapid repeat swipes
+  private suppressPointerUntil = 0; // timestamp ms until which pointer handlers are ignored after a touch
+  private lastSwipeAt = 0; // throttle swipes
 
   constructor(
     private classSessionsService: ClassSessionsService,
@@ -178,6 +191,37 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   onNext() {
     try { const api = this.calendarComponent?.getApi(); api?.next(); } catch {}
   }
+  // Precise swipe navigation: move by 1 day/week/month based on currentView
+  private onSwipePrev() {
+    try {
+      const now = Date.now();
+      if (now - this.lastSwipeAt < 250) return; // throttle
+      this.lastSwipeAt = now;
+      const api: any = this.calendarComponent?.getApi();
+      if (!api) return;
+      const mode = (this.currentView === 'day') ? 'day' : (this.currentView === 'month' ? 'month' : 'week');
+      const d = new Date(api.getDate());
+      if (mode === 'day') d.setDate(d.getDate() - 1);
+      else if (mode === 'week') d.setDate(d.getDate() - 7);
+      else /* month */ d.setMonth(d.getMonth() - 1);
+      api.gotoDate(d);
+    } catch {}
+  }
+  private onSwipeNext() {
+    try {
+      const now = Date.now();
+      if (now - this.lastSwipeAt < 250) return; // throttle
+      this.lastSwipeAt = now;
+      const api: any = this.calendarComponent?.getApi();
+      if (!api) return;
+      const mode = (this.currentView === 'day') ? 'day' : (this.currentView === 'month' ? 'month' : 'week');
+      const d = new Date(api.getDate());
+      if (mode === 'day') d.setDate(d.getDate() + 1);
+      else if (mode === 'week') d.setDate(d.getDate() + 7);
+      else /* month */ d.setMonth(d.getMonth() + 1);
+      api.gotoDate(d);
+    } catch {}
+  }
   goToday() {
     try { const api = this.calendarComponent?.getApi(); api?.today(); } catch {}
   }
@@ -189,6 +233,36 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   onToggleFiltersNoop() { /* no-op in admin; toolbar button kept for visual parity */ }
+  // Replace no-op with functional toggle that mirrors user calendar UX
+  onToolbarToggleFilters() {
+    try {
+      if (this.isMobile) {
+        this.setMobileFiltersOpen(!this.mobileFiltersOpen);
+        return;
+      }
+      this.desktopFiltersOpen = !this.desktopFiltersOpen;
+    } catch {}
+  }
+
+  setMobileFiltersOpen(open: boolean) {
+    try { if (this.mobileFiltersTimeout) clearTimeout(this.mobileFiltersTimeout); } catch {}
+    this.mobileFiltersOpen = open;
+    if (open) {
+      this.mobileFiltersTimeout = setTimeout(() => {
+        try {
+          const first = document.querySelector('.offcanvas .filter-row') as HTMLElement | null;
+          if (first) first.focus();
+        } catch {}
+      }, 200);
+    }
+  }
+
+  closeFilters() {
+    try {
+      this.desktopFiltersOpen = false;
+      this.setMobileFiltersOpen(false);
+    } catch {}
+  }
 
   private onDatesSet(arg: any) {
     // Update currentView to reflect FC type
@@ -266,9 +340,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       tryAttach();
       setTimeout(tryAttach, 120);
       setTimeout(tryAttach, 420);
-      setTimeout(() => {
-        try { if (this._touchBindings.length === 0) this.attachGlobalTouchHandlers(); } catch {}
-      }, 600);
+      // No global fallback: sólo horas
     } catch {}
   }
 
@@ -282,10 +354,15 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this._touchBindings = [];
   }
 
+  private hasBinding(target: HTMLElement, eventName: string): boolean {
+    return this._touchBindings.some(b => b.el === target && b.name === eventName);
+  }
+
   private attachTouchHandlersTo(target: HTMLElement) {
     try {
       if (!target || !this.isMobile) return;
-      this.clearTouchBindings();
+      // Don't attach twice to same element
+      if (this.hasBinding(target, 'touchstart')) return;
       let startX: number | null = null;
       let startY: number | null = null;
       let tracking = false;
@@ -295,6 +372,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
           startX = ev.touches[0].clientX;
           startY = ev.touches[0].clientY;
           tracking = true;
+          // Suppress pointer sequence that follows a touch on many browsers
+          this.suppressPointerUntil = Date.now() + 800;
         }
       };
       const onTouchMove = (ev: TouchEvent) => {
@@ -303,8 +382,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         const ty = ev.touches[0].clientY;
         const dx = tx - startX;
         const dy = ty - startY;
-        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
-        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
+  // Tolerancia: permitir algo de vertical, pero sólo interceptar cuando es claramente horizontal
+  const absDx = Math.abs(dx), absDy = Math.abs(dy);
+  if (absDy > absDx * 1.25) { tracking = false; return; }
+  if (absDx > 24 && absDx > absDy) { try { ev.preventDefault(); } catch {} }
       };
       const onTouchEnd = (ev: TouchEvent) => {
         if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
@@ -314,15 +395,15 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         const dy = endY - startY;
         const absDx = Math.abs(dx);
         const absDy = Math.abs(dy);
-        if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+  if (absDx > 40 && absDx > absDy * 1.1) { if (dx < 0) this.onSwipeNext(); else this.onSwipePrev(); }
         startX = null; startY = null; tracking = false;
       };
       const onTouchCancel = () => { startX = null; startY = null; tracking = false; };
 
-      target.addEventListener('touchstart', onTouchStart, { passive: true });
-      target.addEventListener('touchmove', onTouchMove, { passive: false });
-      target.addEventListener('touchend', onTouchEnd, { passive: true });
-      target.addEventListener('touchcancel', onTouchCancel, { passive: true });
+      target.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+      target.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+      target.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+      target.addEventListener('touchcancel', onTouchCancel, { passive: true, capture: true });
 
       this._touchBindings.push({ el: target, name: 'touchstart', handler: onTouchStart });
       this._touchBindings.push({ el: target, name: 'touchmove', handler: onTouchMove });
@@ -334,31 +415,39 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   private attachPointerHandlersTo(target: HTMLElement) {
     try {
       if (!target || !this.isMobile) return;
+      if (this.hasBinding(target, 'pointerdown')) return;
       let startX: number | null = null;
       let startY: number | null = null;
       let tracking = false;
       let activePointerId: number | null = null;
 
-      const onDown = (ev: PointerEvent) => { if (!ev.isPrimary) return; startX = ev.clientX; startY = ev.clientY; tracking = true; activePointerId = ev.pointerId; };
+      const onDown = (ev: PointerEvent) => {
+        if (!ev.isPrimary) return;
+        if (Date.now() < this.suppressPointerUntil) return; // ignore pointer if preceded by touch
+        startX = ev.clientX; startY = ev.clientY; tracking = true; activePointerId = ev.pointerId;
+      };
       const onMove = (ev: PointerEvent) => {
         if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) return;
+        if (Date.now() < this.suppressPointerUntil) return; // ignore follow-up pointer moves
         const dx = ev.clientX - startX; const dy = ev.clientY - startY;
-        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
-        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
+  const absDx = Math.abs(dx), absDy = Math.abs(dy);
+  if (absDy > absDx * 1.25) { tracking = false; return; }
+  if (absDx > 24 && absDx > absDy) { try { ev.preventDefault(); } catch {} }
       };
       const onUp = (ev: PointerEvent) => {
         if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) { startX = null; startY = null; tracking = false; activePointerId = null; return; }
-        const dx = ev.clientX - (startX as number); const dy = ev.clientY - (startY as number);
-        const absDx = Math.abs(dx); const absDy = Math.abs(dy);
-        if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
+        if (Date.now() < this.suppressPointerUntil) { startX = null; startY = null; tracking = false; activePointerId = null; return; }
+  const dx = ev.clientX - (startX as number); const dy = ev.clientY - (startY as number);
+  const absDx = Math.abs(dx); const absDy = Math.abs(dy);
+  if (absDx > 40 && absDx > absDy * 1.1) { if (dx < 0) this.onSwipeNext(); else this.onSwipePrev(); }
         startX = null; startY = null; tracking = false; activePointerId = null;
       };
       const onCancel = () => { startX = null; startY = null; tracking = false; activePointerId = null; };
 
-      target.addEventListener('pointerdown', onDown as any, { passive: false });
-      target.addEventListener('pointermove', onMove as any, { passive: false });
-      target.addEventListener('pointerup', onUp as any, { passive: false });
-      target.addEventListener('pointercancel', onCancel as any, { passive: false });
+  target.addEventListener('pointerdown', onDown as any, { passive: false, capture: true });
+  target.addEventListener('pointermove', onMove as any, { passive: false, capture: true });
+  target.addEventListener('pointerup', onUp as any, { passive: false, capture: true });
+  target.addEventListener('pointercancel', onCancel as any, { passive: false, capture: true });
 
       this._touchBindings.push({ el: target, name: 'pointerdown', handler: onDown });
       this._touchBindings.push({ el: target, name: 'pointermove', handler: onMove });
@@ -370,71 +459,31 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   private findAndAttachScrollEl() {
     try {
       if (!this.isMobile || typeof document === 'undefined') return;
-      // Prefer the calendar scroller if present
-      const root = document.querySelector('.p-wrapper') as HTMLElement | null;
-      const selectors = ['.fc-scroller', '.fc-timegrid-body', '.fc-scrollgrid-section-liquid', '.fc'];
-      let found: HTMLElement | null = null;
-      for (const s of selectors) {
-        const q = (root || document).querySelector(s) as HTMLElement | null;
-        if (q) { found = q; break; }
+      // Elegir un único target dentro del time grid (zona de horas)
+      const root = document.querySelector('.p-wrapper .fc') as HTMLElement | null;
+      const trySelectors = [
+        '.fc-timegrid .fc-timegrid-slots',
+        '.fc-timegrid .fc-scroller',
+        '.fc-timegrid .fc-timegrid-body'
+      ];
+      let target: HTMLElement | null = null;
+      for (const sel of trySelectors) {
+        const el = (root || document).querySelector(sel) as HTMLElement | null;
+        if (el) { target = el; break; }
       }
-      if (!found) found = document.querySelector('.fc') as HTMLElement | null;
-      if (found) {
-        this.attachTouchHandlersTo(found);
-        this.attachPointerHandlersTo(found);
+      if (!target) {
+        target = (root || document).querySelector('.fc-scroller') as HTMLElement | null;
+      }
+      if (target) {
+        // Asegurar que solo haya bindings en esta zona
+        this.clearTouchBindings();
+        this.attachTouchHandlersTo(target);
+        this.attachPointerHandlersTo(target);
       }
     } catch {}
   }
 
-  private attachGlobalTouchHandlers() {
-    try {
-      if (!this.isMobile || typeof document === 'undefined') return;
-      const doc = document as any;
-      let startX: number | null = null;
-      let startY: number | null = null;
-      let tracking = false;
-      const onStart = (ev: TouchEvent) => {
-        try {
-          if (!ev.touches || ev.touches.length !== 1) return;
-          const t = ev.touches[0];
-          const targetEl = (ev.target as HTMLElement) || null;
-          if (!targetEl) return;
-          const selectors = ['.calendar-container', '.p-wrapper .fc', '.fc', 'full-calendar'];
-          const isInside = selectors.some(sel => {
-            try { return !!targetEl.closest(sel); } catch { return false; }
-          });
-          if (isInside) { startX = t.clientX; startY = t.clientY; tracking = true; }
-        } catch {}
-      };
-      const onMove = (ev: TouchEvent) => {
-        try {
-          if (!tracking || startX == null || startY == null) return;
-          const tx = ev.touches[0].clientX; const ty = ev.touches[0].clientY;
-          const dx = tx - startX; const dy = ty - startY;
-          if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
-          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { try { ev.preventDefault(); } catch {} }
-        } catch {}
-      };
-      const onEnd = (ev: TouchEvent) => {
-        try {
-          if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
-          const endX = ev.changedTouches[0].clientX; const endY = ev.changedTouches[0].clientY;
-          const dx = endX - startX; const dy = endY - startY; const absDx = Math.abs(dx); const absDy = Math.abs(dy);
-          if (absDx > 40 && absDx > absDy) { if (dx < 0) this.onNext(); else this.onPrev(); }
-        } catch {}
-        startX = null; startY = null; tracking = false;
-      };
-      const onCancel = () => { startX = null; startY = null; tracking = false; };
-      doc.addEventListener('touchstart', onStart, { passive: true });
-      doc.addEventListener('touchmove', onMove, { passive: false });
-      doc.addEventListener('touchend', onEnd, { passive: true });
-      doc.addEventListener('touchcancel', onCancel, { passive: true });
-      this._touchBindings.push({ el: doc, name: 'touchstart', handler: onStart });
-      this._touchBindings.push({ el: doc, name: 'touchmove', handler: onMove });
-      this._touchBindings.push({ el: doc, name: 'touchend', handler: onEnd });
-      this._touchBindings.push({ el: doc, name: 'touchcancel', handler: onCancel });
-    } catch {}
-  }
+  // Global touch handlers eliminados: sólo swipe en zona de horas
 
   // Return text color with good contrast for a given bg color
   getContrastColor(color: string): string {
@@ -458,6 +507,25 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       }
     } catch {}
     return '#ffffff';
+  }
+
+  // Count confirmed bookings for a session (same rule as user calendar)
+  private getConfirmedCount(session: ClassSession): number {
+    try {
+      const confirmed = (session as any)?.bookings?.filter((b: any) => String(b.status || '').toUpperCase() === 'CONFIRMED') || [];
+      return confirmed.length;
+    } catch { return 0; }
+  }
+
+  // Shorten class type name for compact view on mobile week
+  private shortenClassType(name: string): string {
+    try {
+      if (!name) return '';
+      return name
+        .split(/\s+/)
+        .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0,3).replace(/\W+$/, '') + '.')))
+        .join(' ');
+    } catch { return name; }
   }
 
   // Helper: normalize time-only strings like '09:00:00' to a Date for template formatting
@@ -641,30 +709,51 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         try {
           const safeSessions = (sessions || []).filter((s: any) => s && s.id != null && s.schedule_date && s.schedule_time);
           const events = safeSessions.map(session => {
-            const bookingCount = typeof session.confirmed_bookings_count === 'number'
-              ? session.confirmed_bookings_count
-              : (session.bookings ? session.bookings.length : 0);
-            const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
-            const safeSession: ClassSession = { ...session, class_type_name: className };
-            const colors = this.classSessionsService.getEventColors(safeSession);
-            const time = session.schedule_time?.slice(0,5) || '';
+            const colors = this.classSessionsService.getEventColors(session);
+            const confirmedCount = (() => {
+              try {
+                const bookings = (session as any)?.bookings || [];
+                return bookings.filter((b: any) => String(b.status || '').toUpperCase() === 'CONFIRMED').length;
+              } catch { return 0; }
+            })();
+            const isFull = confirmedCount >= (session.capacity || 0);
+            const selfTag = (session as any).is_self_booked ? ' (Tú)' : '';
+            const shortName = (() => {
+              try {
+                const name = session.class_type_name || '';
+                if (!(this.isMobile && this.currentView === 'week')) return name;
+                return name
+                  .split(/\s+/)
+                  .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0,3).replace(/\W+$/, '') + '.')))
+                  .join(' ');
+              } catch { return session.class_type_name || ''; }
+            })();
             return {
               id: String(session.id),
-              title: `${time} • ${className} • (${bookingCount}/${session.capacity})`,
+              title: `${shortName}${selfTag} (${confirmedCount}/${session.capacity})`,
               start: `${session.schedule_date}T${session.schedule_time}`,
               end: this.calculateEndTime(session.schedule_date, session.schedule_time, session.class_type_id),
               backgroundColor: colors.background,
               borderColor: colors.border,
               textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
               extendedProps: {
-                session: safeSession,
-                capacity: session.capacity,
-                bookings: bookingCount
-              }
+                session: session,
+                available: !isFull,
+                availableSpots: this.classSessionsService.getAvailableSpots(session)
+              },
+              classNames: [
+                isFull ? 'full-class' : 'available-class',
+                `class-type-${(session.class_type_name || '').toLowerCase().replace(/\s+/g, '-')}`
+              ]
             };
           });
-          this.events = events; // snapshot para helpers locales
-          success(events);
+          // Extract class types and build available non-personal types list for filters
+          this.extractClassTypes(safeSessions);
+          // Store unfiltered snapshot and apply current filters before rendering
+          this.allEventsCurrentRange = events;
+          const filtered = this.filterEventsBySelectedTypes(events);
+          this.events = filtered;
+          success(filtered);
         } catch (mapErr) {
           console.error('[admin] event mapping error', mapErr);
           // Ensure FullCalendar stops its loading spinner
@@ -718,6 +807,96 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     return {
       html: `<div class="custom-event-content">${eventInfo.event.title}</div>`
     };
+  }
+
+  // ====== Filters: extract types and apply selections ======
+  private extractClassTypes(sessions: ClassSession[]) {
+    try {
+      const typeSet = new Set<string>();
+      const typeColorsMap = new Map<string, { background: string, border: string }>();
+      const typePersonal = new Map<string, boolean>();
+      const KNOWN_PERSONAL_TYPE_IDS = new Set<number>([4, 22, 23]);
+
+      (sessions || []).forEach(session => {
+        const name = session.class_type_name;
+        if (!name) return;
+        const ctId = Number(session.class_type_id || -1);
+        const assignedIsValid = Number.isFinite(Number((session as any).personal_user_id));
+        const isPersonalFlag = !!(session as any).is_personal;
+        const personalByName = /personal|individual/i.test(String(name));
+        const isPersonal = isPersonalFlag || assignedIsValid || personalByName || KNOWN_PERSONAL_TYPE_IDS.has(ctId);
+
+        typeSet.add(name);
+        if (!typeColorsMap.has(name)) {
+          const colors = this.classSessionsService.getClassTypeColors(name);
+          typeColorsMap.set(name, { background: colors.background, border: colors.border });
+        }
+        if (!typePersonal.has(name)) typePersonal.set(name, isPersonal);
+        else if (isPersonal) typePersonal.set(name, true);
+      });
+
+      this.availableClassTypes = Array.from(typeSet)
+        .filter(n => !typePersonal.get(n))
+        .map(n => ({ name: n, color: typeColorsMap.get(n) || { background: '#6b7280', border: '#4b5563' } }));
+      // Initialize filters to show all when first loading types
+      if (this.filteredClassTypes.size === 0 && this.availableClassTypes.length > 0) {
+        this.filteredClassTypes = new Set(this.availableClassTypes.map(t => t.name));
+      }
+      this.typesLoaded = true;
+    } catch (e) {
+      // Non-fatal
+      this.typesLoaded = true;
+    }
+  }
+
+  private filterEventsBySelectedTypes(evs: any[]): any[] {
+    const set = this.filteredClassTypes;
+    const noFilter = !(set && set.size > 0);
+    const KNOWN_PERSONAL_TYPE_IDS = new Set<number>([4, 22, 23]);
+    return (evs || []).filter(event => {
+      if (!event || !event.extendedProps) return false;
+      const session = event.extendedProps.session as any;
+      if (!session) return noFilter;
+      // Determine if personal
+      const ctId = Number(session.class_type_id || -1);
+      const assignedIsValid = Number.isFinite(Number(session.personal_user_id));
+      const isPersonalFlag = !!session.is_personal;
+      const personalByName = /personal|individual/i.test(String(session.class_type_name || ''));
+      const isPersonal = isPersonalFlag || assignedIsValid || personalByName || KNOWN_PERSONAL_TYPE_IDS.has(ctId);
+      if (isPersonal) return true; // always include personal
+      if (noFilter) return true;
+      return !!session.class_type_name && set.has(session.class_type_name);
+    });
+  }
+
+  updateCalendarEvents() {
+    try {
+      const filtered = this.filterEventsBySelectedTypes(this.allEventsCurrentRange);
+      this.events = filtered;
+      const api = this.calendarComponent?.getApi?.();
+      if (api) {
+        try { api.removeAllEvents(); } catch {}
+        for (const ev of filtered) {
+          try { api.addEvent(ev); } catch {}
+        }
+      } else {
+        // Fallback: push into options
+        this.calendarOptions = { ...this.calendarOptions, events: filtered };
+      }
+    } catch {}
+  }
+
+  toggleClassTypeFilter(typeName: string) {
+    try {
+      const current = new Set(this.filteredClassTypes);
+      if (current.has(typeName)) current.delete(typeName); else current.add(typeName);
+      this.filteredClassTypes = current;
+      this.updateCalendarEvents();
+    } catch {}
+  }
+
+  isClassTypeVisible(typeName: string): boolean {
+    return this.filteredClassTypes.has(typeName);
   }
 
   openCreateModal(date?: string, time?: string) {

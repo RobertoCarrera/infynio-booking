@@ -1,4 +1,47 @@
 <div class="admin-calendar-container admin-calendar-active">
+  <!-- Shared filters overlay (desktop offcanvas from left, mobile from right) -->
+  <div [class.modal-backdrop]="desktopFiltersOpen || mobileFiltersOpen" [class.fade]="desktopFiltersOpen || mobileFiltersOpen" [class.show]="desktopFiltersOpen || mobileFiltersOpen" (click)="closeFilters()" [attr.aria-hidden]="!(desktopFiltersOpen || mobileFiltersOpen)"></div>
+
+  <div class="offcanvas" [class.offcanvas-start]="!isMobile" [class.offcanvas-end]="isMobile" [class.show]="desktopFiltersOpen || mobileFiltersOpen" tabindex="-1" [attr.aria-hidden]="!(desktopFiltersOpen || mobileFiltersOpen)" role="dialog" aria-modal="true" aria-label="Filtros del calendario (admin)">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Filtros</h5>
+      <button type="button" class="btn-close text-reset" aria-label="Cerrar" (click)="closeFilters()"></button>
+    </div>
+    <div class="offcanvas-body">
+      <!-- View toggles -->
+      <div class="mb-3 d-flex justify-content-between">
+        <div *ngIf="isMobile" class="d-flex justify-content-between w-100">
+          <button type="button" class="btn btn-sm d-flex align-items-center gap-2 filters-btn" [class.active]="currentView === 'day'" (click)="setView('day')">Día</button>
+          <button type="button" class="btn btn-sm d-flex align-items-center gap-2 filters-btn" [class.active]="currentView === 'week'" (click)="setView('week')">Semana</button>
+        </div>
+        <div *ngIf="!isMobile" class="d-flex justify-content-between w-100">
+          <button type="button" class="btn btn-sm d-flex align-items-center gap-2 filters-btn" [class.active]="currentView === 'week'" (click)="setView('week')">Semana</button>
+          <button type="button" class="btn btn-sm d-flex align-items-center gap-2 filters-btn" [class.active]="currentView === 'month'" (click)="setView('month')">Mes</button>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- Class type filters (non-personal types) -->
+      <div class="filter-controls mb-2 d-flex justify-content-between align-items-center">
+        <div>Tipos de clase</div>
+        <div class="text-muted small">{{ availableClassTypes.length }} encontrados</div>
+      </div>
+      <div class="filter-items d-flex flex-column gap-2">
+        <ng-container *ngIf="typesLoaded; else noTypes">
+          <button *ngFor="let t of availableClassTypes" type="button" class="form-check d-flex align-items-center justify-content-between p-2 rounded filter-row" [attr.aria-pressed]="isClassTypeVisible(t.name)" [ngClass]="{'active': isClassTypeVisible(t.name)}" [ngStyle]="{'background-color': isClassTypeVisible(t.name) ? t.color.background : '#fff', 'border': '1px solid ' + (t.color.border || t.color.background || '#e6e6e6'), 'color': getContrastColor(isClassTypeVisible(t.name) ? t.color.background : '#fff')}" (click)="toggleClassTypeFilter(t.name)">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input visually-hidden" type="checkbox" [checked]="isClassTypeVisible(t.name)" (change)="toggleClassTypeFilter(t.name)" [id]="'ft-'+t.name" />
+              <span class="filter-name">{{ t.name }}</span>
+            </div>
+          </button>
+        </ng-container>
+        <ng-template #noTypes>
+          <div class="text-muted">Cargando tipos de clase…</div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
   <!-- User calendar toolbar (shared) -->
   <div class="container-fluid px-0">
     <div class="row justify-content-center">
@@ -12,7 +55,7 @@
           (next)="onNext()"
           (today)="goToday()"
           (changeView)="setView($event)"
-          (toggleFilters)="onToggleFiltersNoop()"
+          (toggleFilters)="onToolbarToggleFilters()"
         ></app-calendar-toolbar>
       </div>
     </div>
