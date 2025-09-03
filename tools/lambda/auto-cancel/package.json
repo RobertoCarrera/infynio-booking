@@ -1,0 +1,20 @@
+{
+  "name": "auto-cancel-lambda",
+  "version": "1.0.0",
+  "description": "Lambda to call Supabase RPC auto_cancel_small_sessions_report() and send SES emails on a schedule",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "scripts": {
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "package": "npm ci --only=production && rm -f function.zip && zip -r function.zip index.js node_modules package.json package-lock.json"
+  },
+  "keywords": [],
+  "author": "",
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "node-fetch": "^2.7.0"
+  }
+}

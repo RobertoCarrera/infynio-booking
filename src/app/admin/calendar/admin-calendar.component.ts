@@ -805,7 +805,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   renderEventContent(eventInfo: any) {
     // Renderizado personalizado para mostrar el título completo
     return {
-      html: `<div class="custom-event-content">${eventInfo.event.title}</div>`
+      html: `<div class="custom-event-content notranslate" translate="no">${eventInfo.event.title}</div>`
     };
   }
 

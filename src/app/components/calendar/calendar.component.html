@@ -36,7 +36,7 @@
 								<button *ngFor="let t of availableClassTypes" type="button" class="form-check d-flex align-items-center justify-content-between p-2 rounded filter-row" [attr.aria-pressed]="isClassTypeVisible(t.name)" [ngClass]="{'active': isClassTypeVisible(t.name)}" [ngStyle]="{'background-color': isClassTypeVisible(t.name) ? t.color.background : '#fff', 'border': '1px solid ' + (t.color.border || t.color.background || '#e6e6e6'), 'color': getContrastColor(isClassTypeVisible(t.name) ? t.color.background : '#fff')}" (click)="toggleClassTypeFilter(t.name)">
 										<div class="d-flex align-items-center gap-2">
 												<input class="form-check-input visually-hidden" type="checkbox" [checked]="isClassTypeVisible(t.name)" (change)="toggleClassTypeFilter(t.name)" [id]="'ft-'+t.name" />
-												<span class="filter-name">{{ t.name }}</span>
+												<span class="filter-name notranslate" translate="no">{{ t.name }}</span>
 										</div>
 								</button>
 			</ng-container>
@@ -49,7 +49,7 @@
 </div>
 
 <!-- Calendar -->
-<div class="calendar-page p-wrapper">
+<div class="calendar-page p-wrapper notranslate" translate="no">
 		<div class="container-fluid px-0">
 			<div class="row justify-content-center">
 				<div class="col-12">
@@ -88,14 +88,14 @@
 <div *ngIf="showBookingModal" class="booking-modal" role="dialog" aria-modal="true" [attr.aria-label]="selectedSession ? ('Detalles de ' + selectedSession.class_type_name) : 'Detalles de la sesión'">
 	<div class="booking-modal-dialog">
 		<div class="booking-modal-header">
-			<h5 class="booking-modal-title">{{ selectedSession ? selectedSession.class_type_name : 'Cargando…' }}</h5>
+			<h5 class="booking-modal-title notranslate" translate="no">{{ selectedSession ? selectedSession.class_type_name : 'Cargando…' }}</h5>
 			<button type="button" class="btn-close text-reset" aria-label="Salir" (click)="closeBookingModal()"></button>
 		</div>
 		<div class="booking-modal-body">
 			<ng-container *ngIf="selectedSession; else loadingBooking">
 				<div class="mb-2 text-muted small">{{ formatDateCapitalMonthWithTime(selectedSession.schedule_date + 'T' + (selectedSession.schedule_time || '00:00:00')) }}</div>
 				<div class="mb-2">
-					<strong>Tipo:</strong> {{ selectedSession.class_type_name }}
+					<strong>Tipo:</strong> <span class="notranslate" translate="no">{{ selectedSession.class_type_name }}</span>
 				</div>
 								<div class="mb-2">
 									<strong>Duración:</strong> {{ sessionDuration(selectedSession) }} min

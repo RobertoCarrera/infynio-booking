@@ -1443,7 +1443,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       const shortName = (this.isMobile && this.currentView === 'week')
         ? this.shortenClassType(session.class_type_name || '')
         : (session.class_type_name || '');
-      return {
+  return {
         id: session.id.toString(),
         title: `${shortName}${selfTag} (${confirmedCount}/${session.capacity})`,
         start: `${session.schedule_date}T${session.schedule_time}`,
@@ -1456,7 +1456,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           availableSpots: availableSpots
         },
         classNames: [
-      isFull ? 'full-class' : 'available-class',
+  'notranslate',
+  isFull ? 'full-class' : 'available-class',
           `class-type-${session.class_type_name?.toLowerCase().replace(/\s+/g, '-')}`
         ]
       };

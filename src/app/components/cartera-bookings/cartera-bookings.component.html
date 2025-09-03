@@ -39,7 +39,7 @@
       <li class="list-group-item" *ngFor="let u of upcoming">
         <div class="d-flex flex-column gap-1 h-100">
           <div class="d-flex align-items-center justify-content-between">
-            <div class="fw-semibold">{{ u.className }}</div>
+            <div class="fw-semibold notranslate" translate="no">{{ u.className }}</div>
             <span class="badge bg-success" *ngIf="u.status === 'CONFIRMED'">Confirmada</span>
           </div>
           <div class="text-muted small"><i class="far fa-clock me-1"></i>{{ formatWhen(u) }}</div>

@@ -1,4 +1,4 @@
-<div class="admin-calendar-container admin-calendar-active">
+<div class="admin-calendar-container admin-calendar-active notranslate" translate="no">
   <!-- Shared filters overlay (desktop offcanvas from left, mobile from right) -->
   <div [class.modal-backdrop]="desktopFiltersOpen || mobileFiltersOpen" [class.fade]="desktopFiltersOpen || mobileFiltersOpen" [class.show]="desktopFiltersOpen || mobileFiltersOpen" (click)="closeFilters()" [attr.aria-hidden]="!(desktopFiltersOpen || mobileFiltersOpen)"></div>
 
@@ -32,7 +32,7 @@
           <button *ngFor="let t of availableClassTypes" type="button" class="form-check d-flex align-items-center justify-content-between p-2 rounded filter-row" [attr.aria-pressed]="isClassTypeVisible(t.name)" [ngClass]="{'active': isClassTypeVisible(t.name)}" [ngStyle]="{'background-color': isClassTypeVisible(t.name) ? t.color.background : '#fff', 'border': '1px solid ' + (t.color.border || t.color.background || '#e6e6e6'), 'color': getContrastColor(isClassTypeVisible(t.name) ? t.color.background : '#fff')}" (click)="toggleClassTypeFilter(t.name)">
             <div class="d-flex align-items-center gap-2">
               <input class="form-check-input visually-hidden" type="checkbox" [checked]="isClassTypeVisible(t.name)" (change)="toggleClassTypeFilter(t.name)" [id]="'ft-'+t.name" />
-              <span class="filter-name">{{ t.name }}</span>
+              <span class="filter-name notranslate" translate="no">{{ t.name }}</span>
             </div>
           </button>
         </ng-container>

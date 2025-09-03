@@ -1,0 +1,10 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+  "Action": ["lambda:InvokeFunction"],
+  "Resource": "arn:aws:lambda:eu-south-2:124766368859:function:supabaseCancelClass_Session"
+    }
+  ]
+}

@@ -5,6 +5,10 @@
 */
 /* FullCalendar CSS is included via angular.json styles to ensure proper bundling */
 
+/* Prevent auto-translation on marked elements (Chrome/Google Translate) */
+.notranslate { -webkit-user-modify: read-only !important; }
+
+
 /* Calendar global rules removed per request.
   If calendar-specific styling is needed later, add a dedicated file such as
   src/app/components/calendar/calendar-overrides.css and import it only where used. */
