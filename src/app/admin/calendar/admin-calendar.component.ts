@@ -2534,11 +2534,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
         return;
       }
-      const classTypeName = this.getClassTypeName(session.class_type_id);
-      const capacity = `${bookingCount}/${session.capacity}`;
-      
-      // Actualizar el título del evento con formato simple
-      this.events[eventIndex].title = `${session.schedule_time} • ${classTypeName} • (${capacity})`;
+      // Mantener solo el conteo en extendedProps; no tocar el título para respetar el formato actual
       if (this.events[eventIndex].extendedProps) {
         this.events[eventIndex].extendedProps.bookings = bookingCount;
       }
@@ -2549,7 +2545,11 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         if (api) {
           const fcEvent = api.getEventById(sessionId.toString());
           if (fcEvent) {
-            fcEvent.setProp('title', this.events[eventIndex].title);
+            // Actualizar extendedProp para forzar re-render sin alterar el título
+            try { (fcEvent as any).setExtendedProp?.('bookings', bookingCount); } catch {
+              // Fallback: aplicar todo el array si la API no soporta setExtendedProp
+              this.applyEventsPreservingView(this.events);
+            }
           } else {
             this.applyEventsPreservingView(this.events);
           }

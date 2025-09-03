@@ -24,6 +24,9 @@
                      class="form-control" 
                      placeholder="Buscar usuario..." 
                      [(ngModel)]="filterText">
+              <div class="form-text" *ngIf="filteredUsuarios.length === 0">
+                No hay usuarios con onboarding completo. Pide al usuario completar nombre, apellidos y teléfono.
+              </div>
             </div>
             
             <div class="usuarios-scroll">

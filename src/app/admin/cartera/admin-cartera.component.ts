@@ -60,17 +60,28 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Solo mostrar usuarios que hayan completado onboarding */
   get filteredUsuarios(): any[] {
     const text = this.filterText.trim().toLowerCase();
+    const onboarded = this.usuarios.filter(u => this.isUserOnboarded(u));
     if (!text) {
-      return this.usuarios;
+      return onboarded;
     }
-    return this.usuarios.filter(usuario =>
+    return onboarded.filter(usuario =>
       (usuario.full_name || '').toLowerCase().includes(text) ||
       (usuario.email || '').toLowerCase().includes(text) ||
       (usuario.name || '').toLowerCase().includes(text) ||
       (usuario.surname || '').toLowerCase().includes(text)
     );
+  }
+
+  /** Un usuario está onboarded si: tiene auth_user_id y name, surname, telephone completos */
+  private isUserOnboarded(u: any): boolean {
+    const hasAuth = !!u?.auth_user_id;
+    const name = (u?.name || '').trim();
+    const surname = (u?.surname || '').trim();
+    const telephone = (u?.telephone || '').trim();
+    return hasAuth && !!name && !!surname && !!(telephone);
   }
 
   ngOnInit() {
