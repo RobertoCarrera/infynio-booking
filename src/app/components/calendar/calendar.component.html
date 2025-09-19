@@ -97,6 +97,14 @@
 				<div class="mb-2">
 					<strong>Tipo:</strong> <span class="notranslate" translate="no">{{ selectedSession.class_type_name }}</span>
 				</div>
+				<div class="mb-2" *ngIf="selectedSession.level_name">
+					<strong>Nivel:</strong>
+					<span class="badge rounded-pill notranslate" translate="no"
+						[ngStyle]="{
+						  'background-color': selectedSession.level_color || '#6b7280',
+						  'color': getContrastColor(selectedSession.level_color || '#6b7280')
+						}">{{ selectedSession.level_name }}</span>
+				</div>
 								<div class="mb-2">
 									<strong>Duración:</strong> {{ sessionDuration(selectedSession) }} min
 								</div>

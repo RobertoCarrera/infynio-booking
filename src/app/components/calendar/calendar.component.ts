@@ -133,7 +133,11 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       if (levelName) {
         const color = levelColor || '#6b7280';
         const textColor = this.getContrastColor(color);
-        badge = `<span class="level-badge notranslate" translate="no" style="display:inline-block;margin-right:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:16px;background:${color};color:${textColor}">${levelName}</span>`;
+        // On mobile week view, shorten level name to 4 characters
+        const pillText = (this.isMobile && this.currentView === 'week')
+          ? String(levelName).slice(0, 4)
+          : levelName;
+        badge = `<span class="level-badge notranslate" translate="no" title="${levelName}" style="display:inline-block;margin-right:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:16px;background:${color};color:${textColor}">${pillText}</span>`;
       }
       const debugLine = debugCalendarEvents ? `<div style="font-size:10px;color:#333;opacity:0.9;margin-top:4px">lvl:${levelName || '-'} col:${levelColor || '-'} confirmed:${confirmed ?? '-'} cap:${capacity ?? '-'}</div>` : '';
       return { html: `<div class="custom-event-content notranslate" translate="no">${badge}${ev?.title || ''}${debugLine}</div>` };
