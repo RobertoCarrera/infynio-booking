@@ -147,6 +147,22 @@
             </div>
           </div>
 
+          <!-- Nivel (opcional y dependiente del tipo de clase) -->
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Nivel:</label>
+                <select class="form-select" formControlName="level_id" [disabled]="!availableLevels.length">
+                  <option value="">Sin nivel</option>
+                  <option *ngFor="let lvl of availableLevels" [value]="lvl.id">{{ lvl.name }}</option>
+                </select>
+                <div class="form-text" *ngIf="!availableLevels?.length">
+                  Este tipo no tiene niveles configurados.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">

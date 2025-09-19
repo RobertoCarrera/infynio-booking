@@ -115,6 +115,33 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     };
   }
 
+  // userRenderEventContent: renderer used by the user-facing calendar to
+  // prepend a small level badge (color + name) when level metadata is
+  // present on the session's extendedProps. Kept lightweight and uses
+  // notranslate attributes to avoid machine-translation of level names.
+  userRenderEventContent(arg: any) {
+    try {
+      const ev = arg?.event;
+      const session = ev?.extendedProps?.session;
+      const levelName = ev?.extendedProps?.level_name || session?.level_name || null;
+      const levelColor = ev?.extendedProps?.level_color || session?.level_color || null;
+      const confirmed = ev?.extendedProps?.session?.confirmed_bookings_count ?? ev?.extendedProps?.confirmed_bookings_count ?? null;
+      const capacity = ev?.extendedProps?.session?.capacity ?? ev?.extendedProps?.capacity ?? ev?.extendedProps?.session?.capacity ?? null;
+      // Debug overlay toggle — Set to true during diagnosis and revert to false afterwards
+      const debugCalendarEvents = false;
+      let badge = '';
+      if (levelName) {
+        const color = levelColor || '#6b7280';
+        const textColor = this.getContrastColor(color);
+        badge = `<span class="level-badge notranslate" translate="no" style="display:inline-block;margin-right:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:16px;background:${color};color:${textColor}">${levelName}</span>`;
+      }
+      const debugLine = debugCalendarEvents ? `<div style="font-size:10px;color:#333;opacity:0.9;margin-top:4px">lvl:${levelName || '-'} col:${levelColor || '-'} confirmed:${confirmed ?? '-'} cap:${capacity ?? '-'}</div>` : '';
+      return { html: `<div class="custom-event-content notranslate" translate="no">${badge}${ev?.title || ''}${debugLine}</div>` };
+    } catch (e) {
+      return { html: arg?.event?.title || '' };
+    }
+  }
+
   ngAfterViewInit() {
     // mark the main app container as calendar-active (for layout CSS)
     try {
@@ -571,6 +598,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.keyboardHandlerBound = true;
     }
     this.getCurrentUser();
+    // Attach user renderer if not present (admin calendar overrides separately)
+    try {
+      if (!this.calendarOptions.eventContent) {
+        this.calendarOptions = { ...this.calendarOptions, eventContent: this.userRenderEventContent.bind(this) };
+      }
+    } catch (e) {}
   }
 
   ngOnDestroy() {
@@ -1270,6 +1303,10 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, clipStart, clipEnd).subscribe({
       next: (sessions) => {
+        try {
+          // DEBUG: confirm RPC payload on user calendar path includes level metadata
+          console.debug('[calendar:user] getSessionsForCalendar returned', sessions && sessions.length ? sessions.slice(0, 20) : sessions);
+        } catch (e) {}
         this.addToCache(sessions);
         this.markRangeFetched(clipStart, clipEnd);
         renderFromCache();
@@ -1452,7 +1489,12 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
   textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
         extendedProps: {
           session: session,
-      available: !isFull,
+          // surface level metadata returned by RPC into extendedProps so
+          // the renderer can display the level pill on the user calendar.
+          level_id: (session as any).level_id ?? null,
+          level_name: (session as any).level_name ?? null,
+          level_color: (session as any).level_color ?? null,
+          available: !isFull,
           availableSpots: availableSpots
         },
         classNames: [

@@ -19,6 +19,10 @@ export interface ClassSession {
   class_type_name?: string;
   class_type_description?: string;
   class_type_duration?: number;
+  // Optional level information
+  level_id?: number | null;
+  level_name?: string;
+  level_color?: string;
   bookings?: Booking[];
   // Enhanced fields from get_sessions_for_calendar
   confirmed_bookings_count?: number;
@@ -173,7 +177,7 @@ export class ClassSessionsService {
   const sessionIds = rows.map((r: any) => r.id);
   const confirmedCountsMap = new Map<number, number>();
 
-    // Transformar los datos para que coincidan con la interfaz ClassSession
+  // Transformar los datos para que coincidan con la interfaz ClassSession
   return (rows || []).filter((session: any) => session && session.id != null).map((session: any) => {
       const t = typesMap.get(session.class_type_id);
       const selfB = selfBookingsMap.get(session.id);
@@ -190,6 +194,7 @@ export class ClassSessionsService {
         class_type_name: t?.name,
         class_type_description: t?.description || undefined,
         class_type_duration: t?.duration_minutes || undefined,
+        level_id: session.level_id ?? null,
         confirmed_bookings_count: confirmedCount,
         available_spots: available,
         // Enriquecido: marcar si el usuario actual ya está reservado
@@ -231,21 +236,35 @@ export class ClassSessionsService {
       return this.fetchSessionsWithBookingCounts(startDate, endDate);
     }
 
-    return (data || []).map((s: any) => ({
-      id: s.id,
-      class_type_id: s.class_type_id,
-      capacity: s.capacity,
-      schedule_date: s.schedule_date,
-      schedule_time: s.schedule_time,
-      class_type_name: s.class_type_name,
-      class_type_description: s.class_type_description,
-      class_type_duration: s.class_type_duration,
-      confirmed_bookings_count: s.confirmed_bookings_count,
-      available_spots: s.available_spots,
-      is_self_booked: s.is_self_booked,
-      self_booking_id: s.self_booking_id,
-      self_cancellation_time: s.self_cancellation_time
-    }));
+    return (data || []).map((s: any) => {
+      // Coerce numerics defensively; Supabase can return strings for SQL integer fields depending on driver
+      const toNum = (v: any): number | null => (v == null || v === '') ? null : (Number.isFinite(Number(v)) ? Number(v) : null);
+      const cap = toNum(s.capacity);
+      const confirmed = toNum(s.confirmed_bookings_count);
+      const available = toNum(s.available_spots);
+      const classTypeId = toNum(s.class_type_id);
+      const levelId = toNum(s.level_id);
+      const selfBookingId = toNum(s.self_booking_id);
+      return {
+        id: toNum(s.id) as number, // id must be present
+        class_type_id: (classTypeId ?? 0),
+        capacity: (cap ?? 0),
+        schedule_date: s.schedule_date,
+        schedule_time: s.schedule_time,
+        class_type_name: s.class_type_name,
+        class_type_description: s.class_type_description,
+        class_type_duration: toNum(s.class_type_duration) ?? undefined,
+        level_id: levelId ?? null,
+        level_name: s.level_name ?? null,
+        level_color: s.level_color ?? null,
+        confirmed_bookings_count: (confirmed ?? 0),
+        available_spots: (available ?? (cap != null && confirmed != null ? Math.max(0, cap - confirmed) : null) as any),
+        is_self_booked: !!s.is_self_booked,
+        self_booking_id: selfBookingId ?? null,
+        self_cancellation_time: s.self_cancellation_time ?? null,
+        personal_user_id: toNum(s.personal_user_id) ?? null
+      } as ClassSession;
+    });
   }
 
   private async fetchClassSessionsByDateRange(startDate: string, endDate: string): Promise<ClassSession[]> {
@@ -253,6 +272,11 @@ export class ClassSessionsService {
       .from('class_sessions')
       .select(`
         *,
+        levels:levels (
+          id,
+          name,
+          color
+        ),
         class_types (
           id,
           name,
@@ -292,6 +316,9 @@ export class ClassSessionsService {
       class_type_name: session.class_types?.name,
       class_type_description: session.class_types?.description,
       class_type_duration: session.class_types?.duration_minutes,
+      level_id: session.level_id ?? null,
+      level_name: session.levels?.name,
+      level_color: session.levels?.color,
   bookings: session.bookings?.filter((b: any) => (b.status || '').toUpperCase() === 'CONFIRMED') || []
     }));
   }
@@ -504,7 +531,8 @@ export class ClassSessionsService {
         p_schedule_date: sessionData.schedule_date,
         p_schedule_time: sessionData.schedule_time,
         p_capacity: sessionData.capacity,
-        p_personal_user_id: (sessionData as any).personal_user_id || null
+  p_personal_user_id: (sessionData as any).personal_user_id || null,
+  p_level_id: (sessionData as any).level_id || null
       });
 
     if (error) {

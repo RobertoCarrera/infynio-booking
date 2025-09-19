@@ -6,6 +6,7 @@ import { CalendarToolbarComponent } from '../../components/calendar/calendar-too
 import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
+import { LevelsService, Level } from '../../services/levels.service';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
 import { Package, CreateUserPackage } from '../../models/cartera-clases';
 import { SupabaseService } from '../../services/supabase.service';
@@ -39,6 +40,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   typesLoaded = false;
   availableClassTypes: { name: string, color: { background: string, border: string } }[] = [];
   filteredClassTypes: Set<string> = new Set();
+  // Levels
+  availableLevels: Level[] = [];
+  private levelsMap: Map<number, Level> = new Map();
   
   // Modal states
   showModal = false;
@@ -122,8 +126,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   constructor(
     private classSessionsService: ClassSessionsService,
     private classTypesService: ClassTypesService,
-    private carteraService: CarteraClasesService,
+  private carteraService: CarteraClasesService,
     private supabaseService: SupabaseService,
+  private levelsService: LevelsService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef
   ) {
@@ -133,6 +138,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       schedule_time: ['', Validators.required],
   // Capacidad por defecto; el límite máximo se ajusta dinámicamente según el tipo
   capacity: [8, [Validators.required, Validators.min(1), Validators.max(10)]], // se recalibra en onClassTypeChange
+  // Nuevo: nivel (opcional)
+  level_id: [''],
       recurring: [false],
       recurring_type: [''],
   recurring_end_date: [''],
@@ -183,6 +190,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
     };
   }
+
+  // (merged into existing ngOnInit below)
 
   // Toolbar handlers (match user calendar API usage)
   onPrev() {
@@ -308,7 +317,18 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngOnInit() {
-  this.loadData();
+  // Load levels list and then other data
+  try {
+    const sub = this.levelsService.getAll().subscribe({
+      next: (lvls) => {
+        this.availableLevels = lvls || [];
+        this.levelsMap = new Map((lvls || []).map(l => [l.id, l]));
+        this.loadData();
+      },
+      error: () => { this.loadData(); }
+    });
+    this.subscriptions.push(sub);
+  } catch { this.loadData(); }
   }
 
   ngAfterViewInit() {
@@ -804,8 +824,17 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   renderEventContent(eventInfo: any) {
     // Renderizado personalizado para mostrar el título completo
+    const s = eventInfo?.event?.extendedProps?.session;
+    const levelId = s?.level_id ?? null;
+    let badge = '';
+    if (levelId && this.levelsMap && this.levelsMap.has(Number(levelId))) {
+      const lvl = this.levelsMap.get(Number(levelId)) as any;
+      const color = lvl?.color || '#6b7280';
+      // Tiny badge before title; keep notranslate on both
+      badge = `<span class="level-badge notranslate" translate="no" style="display:inline-block;margin-right:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:16px;background:${color};color:${this.getContrastColor(color)}">${lvl?.name || ''}</span>`;
+    }
     return {
-      html: `<div class="custom-event-content notranslate" translate="no">${eventInfo.event.title}</div>`
+      html: `<div class="custom-event-content notranslate" translate="no">${badge}${eventInfo.event.title}</div>`
     };
   }
 
@@ -981,7 +1010,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         class_type_id: formData.class_type_id,
         schedule_date: formData.schedule_date,
         schedule_time: formData.schedule_time,
-        capacity: formData.capacity
+  capacity: formData.capacity,
+  level_id: formData.level_id || null
       };
 
       const sub = this.classSessionsService.updateSession(this.selectedSession.id, updateData).subscribe({
@@ -1028,7 +1058,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       class_type_id: formData.class_type_id,
       schedule_date: formData.schedule_date,
       schedule_time: formData.schedule_time,
-      capacity: formData.capacity
+  capacity: formData.capacity,
+  level_id: formData.level_id || null
     };
     // If personalized type, include personal_user_id (DB column name)
     if (this.isPersonalType(formData.class_type_id)) {
@@ -1229,7 +1260,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         class_type_id: formData.class_type_id,
         schedule_date: currentDate.toISOString().split('T')[0],
         schedule_time: formData.schedule_time,
-        capacity: formData.capacity
+  capacity: formData.capacity,
+  level_id: formData.level_id || null
       });
 
       // Avanzar según el tipo de recurrencia
@@ -1324,6 +1356,27 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       // Disable recurring options
       this.sessionForm.patchValue({ recurring: false, recurring_type: '', recurring_end_date: '' });
     }
+    // Load allowed levels for this type (filtering availableLevels by mapping from DB)
+    try {
+      const idNum = Number(classTypeId);
+      const sub = this.levelsService.getByClassType(idNum).subscribe({
+        next: (lvls) => {
+          // Replace availableLevels with allowed for this type for the UI select
+          this.availableLevels = lvls || [];
+          // If current selection is not in list, reset
+          const current = this.sessionForm.get('level_id')?.value;
+          if (current && !(this.availableLevels || []).some(l => Number(l.id) === Number(current))) {
+            this.sessionForm.patchValue({ level_id: '' });
+          }
+        },
+        error: () => {
+          // If error, disable levels selection
+          this.availableLevels = [];
+          this.sessionForm.patchValue({ level_id: '' });
+        }
+      });
+      this.subscriptions.push(sub);
+    } catch { this.availableLevels = []; this.sessionForm.patchValue({ level_id: '' }); }
   // Re-evaluate package availability when class type changes
   try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
   }
