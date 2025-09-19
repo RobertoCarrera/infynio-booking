@@ -52,8 +52,11 @@ RETURNS TABLE (
   available_spots INTEGER
 )
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 BEGIN
+  -- Ensure predictable name resolution
+  PERFORM set_config('search_path', 'public, pg_temp', true);
   RETURN QUERY
   SELECT 
     cs.id,
@@ -105,8 +108,13 @@ RETURNS TABLE (
   self_cancellation_time TIMESTAMPTZ,
   personal_user_id INTEGER
 )
-LANGUAGE sql
+LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
+BEGIN
+  -- Ensure predictable name resolution
+  PERFORM set_config('search_path', 'public, pg_temp', true);
+  RETURN QUERY
   SELECT 
     cs.id,
     cs.class_type_id,
@@ -116,11 +124,11 @@ AS $$
     ct.name AS class_type_name,
     ct.description AS class_type_description,
     ct.duration_minutes AS class_type_duration,
-  cs.level_id,
-  l.name AS level_name,
-  l.color AS level_color,
-  COALESCE(bc.confirmed_count, 0)::INTEGER AS confirmed_bookings_count,
-  (cs.capacity - COALESCE(bc.confirmed_count, 0))::INTEGER AS available_spots,
+    cs.level_id,
+    l.name AS level_name,
+    l.color AS level_color,
+    COALESCE(bc.confirmed_count, 0)::INTEGER AS confirmed_bookings_count,
+    (cs.capacity - COALESCE(bc.confirmed_count, 0))::INTEGER AS available_spots,
     (sb.id IS NOT NULL) AS is_self_booked,
     sb.id AS self_booking_id,
     sb.cancellation_time AS self_cancellation_time,
@@ -134,7 +142,6 @@ AS $$
     GROUP BY class_session_id
   ) bc ON bc.class_session_id = cs.id
   LEFT JOIN public.levels l ON l.id = cs.level_id
-
   LEFT JOIN LATERAL (
     SELECT b.id, b.cancellation_time
     FROM bookings b
@@ -147,7 +154,12 @@ AS $$
   WHERE (p_start_date IS NULL OR cs.schedule_date >= p_start_date)
     AND (p_end_date IS NULL OR cs.schedule_date <= p_end_date)
   ORDER BY cs.schedule_date, cs.schedule_time;
+END;
 $$;
+
+-- Ensure authenticated users can execute both RPCs
+GRANT EXECUTE ON FUNCTION public.get_sessions_for_calendar(date, date, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_sessions_with_booking_counts(date, date) TO authenticated;
 
 -- 3. Función para crear reserva con validaciones
 CREATE OR REPLACE FUNCTION create_booking_with_validations(
