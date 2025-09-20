@@ -125,21 +125,19 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
       const session = ev?.extendedProps?.session;
       const levelName = ev?.extendedProps?.level_name || session?.level_name || null;
       const levelColor = ev?.extendedProps?.level_color || session?.level_color || null;
+      const levelId = ev?.extendedProps?.level_id ?? session?.level_id ?? null;
       const confirmed = ev?.extendedProps?.session?.confirmed_bookings_count ?? ev?.extendedProps?.confirmed_bookings_count ?? null;
       const capacity = ev?.extendedProps?.session?.capacity ?? ev?.extendedProps?.capacity ?? ev?.extendedProps?.session?.capacity ?? null;
-      // Debug overlay toggle — Set to true during diagnosis and revert to false afterwards
       const debugCalendarEvents = false;
       let badge = '';
       if (levelName) {
         const color = levelColor || '#6b7280';
         const textColor = this.getContrastColor(color);
-        // On mobile week view, shorten level name to 4 characters
-        const pillText = (this.isMobile && this.currentView === 'week')
-          ? String(levelName).slice(0, 4)
-          : levelName;
+        const shouldTruncate = (this.isMobile && this.currentView === 'week' && Number(levelId) !== 1);
+        const pillText = shouldTruncate ? String(levelName).slice(0, 5) : levelName;
         badge = `<span class="level-badge notranslate" translate="no" title="${levelName}" style="display:inline-block;margin-right:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:16px;background:${color};color:${textColor}">${pillText}</span>`;
       }
-      const debugLine = debugCalendarEvents ? `<div style="font-size:10px;color:#333;opacity:0.9;margin-top:4px">lvl:${levelName || '-'} col:${levelColor || '-'} confirmed:${confirmed ?? '-'} cap:${capacity ?? '-'}</div>` : '';
+      const debugLine = debugCalendarEvents ? `<div style="font-size:10px;color:#333;opacity:0.9;margin-top:4px">lvl:${levelName || '-'} col:${levelColor || '-'} id:${levelId ?? '-'} confirmed:${confirmed ?? '-'} cap:${capacity ?? '-'}</div>` : '';
       return { html: `<div class="custom-event-content notranslate" translate="no">${badge}${ev?.title || ''}${debugLine}</div>` };
     } catch (e) {
       return { html: arg?.event?.title || '' };
