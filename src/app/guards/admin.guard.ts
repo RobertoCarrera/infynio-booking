@@ -13,7 +13,6 @@ export class AdminGuard implements CanActivate {
       take(1), // only need first value
       switchMap(user => {
         if (!user) {
-          console.log('AdminGuard: No user, will redirect to /login');
           return of(this.router.createUrlTree(['/login']));
         }
         return this.supabase.getCurrentUserRole().pipe(
@@ -22,7 +21,6 @@ export class AdminGuard implements CanActivate {
             // Accept numeric or string role identifiers
             const roleStr = (role === null || role === undefined) ? '' : String(role).toLowerCase();
             const isAdmin = roleStr === 'admin' || roleStr === '1' || roleStr === 'role_admin' || roleStr === 'rol_admin';
-            console.log('AdminGuard: user', user.id, 'role', role, 'isAdmin', isAdmin);
             if (isAdmin) {
               return true;
             }
@@ -30,7 +28,6 @@ export class AdminGuard implements CanActivate {
             return this.router.createUrlTree(['/calendario']);
           }),
           catchError(err => {
-            console.error('AdminGuard: error checking role', err);
             return of(this.router.createUrlTree(['/calendario']));
           })
         );
