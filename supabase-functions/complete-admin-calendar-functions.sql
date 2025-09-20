@@ -57,6 +57,8 @@ AS $$
 BEGIN
   -- Ensure predictable name resolution
   PERFORM set_config('search_path', 'public, pg_temp', true);
+  -- Mark context so RLS can allow SELECT on bookings during this RPC
+  PERFORM set_config('app.call', 'get_sessions_with_booking_counts', true);
   RETURN QUERY
   SELECT 
     cs.id,
@@ -114,6 +116,8 @@ AS $$
 BEGIN
   -- Ensure predictable name resolution
   PERFORM set_config('search_path', 'public, pg_temp', true);
+  -- Mark context so RLS can allow SELECT on bookings during this RPC
+  PERFORM set_config('app.call', 'get_sessions_for_calendar', true);
   RETURN QUERY
   SELECT 
     cs.id,
@@ -161,8 +165,24 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_sessions_for_calendar(date, date, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_sessions_with_booking_counts(date, date) TO authenticated;
 
+-- Policy: allow SELECT on bookings when reading via calendar RPCs (guarded by GUC)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'bookings' AND policyname = 'allow_select_for_calendar'
+  ) THEN
+    EXECUTE $$CREATE POLICY allow_select_for_calendar ON public.bookings
+      FOR SELECT
+      TO public
+      USING (
+        current_setting('app.call', true) IN ('get_sessions_for_calendar','get_sessions_with_booking_counts')
+      )$$;
+  END IF;
+END$$;
+
 -- 3. Función para crear reserva con validaciones
-CREATE OR REPLACE FUNCTION create_booking_with_validations(
+CREATE OR REPLACE FUNCTION public.create_booking_with_validations(
   p_user_id INTEGER,
   p_class_session_id INTEGER,
   p_booking_date_time TIMESTAMPTZ DEFAULT NOW()
@@ -173,6 +193,7 @@ RETURNS TABLE (
   message TEXT
 ) 
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 DECLARE
   v_capacity INTEGER;
@@ -183,6 +204,10 @@ DECLARE
   v_classes_used INTEGER;
   v_new_status TEXT;
 BEGIN
+  -- Ensure predictable name resolution under SECURITY DEFINER
+  PERFORM set_config('search_path', 'public, pg_temp', true);
+  -- Mark context so RLS policy can allow insert via this RPC only
+  PERFORM set_config('app.call', 'create_booking_with_validations', true);
   -- Verificar si ya existe una reserva confirmada
   IF EXISTS (
     SELECT 1 FROM bookings 
@@ -271,6 +296,25 @@ BEGIN
   END;
 END;
 $$;
+
+-- Permitir a usuarios autenticados ejecutar la función (ejecuta con privilegios del propietario)
+GRANT EXECUTE ON FUNCTION public.create_booking_with_validations(INTEGER, INTEGER, TIMESTAMPTZ) TO authenticated;
+
+-- Política RLS: permitir INSERT a bookings solo cuando es invocado por la función (detectado por GUC app.call)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'bookings' AND policyname = 'allow_insert_via_function'
+  ) THEN
+    EXECUTE $$CREATE POLICY allow_insert_via_function ON public.bookings
+      FOR INSERT
+      TO public
+      WITH CHECK (
+        current_setting('app.call', true) = 'create_booking_with_validations'
+      )$$;
+  END IF;
+END$$;
 
 -- 3b. Actualizar función create_session_with_personal_booking para soportar level_id en las inserciones
 CREATE OR REPLACE FUNCTION public.create_session_with_personal_booking(
@@ -432,6 +476,9 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.create_session_with_personal_booking(INTEGER, DATE, TIME, INTEGER, INTEGER, INTEGER) TO authenticated;
+
+-- Asegurar permisos para cancelación con reembolso (definida en migraciones)
+GRANT EXECUTE ON FUNCTION public.cancel_booking_with_refund(INTEGER, INTEGER) TO authenticated;
 
 -- 4. Función para obtener información completa de una reserva
 CREATE OR REPLACE FUNCTION get_booking_with_user(p_booking_id INTEGER)

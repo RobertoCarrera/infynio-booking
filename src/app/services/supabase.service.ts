@@ -15,6 +15,8 @@ export class SupabaseService {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
+        // Avoid Navigator lock contention in dev by bypassing cross-tab locking
+        debug: false,
         // Reducir problemas de lock en desarrollo
         storageKey: 'sb-auth-token',
         storage: window.localStorage,
@@ -24,7 +26,9 @@ export class SupabaseService {
       global: {
         headers: {
           'X-Client-Info': 'mars-studio-angular'
-        }
+        },
+        // Silence internal debug
+        fetch: undefined
       }
     });
   }
@@ -520,6 +524,5 @@ export class SupabaseService {
    */
   static exposeToWindow(service: SupabaseService) {
     (window as any).supabaseService = service;
-    console.log('🔧 SupabaseService exposed to window.supabaseService');
   }
 }

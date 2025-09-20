@@ -300,7 +300,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         const right = fmt(new Date(e.getTime()-1), monthStyle);
         label = `${left} - ${right}`;
       }
-      this.currentRangeLabel = label;
+      Promise.resolve().then(() => {
+        this.currentRangeLabel = label;
+        try { this.cdr.detectChanges(); } catch {}
+      });
     } catch {}
   }
 
@@ -312,7 +315,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const scheduleTime = dt.toTimeString().slice(0,5);
       this.openCreateModal(scheduleDate, scheduleTime);
     } catch (e) {
-      console.warn('[admin] onDateClick failed', e);
+  // onDateClick non-fatal
     }
   }
 
@@ -655,7 +658,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         this.restoreCalendarState();
       },
       error: (err: any) => {
-        console.error('Error loading data:', err);
+  // Error loading data; UI handles message
         this.error = 'Error al cargar los datos';
         this.loading = false;
       }
@@ -710,7 +713,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         return;
       }
     } catch (e) {
-      console.warn('Fallo al aplicar eventos vía API, usando fallback de options:', e);
+  // Fallback applied
     }
     // Fallback: actualizar options con los eventos
     this.calendarOptions = { ...this.calendarOptions, events: [...events] };
@@ -718,7 +721,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // Event source function for FullCalendar
   private fetchEventsForRange(info: { startStr: string; endStr: string }, success: (evs: any[]) => void, failure: (err: any) => void) {
-    try { console.debug('[admin] source: range load', info); } catch {}
+  // source: range load
     // FullCalendar end is exclusive; restar 1 día para inclusivo
     const startDate = this.formatDate(new Date(info.startStr));
     const endExcl = new Date(info.endStr);
@@ -1347,7 +1350,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   capacityControl?.setValidators([Validators.required, Validators.min(1), Validators.max(capacity)]);
   capacityControl?.updateValueAndValidity();
 
-  console.log(`Capacidad automática establecida: ${capacity} para ${this.getClassTypeName(classTypeId)}`);
+  // Capacidad automática establecida (silenciado en consola)
     }
     // If the selected type is a personalized one (4,22,23), show user selector and disable recurring
     if (this.isPersonalType(classTypeId)) {
@@ -1631,10 +1634,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const calendarApi = this.calendarComponent.getApi();
       this.currentCalendarDate = calendarApi.getDate();
       this.currentCalendarView = calendarApi.view.type;
-      console.log('Estado del calendario guardado:', {
-        date: this.currentCalendarDate,
-        view: this.currentCalendarView
-      });
+  // Estado del calendario guardado
     }
   }
 
@@ -1653,12 +1653,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             calendarApi.gotoDate(this.currentCalendarDate);
           }
           
-          console.log('Estado del calendario restaurado:', {
-            date: this.currentCalendarDate,
-            view: this.currentCalendarView
-          });
+          // Estado del calendario restaurado
         } catch (error) {
-          console.warn('Error restaurando estado del calendario:', error);
+          // Error restaurando estado del calendario (no crítico)
         }
       }, 300); // Aumentar timeout para asegurar que el calendario esté completamente cargado
     }
@@ -1727,14 +1724,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       throw error;
     }
 
-    console.log(`Cargados ${data?.length || 0} asistentes para sesión ${sessionId}`);
-    if (data && data.length > 0) {
-      console.log('Estructura primer booking:', {
-        user_id: data[0].user_id,
-        users: data[0].users,
-        hasUsers: !!data[0].users
-      });
-    }
+  // Asistentes cargados
 
     this.sessionAttendees = data || [];
 
@@ -1809,12 +1799,6 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     // Acceder correctamente a la estructura de datos de Supabase
     const userName = booking.users?.name || 'Usuario';
     
-    console.log('Intentando eliminar booking:', {
-      bookingId: booking.id,
-      userId: booking.user_id,
-      userName: userName,
-      status: booking.status
-    });
     
     if (!confirm(`¿Estás seguro de que quieres eliminar a ${userName} de esta clase?`)) {
       return;
@@ -1837,7 +1821,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         result = await firstValueFrom(this.classSessionsService.cancelBooking(booking.id, booking.user_id));
       }
       
-      console.log('Resultado de cancelación:', result);
+  // Resultado de cancelación
       
       // Mostrar notificación inmediatamente
       this.showToastNotification(`${userName} eliminado correctamente. Bono devuelto.`, 'success');
@@ -1881,9 +1865,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
         if (isPersonal && booking.user_id && personalUserId === booking.user_id) {
           try {
-            console.debug('[admin] Calling safeDeleteSession RPC for session', sessionId);
+            // Calling safeDeleteSession RPC for session
             const delRes = await firstValueFrom(this.classSessionsService.safeDeleteSession(sessionId));
-            console.debug('[admin] safeDeleteSession result:', delRes);
+            // safeDeleteSession result
             // If RPC returned truthy, remove event and close modal
             if (delRes) {
               this.showToastNotification('Sesión personalizada eliminada tras borrar al usuario', 'success');
@@ -2487,12 +2471,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const minutes = newDate.getMinutes().toString().padStart(2, '0');
       const formattedTime = `${hours}:${minutes}`;
 
-      console.log('=== DATOS DEL MOVIMIENTO ===');
-      console.log('Session ID:', sessionId);
-      console.log('Fecha original:', originalEvent.extendedProps.session.schedule_date);
-      console.log('Hora original:', originalEvent.extendedProps.session.schedule_time);
-      console.log('Nueva fecha formateada:', formattedDate);
-      console.log('Nueva hora formateada:', formattedTime);
+  // Datos del movimiento (silenciado)
 
       // Actualizar el evento local INMEDIATAMENTE para UI responsive
   const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
@@ -2512,7 +2491,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   const currentBookings = this.events[eventIndex].extendedProps.bookings ?? 0;
   this.updateCalendarEventCounts(sessionId, currentBookings);
         
-        console.log('Evento local actualizado inmediatamente');
+  // Evento local actualizado inmediatamente
       }
 
       // Mostrar notificación de éxito INMEDIATAMENTE
@@ -2524,16 +2503,16 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         schedule_time: formattedTime
       };
 
-      console.log('Actualizando en BD:', updateData);
+  // Actualizando en BD
 
   const result = await firstValueFrom(this.classSessionsService.updateSession(sessionId, updateData));
 
-      console.log('Resultado de la actualización:', result);
+  // Resultado de la actualización
 
       const ok = (Array.isArray(result) && result.length > 0)
         || (!!result && (result.success === true || typeof result === 'object'));
       if (ok) {
-        console.log('Sesión actualizada exitosamente en BD');
+  // Sesión actualizada exitosamente en BD
         
         // Actualizar notificación de éxito
         this.showToastNotification('Evento movido exitosamente', 'success');

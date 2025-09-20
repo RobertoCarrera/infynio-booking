@@ -1307,10 +1307,7 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     const sub = this.classSessionsService.getSessionsForCalendar(this.userNumericId, clipStart, clipEnd).subscribe({
       next: (sessions) => {
-        try {
-          // DEBUG: confirm RPC payload on user calendar path includes level metadata
-          console.debug('[calendar:user] getSessionsForCalendar returned', sessions && sessions.length ? sessions.slice(0, 20) : sessions);
-        } catch (e) {}
+        // RPC payload received (debug log removed)
         this.addToCache(sessions);
         this.markRangeFetched(clipStart, clipEnd);
         renderFromCache();
