@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, from } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { DatabaseService } from './database.service';
 import { User } from '../models/user';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
 
-  constructor(private databaseService: DatabaseService) {
+  constructor(private databaseService: DatabaseService, private supabaseService: SupabaseService) {
   }
 
   // Operaciones básicas usando DatabaseService
@@ -43,6 +44,26 @@ export class UsersService {
         .select('*')
         .eq('auth_user_id', auth_user_id)
         .single()
+    );
+  }
+
+  /**
+   * Server-side search of onboarded users via RPC search_onboarded_users.
+   * Returns only users that satisfy onboarding requirements.
+   */
+  searchOnboarded(text: string, limit = 40, offset = 0): Observable<User[]> {
+    const payload: any = {
+      p_text: text && text.trim() ? text.trim() : null,
+      p_limit: limit,
+      p_offset: offset
+    };
+    return from(
+      this.supabaseService.supabase.rpc('search_onboarded_users', payload)
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []) as User[];
+      })
     );
   }
 }

@@ -21,6 +21,9 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   carteraUsuario: CarteraClase[] = [];
   packagesDisponibles: Package[] = [];
   filterText: string = '';
+  private searchTimer: any = null;
+  readonly PAGE_SIZE = 40; // public for template condition
+  lastPageCount = 0;
   
   // Forms
   agregarForm: FormGroup;
@@ -60,32 +63,11 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Solo mostrar usuarios que hayan completado onboarding */
-  get filteredUsuarios(): any[] {
-    const text = this.filterText.trim().toLowerCase();
-    const onboarded = this.usuarios.filter(u => this.isUserOnboarded(u));
-    if (!text) {
-      return onboarded;
-    }
-    return onboarded.filter(usuario =>
-      (usuario.full_name || '').toLowerCase().includes(text) ||
-      (usuario.email || '').toLowerCase().includes(text) ||
-      (usuario.name || '').toLowerCase().includes(text) ||
-      (usuario.surname || '').toLowerCase().includes(text)
-    );
-  }
-
-  /** Un usuario está onboarded si: tiene auth_user_id y name, surname, telephone completos */
-  private isUserOnboarded(u: any): boolean {
-    const hasAuth = !!u?.auth_user_id;
-    const name = (u?.name || '').trim();
-    const surname = (u?.surname || '').trim();
-    const telephone = (u?.telephone || '').trim();
-    return hasAuth && !!name && !!surname && !!(telephone);
-  }
+  // El backend ya aplica el filtro de onboarding, así que devolvemos el array tal cual.
+  get filteredUsuarios(): any[] { return this.usuarios; }
 
   ngOnInit() {
-    this.cargarUsuarios();
+    this.buscarUsuarios(true);
     this.cargarPackages();
   }
 
@@ -93,23 +75,43 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
-  cargarUsuarios() {
+  private buscarUsuarios(reset = false) {
+    if (reset) {
+      this.usuarios = [];
+      this.lastPageCount = 0;
+    }
     this.loading = true;
-    this.error = '';
-
-    const sub = this.usersService.getAll(1, 100).subscribe({
-      next: (usuarios: any[]) => {
-        this.usuarios = usuarios;
+    const term = this.filterText.trim();
+    const offset = reset ? 0 : this.usuarios.length;
+    const sub = this.usersService.searchOnboarded(term, this.PAGE_SIZE, offset).subscribe({
+      next: rows => {
+        if (reset) {
+          this.usuarios = rows;
+        } else {
+          this.usuarios = [...this.usuarios, ...rows];
+        }
+        this.lastPageCount = rows.length;
         this.loading = false;
       },
-      error: (err: any) => {
-        console.error('Error al cargar usuarios:', err);
-        this.error = 'Error al cargar la lista de usuarios';
+      error: err => {
+        console.error('Error buscando usuarios:', err);
+        this.error = 'Error al buscar usuarios';
         this.loading = false;
       }
     });
-
     this.subscriptions.push(sub);
+  }
+
+  onFilterChange(value: string) {
+    this.filterText = value;
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.buscarUsuarios(true), 300);
+  }
+
+  cargarMasUsuarios() {
+    if (this.loading) return;
+    if (this.lastPageCount < this.PAGE_SIZE) return; // no more pages
+    this.buscarUsuarios(false);
   }
 
   cargarPackages() {

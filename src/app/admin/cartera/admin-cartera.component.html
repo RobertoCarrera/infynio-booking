@@ -22,10 +22,11 @@
             <div class="mb-3">
               <input type="text" 
                      class="form-control" 
-                     placeholder="Buscar usuario..." 
-                     [(ngModel)]="filterText">
-              <div class="form-text" *ngIf="filteredUsuarios.length === 0">
-                No hay usuarios con onboarding completo. Pide al usuario completar nombre, apellidos y teléfono.
+                     placeholder="Buscar usuario (prefijo de email, nombre o apellidos)..." 
+                     [ngModel]="filterText"
+                     (ngModelChange)="onFilterChange($event)">
+              <div class="form-text" *ngIf="!loading && filteredUsuarios.length === 0">
+                No se encontraron usuarios (o no han completado nombre, apellidos y teléfono).
               </div>
             </div>
             
@@ -39,10 +40,13 @@
                     <i class="fas fa-user-circle fa-2x text-muted"></i>
                   </div>
                   <div class="flex-grow-1">
-                    <h6 class="mb-0">{{ usuario.full_name || usuario.email }}</h6>
+                    <h6 class="mb-0">{{ usuario.full_name || (usuario.name + ' ' + usuario.surname) || usuario.email }}</h6>
                     <small class="text-muted">{{ usuario.email }}</small>
                   </div>
                 </div>
+              </div>
+              <div class="mt-2 text-center" *ngIf="!loading && filteredUsuarios.length > 0 && lastPageCount === PAGE_SIZE">
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cargarMasUsuarios()">Cargar más</button>
               </div>
             </div>
           </div>
