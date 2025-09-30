@@ -1,9 +1,40 @@
 .admin-cartera-container {
   padding: 1rem;
   min-height: 80vh;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scroll handling for the 'Clases del bono' card so it never hides behind bottom nav */
+.admin-cartera-container .clases-bono-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.admin-cartera-container .clases-bono-wrapper .card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow internal scroll */
+}
+
+.admin-cartera-container .clases-bono-wrapper .card > .list-group,
+.admin-cartera-container .clases-bono-wrapper .card > .card-body:not(:first-child) {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* Specific height constraint using viewport minus estimated header + bottom nav (mobile) */
+@media (max-width: 991.98px) {
+  .admin-cartera-container .clases-bono-wrapper .card {
+    max-height: calc(100vh - var(--bottom-nav-height, 90px) - 170px);
+  }
+  .admin-cartera-container .clases-bono-wrapper .card > .list-group,
+  .admin-cartera-container .clases-bono-wrapper .card > .card-body:not(:first-child) {
+    max-height: calc(100vh - var(--bottom-nav-height, 90px) - 210px);
+  }
+}
+
 
 /* Ensure three columns inside admin-cartera have equal height and cards fill their column */
 .admin-cartera-container .row {
@@ -331,7 +362,6 @@
     /* Reserve space for top bars (if any) and the bottom nav so local scroll works */
     min-height: unset;
     height: calc(100vh - var(--bottom-nav-height, 90px) - var(--top-bar-height, 56px));
-    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -351,7 +381,7 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     /* Bound the card body so it doesn't exceed the available viewport space */
-    max-height: 30dvh;
+    max-height: 28dvh;
   }
 
   /* Give the internal cartera list more room on mobile when scrolling within card body */

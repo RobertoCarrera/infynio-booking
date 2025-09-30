@@ -57,16 +57,22 @@
   <!-- Panel de cartera -->
   <div class="col-md-4 bonos-info">
       <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">
-            Bonos
-          </h5>
-          <button *ngIf="usuarioSeleccionado" 
-          class="btn btn-primary btn-sm ms-2" 
-          (click)="abrirModalAgregar()">
-            <i class="bi bi-ticket-perforated"></i>
-            Agregar Bono
-          </button>
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div class="d-flex align-items-center gap-3">
+            <h5 class="mb-0">Bonos</h5>
+            <div class="form-check form-switch m-0" title="Mostrar también los bonos expirados">
+              <input class="form-check-input" type="checkbox" id="toggleExpired" [checked]="showExpired" (change)="toggleShowExpired()">
+              <label class="form-check-label small" for="toggleExpired">Ver expirados</label>
+            </div>
+          </div>
+          <div>
+            <button *ngIf="usuarioSeleccionado" 
+              class="btn btn-primary btn-sm" 
+              (click)="abrirModalAgregar()">
+              <i class="bi bi-plus"></i>
+              Agregar Bono
+            </button>
+          </div>
         </div>
 
         <div class="card-body">
@@ -127,17 +133,9 @@
 
                       <!-- Columna expiración -->
                       <td>
-                        <ng-container *ngIf="computeDaysUntilExpiration(entrada) as days; else noDate">
-                          <span *ngIf="days < 0" class="fw-bold text-danger">Expirado</span>
-                          <span *ngIf="days >= 0">
-                            Caduca en
-                            <strong [ngStyle]="{ color: getExpirationColorHex(days) }" class="expiry-days ms-0">{{ days }}</strong>
-                            días
-                          </span>
+                        <ng-container *ngIf="getExpirationStatus(entrada) as exp">
+                          <span [ngStyle]="{ color: exp.color, 'font-weight': exp.isExpired ? '600' : '500' }">{{ exp.label }}</span>
                         </ng-container>
-                        <ng-template #noDate>
-                          <small class="text-muted">Sin fecha</small>
-                        </ng-template>
                       </td>
 
                       <!-- Columna acciones -->
@@ -165,7 +163,7 @@
     </div>
 
     <!-- Nueva columna: clases asociadas al bono seleccionado -->
-    <div class="col-md-4">
+    <div class="col-md-4 clases-bono-wrapper">
       <app-admin-package-classes [userPackageId]="selectedPackageId"></app-admin-package-classes>
     </div>
   </div>

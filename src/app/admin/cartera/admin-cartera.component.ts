@@ -19,6 +19,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   usuarios: any[] = [];
   usuarioSeleccionado: any = null;
   carteraUsuario: CarteraClase[] = [];
+  private carteraUsuarioAll: CarteraClase[] = []; // almacena todos (incluidos expirados)
   packagesDisponibles: Package[] = [];
   filterText: string = '';
   private searchTimer: any = null;
@@ -43,6 +44,9 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   // Selected package id to show classes in the new column
   selectedPackageId: number | null = null;
+  showExpired = false; // toggle UI
+  // Hora (24h) de cierre de la jornada del negocio para considerar un bono del día como expirado.
+  private readonly BUSINESS_END_HOUR = 22; // Ajusta según horario real (22 = 22:00)
 
   constructor(
     private carteraService: CarteraClasesService,
@@ -146,7 +150,8 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
 
     const sub = this.carteraService.getCarteraByUserId(userId).subscribe({
       next: (cartera: any[]) => {
-        this.carteraUsuario = cartera;
+        this.carteraUsuarioAll = cartera;
+        this.aplicarFiltroExpired();
         this.loadingCartera = false;
       },
       error: (err: any) => {
@@ -157,6 +162,25 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     });
 
     this.subscriptions.push(sub);
+  }
+
+  toggleShowExpired() {
+    this.showExpired = !this.showExpired;
+    this.aplicarFiltroExpired();
+  }
+
+  private aplicarFiltroExpired() {
+    if (this.showExpired) {
+      this.carteraUsuario = [...this.carteraUsuarioAll];
+      return;
+    }
+    this.carteraUsuario = this.carteraUsuarioAll.filter(entry => {
+      const days = this.computeDaysUntilExpiration(entry);
+      if (days === null) return false;
+      if (days < 0) return false;
+      if (days === 0 && this.isAfterBusinessEnd(entry)) return false;
+      return true;
+    });
   }
 
   // Métodos para el modal de agregar
@@ -345,6 +369,41 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     // Normalizar horas para evitar sesgos por zona horaria
     const diffMs = exp.setHours(0,0,0,0) - today.setHours(0,0,0,0);
     return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  /** Determina si, estando en el día de expiración (days===0), ya pasó la hora de cierre y podemos considerar expirado. */
+  isAfterBusinessEnd(entrada: CarteraClase): boolean {
+    if (!entrada.fecha_expiracion) return false;
+    const now = new Date();
+    const exp = new Date(entrada.fecha_expiracion);
+    return (
+      now.getFullYear() === exp.getFullYear() &&
+      now.getMonth() === exp.getMonth() &&
+      now.getDate() === exp.getDate() &&
+      now.getHours() >= this.BUSINESS_END_HOUR
+    );
+  }
+
+  /**
+   * Devuelve un objeto con la etiqueta y color para mostrar el estado de expiración
+   * evitando usar *ngIf sobre valores falsy (0) que causaban ausencia visual.
+   */
+  getExpirationStatus(entrada: CarteraClase): { label: string; color: string; isExpired: boolean } {
+    const days = this.computeDaysUntilExpiration(entrada);
+    // Si no hay fecha (no debería ocurrir) tratamos como expirado desconocido
+    if (days === null) {
+      return { label: 'Expirado', color: '#dc3545', isExpired: true };
+    }
+    if (days < 0) {
+      return { label: `Expirado (hace ${Math.abs(days)} d)`, color: '#dc3545', isExpired: true };
+    }
+    if (days === 0) {
+      if (this.isAfterBusinessEnd(entrada)) {
+        return { label: 'Expirado (hace 0 d)', color: '#dc3545', isExpired: true };
+      }
+      return { label: 'Caduca en 0 días', color: this.getExpirationColorHex(days), isExpired: false };
+    }
+    return { label: `Caduca en ${days} días`, color: this.getExpirationColorHex(days), isExpired: false };
   }
 
   /** Color para la columna de expiración basada en días restantes

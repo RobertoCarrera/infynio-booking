@@ -1,0 +1,43 @@
+.admin-package-classes-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow internal flex children to shrink */
+}
+
+.admin-package-classes-card .list-wrapper {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  padding-right: 4px; /* space for scrollbar */
+  max-height: 100%;
+}
+
+.admin-package-classes-card .list-group-item {
+  border-left: none;
+  border-right: none;
+  transition: background-color 0.15s ease;
+}
+
+.admin-package-classes-card .list-group-item:first-child { border-top: none; }
+.admin-package-classes-card .list-group-item:last-child { border-bottom: none; }
+
+.admin-package-classes-card .list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+.admin-package-classes-card .class-title {
+  line-height: 1.1;
+}
+
+.admin-package-classes-card .status-col .badge {
+  font-size: 0.65rem;
+  letter-spacing: .5px;
+  padding: 0.35em 0.5em;
+}
+
+/* Mobile adjustments */
+@media (max-width: 991.98px) {
+  .admin-package-classes-card .list-wrapper {
+    max-height: 16dvh;
+  }
+}

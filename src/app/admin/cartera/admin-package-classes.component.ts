@@ -7,41 +7,8 @@ import { Subscription } from 'rxjs';
   selector: 'app-admin-package-classes',
   standalone: true,
   imports: [CommonModule],
-  template: `
-  <div class="card h-100">
-    <div class="card-header d-flex align-items-center justify-content-between">
-  <h6 class="mb-0">Clases del bono</h6>
-  <span class="badge bg-secondary" *ngIf="!loading && !error">{{ classes.length || 0 }}</span>
-    </div>
-
-    <div class="card-body" *ngIf="loading">
-      <div class="d-flex justify-content-center py-3"><div class="spinner-border text-primary" role="status"></div></div>
-    </div>
-
-    <div class="card-body" *ngIf="error">
-      <div class="alert alert-danger">{{ error }}</div>
-    </div>
-
-  <ul class="list-group list-group-flush h-100" *ngIf="!loading && !error && classes.length > 0">
-      <li class="list-group-item" *ngFor="let c of classes">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-semibold">{{ c.class_name || c.class_type_name || 'Clase' }}</div>
-            <div class="text-muted small">{{ formatWhen(c) }}</div>
-          </div>
-              <div class="text-end small">
-                <div *ngIf="c.status==='CONFIRMED'" class="badge bg-success">Confirmada</div>
-                <div *ngIf="c.status==='CANCELLED'" class="badge bg-danger ms-1">Cancelled</div>
-              </div>
-        </div>
-      </li>
-    </ul>
-
-  <div class="card-body text-center text-muted" *ngIf="!loading && !error && classes.length===0">
-      <div>No hay clases asociadas a este bono</div>
-    </div>
-  </div>
-  `
+  templateUrl: 'admin-package-classes.component.html',
+  styleUrls: ['admin-package-classes.component.css']
 })
 export class AdminPackageClassesComponent implements OnChanges {
   @Input() userPackageId: number | null = null;
