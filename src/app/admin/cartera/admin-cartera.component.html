@@ -20,18 +20,18 @@
           <!-- Lista de usuarios -->
           <div *ngIf="!loading" class="usuarios-list">
             <div class="mb-3">
-              <input type="text" 
-                     class="form-control" 
-                     placeholder="Buscar usuario (prefijo de email, nombre o apellidos)..." 
-                     [ngModel]="filterText"
-                     (ngModelChange)="onFilterChange($event)">
+    <input type="text" 
+      class="form-control" 
+      placeholder="Buscar usuario (prefijo de email, nombre o apellidos)..." 
+      [(ngModel)]="filterText"
+      (keyup)="onFilterKey($event)">
               <div class="form-text" *ngIf="!loading && filteredUsuarios.length === 0">
                 No se encontraron usuarios (o no han completado nombre, apellidos y teléfono).
               </div>
             </div>
             
             <div class="usuarios-scroll">
-              <div *ngFor="let usuario of filteredUsuarios" 
+        <div *ngFor="let usuario of filteredUsuarios; trackBy: trackUser" 
                    class="usuario-item" 
                    [class.selected]="usuarioSeleccionado?.id === usuario.id"
                    (click)="seleccionarUsuario(usuario)">
@@ -47,6 +47,9 @@
               </div>
               <div class="mt-2 text-center" *ngIf="!loading && filteredUsuarios.length > 0 && lastPageCount === PAGE_SIZE">
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cargarMasUsuarios()">Cargar más</button>
+              </div>
+              <div class="mt-2 text-center" *ngIf="!loading && filterDirty && !autoSearching">
+                <button type="button" class="btn btn-link btn-sm" (click)="triggerSearch()">Buscar "{{ filterText }}"</button>
               </div>
             </div>
           </div>

@@ -23,6 +23,9 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   packagesDisponibles: Package[] = [];
   filterText: string = '';
   private searchTimer: any = null;
+  private keyTimer: any = null;
+  filterDirty = false; // indica que se escribió algo nuevo sin haber lanzado búsqueda aún
+  autoSearching = false; // para evitar flicker de botón
   readonly PAGE_SIZE = 40; // public for template condition
   lastPageCount = 0;
   
@@ -106,11 +109,24 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
-  onFilterChange(value: string) {
-    this.filterText = value;
-    if (this.searchTimer) clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => this.buscarUsuarios(true), 300);
+  onFilterKey(ev: KeyboardEvent) {
+    this.filterDirty = true;
+    // No reiniciar resultados inmediatamente para que el input no pierda foco en móviles.
+    if (this.keyTimer) clearTimeout(this.keyTimer);
+    // Lanzar búsqueda tras una pausa de tecleo (400 ms) sin hacer reset visual antes
+    this.keyTimer = setTimeout(() => {
+      this.triggerSearch();
+    }, 900);
   }
+
+  triggerSearch() {
+    this.autoSearching = true;
+    this.buscarUsuarios(true);
+    this.filterDirty = false;
+    setTimeout(() => this.autoSearching = false, 50);
+  }
+
+  trackUser(index: number, u: any) { return u.id; }
 
   cargarMasUsuarios() {
     if (this.loading) return;
