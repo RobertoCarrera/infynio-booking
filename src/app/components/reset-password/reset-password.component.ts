@@ -90,15 +90,34 @@ import { SupabaseService } from '../../services/supabase.service';
                   </div>
 
                   <div class="mb-3">
-                    <label for="birthdate">Fecha de nacimiento *</label>
-                    <input
-                      type="date"
-                      id="birthdate"
-                      class="form-control"
-                      formControlName="birthdate"
-                      placeholder="Tu fecha de nacimiento">
-                    <div *ngIf="resetForm.get('birthdate')?.invalid && resetForm.get('birthdate')?.touched" class="text-danger">
-                      La fecha de nacimiento es requerida
+                    <label for="birthdate-day" class="form-label">Fecha de nacimiento *</label>
+                    <div class="row g-2">
+                      <div class="col-4">
+                        <select id="birthdate-day" class="form-select"
+                                [(ngModel)]="birthDay" (ngModelChange)="updateBirthdate()" [ngModelOptions]="{standalone: true}">
+                          <option value="" disabled selected>Día</option>
+                          <option *ngFor="let d of dayOptions" [value]="d">{{ d }}</option>
+                        </select>
+                      </div>
+                      <div class="col-4">
+                        <select id="birthdate-month" class="form-select"
+                                [(ngModel)]="birthMonth" (ngModelChange)="onMonthOrYearChange()" [ngModelOptions]="{standalone: true}">
+                          <option value="" disabled selected>Mes</option>
+                          <option *ngFor="let m of monthOptions" [value]="m.value">{{ m.label }}</option>
+                        </select>
+                      </div>
+                      <div class="col-4">
+                        <select id="birthdate-year" class="form-select"
+                                [(ngModel)]="birthYear" (ngModelChange)="onMonthOrYearChange()" [ngModelOptions]="{standalone: true}">
+                          <option value="" disabled selected>Año</option>
+                          <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <!-- Hidden (or visually hidden) input bound to reactive form to preserve existing logic -->
+                    <input type="hidden" formControlName="birthdate">
+                    <div *ngIf="birthdateError" class="text-danger mt-1 small">
+                      {{ birthdateError }}
                     </div>
                   </div>
                   
@@ -191,6 +210,19 @@ export class ResetPasswordComponent implements OnInit {
   requestingInvite = false;
   knownEmailForRequest = false;
   emailForRequest = '';
+  // Campos para selector personalizado de fecha de nacimiento
+  birthDay: string = '';
+  birthMonth: string = '';
+  birthYear: string = '';
+  dayOptions: number[] = [];
+  monthOptions = [
+    { value: '01', label: 'ene.' }, { value: '02', label: 'feb.' }, { value: '03', label: 'mar.' },
+    { value: '04', label: 'abr.' }, { value: '05', label: 'may.' }, { value: '06', label: 'jun.' },
+    { value: '07', label: 'jul.' }, { value: '08', label: 'ago.' }, { value: '09', label: 'sep.' },
+    { value: '10', label: 'oct.' }, { value: '11', label: 'nov.' }, { value: '12', label: 'dic.' }
+  ];
+  yearOptions: number[] = [];
+  birthdateError: string = '';
   
   constructor(
     private fb: FormBuilder,
@@ -216,6 +248,8 @@ export class ResetPasswordComponent implements OnInit {
 
   ngOnInit() {
     console.log('ResetPasswordComponent - ngOnInit');
+    this.initYearOptions();
+    this.refreshDayOptions();
     
     // Solo ejecutar código relacionado con el navegador si estamos en el navegador
     if (this.isBrowser) {
@@ -706,5 +740,61 @@ export class ResetPasswordComponent implements OnInit {
     this.resetForm.get('surname')?.updateValueAndValidity();
     this.resetForm.get('phone')?.updateValueAndValidity();
     this.resetForm.get('birthdate')?.updateValueAndValidity();
+  }
+
+  // Inicializa rango de años (por ejemplo desde año actual hacia 1930)
+  private initYearOptions() {
+    const currentYear = new Date().getFullYear();
+    const earliest = 1930; // ajustable
+    this.yearOptions = [];
+    for (let y = currentYear; y >= earliest; y--) {
+      this.yearOptions.push(y);
+    }
+  }
+
+  private refreshDayOptions() {
+    // Si no hay mes o año todavía, usar 31 días para lista completa
+    const year = parseInt(this.birthYear || '2000', 10); // año bisiesto base cuando vacío
+    const month = parseInt(this.birthMonth || '01', 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    this.dayOptions = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    // Si el día seleccionado excede nuevo máximo, resetear
+    if (this.birthDay) {
+      const bd = parseInt(this.birthDay, 10);
+      if (bd > daysInMonth) {
+        this.birthDay = '';
+      }
+    }
+  }
+
+  onMonthOrYearChange() {
+    this.refreshDayOptions();
+    this.updateBirthdate();
+  }
+
+  updateBirthdate() {
+    // Limpiar error
+    this.birthdateError = '';
+    const d = this.birthDay;
+    const m = this.birthMonth;
+    const y = this.birthYear;
+    if (!y || !m || !d) {
+      this.resetForm.get('birthdate')?.setValue('');
+      if (this.resetForm.get('birthdate')?.touched) {
+        this.birthdateError = 'La fecha de nacimiento es requerida';
+      }
+      return;
+    }
+    // Formatear con padding
+    const dd = d.toString().padStart(2, '0');
+    const iso = `${y}-${m}-${dd}`;
+    // Validar fecha real (Date parse & recompose)
+    const test = new Date(iso + 'T00:00:00');
+    if (isNaN(test.getTime()) || (test.getFullYear() !== parseInt(y, 10))) {
+      this.birthdateError = 'Fecha no válida';
+      this.resetForm.get('birthdate')?.setValue('');
+      return;
+    }
+    this.resetForm.get('birthdate')?.setValue(iso);
   }
 }
