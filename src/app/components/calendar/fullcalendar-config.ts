@@ -15,7 +15,8 @@ export const FULLCALENDAR_OPTIONS: CalendarOptions = {
   locale: esLocale,
   // headerToolbar removed — using custom toolbar component instead
   headerToolbar: false,
-  initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
+  // Ajuste: en móvil ahora iniciamos en vista semanal para mayor contexto
+  initialView: 'timeGridWeek',
   slotMinTime: '07:00:00',
   slotMaxTime: '21:00:00',
   hiddenDays: [0, 6],

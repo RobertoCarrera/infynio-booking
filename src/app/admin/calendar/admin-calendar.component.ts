@@ -177,7 +177,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       eventContent: this.renderEventContent.bind(this),
       headerToolbar: false,
       datesSet: (arg: any) => this.onDatesSet(arg),
-      initialView: (isMobile || window.innerWidth <= 1024) ? 'timeGridDay' : 'timeGridWeek',
+  // Ajuste: forzar vista semanal también en móvil para consistencia
+  initialView: 'timeGridWeek',
       buttonText: {
         today: 'Hoy',
         month: 'Mes',
@@ -2090,12 +2091,13 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.showAddPackageModal = true;
   this.packagePreselected = false;
     
-    // Establecer fecha de caducidad por defecto: último día del mes siguiente
+    // Establecer fecha de caducidad por defecto: último día DEL MES ACTUAL
+    // (antes era fin del mes siguiente; se ajusta a la nueva petición para agilizar creación)
     const base = this.selectedSession?.schedule_date
       ? new Date(this.selectedSession.schedule_date)
       : new Date();
-    const lastDayNextMonth = new Date(base.getFullYear(), base.getMonth() + 2, 0);
-    const defaultExpiration = lastDayNextMonth.toISOString().split('T')[0];
+    const lastDayCurrentMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    const defaultExpiration = lastDayCurrentMonth.toISOString().split('T')[0];
     this.packageForm.patchValue({
       expiration_date: defaultExpiration
     });

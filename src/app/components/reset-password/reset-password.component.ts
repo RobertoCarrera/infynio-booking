@@ -1,9 +1,11 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, OnDestroy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { take } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 import { DatabaseService } from '../../services/database.service';
 import { SupabaseService } from '../../services/supabase.service';
 
@@ -194,7 +196,7 @@ import { SupabaseService } from '../../services/supabase.service';
     `
   ]
 })
-export class ResetPasswordComponent implements OnInit {
+export class ResetPasswordComponent implements OnInit, OnDestroy {
   resetForm: FormGroup;
   processingAuth = true;
   showForm = false;
@@ -224,6 +226,16 @@ export class ResetPasswordComponent implements OnInit {
   yearOptions: number[] = [];
   birthdateError: string = '';
   
+  private subs: any[] = [];
+  private debugEnabled = !environment.production; // sólo log en no-producción
+
+  private logDebug(...args: any[]) {
+    if (this.debugEnabled) {
+      // eslint-disable-next-line no-console
+      console.log('[ResetPassword]', ...args);
+    }
+  }
+
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
@@ -233,7 +245,7 @@ export class ResetPasswordComponent implements OnInit {
   private supabaseService: SupabaseService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    console.log('ResetPasswordComponent inicializado');
+    this.logDebug('Component init');
     this.isBrowser = isPlatformBrowser(this.platformId);
     
     this.resetForm = this.fb.group({
@@ -247,7 +259,7 @@ export class ResetPasswordComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log('ResetPasswordComponent - ngOnInit');
+    this.logDebug('ngOnInit');
     this.initYearOptions();
     this.refreshDayOptions();
     
@@ -272,19 +284,19 @@ export class ResetPasswordComponent implements OnInit {
         const type = hashParams.get('type');
         
         if (accessToken) {
-          console.log('Token encontrado en hash!');
+          this.logDebug('Token found in hash');
           
           // Detectar si es una invitación nueva desde el hash
           if (type === 'invite') {
             this.isNewUserInvite = true;
             this.setupFormValidators();
-            console.log('Detectada invitación de nuevo usuario desde hash');
+            this.logDebug('Invite detected via hash');
           }
           
           // Intentar establecer la sesión con el token del hash
           this.authService.setSession(accessToken, refreshToken || '').subscribe({
             next: (result) => {
-              console.log('Sesión establecida desde hash:', result);
+              this.logDebug('Session set from hash');
               this.processingAuth = false;
               
               if (result.data?.session) {
@@ -295,7 +307,7 @@ export class ResetPasswordComponent implements OnInit {
               }
             },
             error: (err) => {
-              console.error('Error al establecer sesión con hash:', err);
+              this.logDebug('Error setting session from hash', err);
               this.processingAuth = false;
               this.statusMessage = 'Error al procesar el token. Puede haber caducado. ¿Quieres pedir un nuevo enlace de invitación?';
               this.statusMessageType = 'alert-danger';
@@ -309,7 +321,7 @@ export class ResetPasswordComponent implements OnInit {
       
       // Capturar parámetros de la URL de query
       this.route.queryParams.subscribe(params => {
-        console.log('Query params recibidos:', params);
+  this.logDebug('Query params', params);
         
         // Verificar si hay un error
         if (params['error']) {
@@ -324,18 +336,18 @@ export class ResetPasswordComponent implements OnInit {
         if (params['type'] === 'invite' || params['invitation']) {
           this.isNewUserInvite = true;
           this.setupFormValidators();
-          console.log('Detectada invitación de nuevo usuario');
+          this.logDebug('Invite detected via params');
         }
         
         // Verificar si tenemos un token en los parámetros
         if (params['token'] || params['access_token'] || params['code']) {
-          console.log('Token detectado en parámetros de URL');
+          this.logDebug('Token detected in URL params');
           
           // Si hay access_token en los parámetros, intenta establecer la sesión
           if (params['access_token']) {
             this.authService.setSession(params['access_token'], params['refresh_token'] || '').subscribe({
               next: (result) => {
-                console.log('Sesión establecida desde params:', result);
+                this.logDebug('Session set from params');
                 this.processingAuth = false;
                 
                 if (result.data?.session) {
@@ -346,7 +358,7 @@ export class ResetPasswordComponent implements OnInit {
                 }
               },
               error: (err) => {
-                console.error('Error al establecer sesión con params:', err);
+                this.logDebug('Error setting session from params', err);
                 this.processingAuth = false;
                 this.statusMessage = 'Error al procesar el token. Puede haber caducado. ¿Quieres pedir un nuevo enlace de invitación?';
                 this.statusMessageType = 'alert-danger';
@@ -359,23 +371,23 @@ export class ResetPasswordComponent implements OnInit {
           
           // Si hay un código de Supabase, verificar la sesión después de que Supabase lo procese
           if (params['code']) {
-            console.log('Código de recuperación/invitación detectado:', params['code']);
+            this.logDebug('Recovery/invite code detected');
             
             // Esperar un momento para que Supabase procese el token automáticamente
             setTimeout(() => {
               this.authService.checkSessionStatus().subscribe({
                 next: (session) => {
-                  console.log('Estado de sesión después de código:', session ? 'Activa' : 'No hay sesión');
+                  this.logDebug('Session status after code', !!session);
                   this.processingAuth = false;
                   
                   if (session) {
                     this.ensureOnboardingThenShowForm();
                   } else {
                     // No hay sesión, intentar recuperar manualmente con el código
-                    console.log('Intentando verificación manual del token:', params['code']);
+                    this.logDebug('Attempt manual code verification');
                     this.authService.verifyRecoveryToken(params['code']).subscribe({
                       next: (result: any) => {
-                        console.log('Verificación de código exitosa:', result);
+                        this.logDebug('Code verification success');
                         this.processingAuth = false;
                         
                         if (result.data?.session) {
@@ -387,7 +399,7 @@ export class ResetPasswordComponent implements OnInit {
                         }
                       },
                       error: (err: any) => {
-                        console.error('Error al verificar código:', err);
+                        this.logDebug('Error verifying code', err);
                         this.processingAuth = false;
                         this.statusMessage = 'El enlace ha expirado o no es válido. ¿Quieres pedir un nuevo enlace de invitación?';
                         this.statusMessageType = 'alert-danger';
@@ -412,7 +424,7 @@ export class ResetPasswordComponent implements OnInit {
           // Si hay un token pero no access_token ni code, verifica la sesión actual
           this.authService.checkSessionStatus().subscribe({
             next: (session) => {
-              console.log('Estado de sesión:', session ? 'Activa' : 'No hay sesión');
+              this.logDebug('Session status (generic path)', !!session);
               this.processingAuth = false;
               
               if (session) {
@@ -425,7 +437,7 @@ export class ResetPasswordComponent implements OnInit {
               }
             },
             error: (err) => {
-              console.error('Error al verificar sesión:', err);
+              this.logDebug('Error checking session (generic path)', err);
               this.processingAuth = false;
               this.statusMessage = 'Error al verificar tu sesión. ¿Quieres pedir un nuevo enlace de invitación?';
               this.statusMessageType = 'alert-danger';
@@ -493,7 +505,7 @@ export class ResetPasswordComponent implements OnInit {
 
   private ensureOnboardingThenShowForm() {
     // Determina si el usuario requiere onboarding consultando la base de datos
-    this.authService.currentUser$.subscribe(user => {
+  const sub = this.authService.currentUser$.pipe(take(1)).subscribe((user: any) => {
       if (!user) {
         // Sin usuario, muestra formulario en modo onboarding por seguridad
         this.isNewUserInvite = true;
@@ -504,7 +516,7 @@ export class ResetPasswordComponent implements OnInit {
         return;
       }
       // Intentar RPC needs_onboarding; si no existe, caer a comprobación directa de la tabla
-      this.databaseService.querySingle<any>(supabase => supabase.rpc('needs_onboarding', { uid: user.id })).subscribe({
+  this.databaseService.querySingle<any>(supabase => supabase.rpc('needs_onboarding', { uid: user.id })).pipe(take(1)).subscribe({
         next: (flag) => {
           const needs = flag === true || flag === 'true';
           this.isNewUserInvite = needs;
@@ -519,7 +531,7 @@ export class ResetPasswordComponent implements OnInit {
           // Fallback: comprobar si existe y está completo el perfil en public.users
           this.databaseService.querySingle<any>(supabase =>
             supabase.from('users').select('name,surname,telephone').eq('auth_user_id', user.id).single()
-          ).subscribe({
+          ).pipe(take(1)).subscribe({
             next: (row) => {
               const nameOk = !!(row?.name && String(row.name).trim());
               const surnameOk = !!(row?.surname && String(row.surname).trim());
@@ -545,6 +557,7 @@ export class ResetPasswordComponent implements OnInit {
         }
       });
     });
+    this.subs.push(sub);
   }
 
   onSubmit() {
@@ -580,15 +593,14 @@ export class ResetPasswordComponent implements OnInit {
     // Esperar un momento para asegurar que la sesión esté completamente establecida
     setTimeout(() => {
       // Obtener el usuario actual para obtener su ID
-      this.authService.currentUser$.subscribe(user => {
+  const sub = this.authService.currentUser$.pipe(take(1)).subscribe((user: any) => {
         if (!user) {
           this.submitting = false;
           this.statusMessage = 'Error: No se pudo obtener la información del usuario';
           this.statusMessageType = 'alert-danger';
           return;
         }
-
-        console.log('Actualizando perfil para usuario:', user.id);
+        this.logDebug('Updating profile for user');
 
         // Actualizar el perfil del usuario en la tabla users
         const profileData = {
@@ -597,7 +609,7 @@ export class ResetPasswordComponent implements OnInit {
           telephone: this.resetForm.value.phone
         };
 
-        console.log('Datos a actualizar:', profileData);
+  this.logDebug('Profile payload prepared');
 
         // Primero verificar si el usuario existe en la tabla
         this.databaseService.querySingle(supabase => 
@@ -606,19 +618,20 @@ export class ResetPasswordComponent implements OnInit {
             .select('*')
             .eq('auth_user_id', user.id)
             .single()
-        ).subscribe({
+        ).pipe(take(1)).subscribe({
           next: (existingUser) => {
-            console.log('Usuario existente encontrado:', existingUser);
+            this.logDebug('Existing user found');
             // Si existe, actualizar
             this.updateExistingUser(user.id, profileData);
           },
           error: (err) => {
-            console.log('Usuario no existe, creando nuevo:', err);
+            this.logDebug('User not found, creating new');
             // Si no existe, crear
             this.createNewUser(user, profileData);
           }
         });
       });
+      this.subs.push(sub);
     }, 1000);
   }
 
@@ -666,11 +679,11 @@ export class ResetPasswordComponent implements OnInit {
         .single()
     ).subscribe({
       next: (result) => {
-        console.log('Perfil actualizado:', result);
+        this.logDebug('Profile updated');
         this.handleSuccess();
       },
       error: (err) => {
-        console.error('Error al actualizar perfil existente:', err);
+        this.logDebug('Error updating existing profile', err);
         this.handleProfileError(err);
       }
     });
@@ -694,20 +707,18 @@ export class ResetPasswordComponent implements OnInit {
         .single()
     ).subscribe({
       next: (result) => {
-        console.log('Usuario creado:', result);
+        this.logDebug('User created');
         this.handleSuccess();
       },
       error: (err) => {
-        console.error('Error al crear usuario:', err);
+        this.logDebug('Error creating user', err);
         this.handleProfileError(err);
       }
     });
   }
 
   private handleProfileError(err: any) {
-    console.error('Error completo:', err);
-    console.error('Error message:', err.message);
-    console.error('Error details:', err.details);
+  this.logDebug('Profile error', err);
     
     this.submitting = false;
     this.statusMessage = `Contraseña creada con éxito, pero hubo un problema al guardar tu perfil (${err.message || 'Error desconocido'}). Puedes actualizarlo desde tu perfil después de iniciar sesión.`;
@@ -796,5 +807,9 @@ export class ResetPasswordComponent implements OnInit {
       return;
     }
     this.resetForm.get('birthdate')?.setValue(iso);
+  }
+
+  ngOnDestroy() {
+    this.subs.forEach(s => s.unsubscribe && s.unsubscribe());
   }
 }
