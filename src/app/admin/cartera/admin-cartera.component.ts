@@ -8,6 +8,8 @@ import { CarteraClase, Package, CreateUserPackage, UpdateUserPackage } from '../
 import { AdminPackageClassesComponent } from './admin-package-classes.component';
 import { Subscription } from 'rxjs';
 
+import { ClassTypesService } from '../../services/class-types.service';
+
 @Component({
   selector: 'app-admin-cartera',
   standalone: true,
@@ -21,6 +23,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   carteraUsuario: CarteraClase[] = [];
   private carteraUsuarioAll: CarteraClase[] = []; // almacena todos (incluidos expirados)
   packagesDisponibles: Package[] = [];
+  classTypes: any[] = [];
   filterText: string = '';
   private searchTimer: any = null;
   private keyTimer: any = null;
@@ -28,22 +31,22 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   autoSearching = false; // para evitar flicker de botón
   readonly PAGE_SIZE = 40; // public for template condition
   lastPageCount = 0;
-  
+
   // Forms
   agregarForm: FormGroup;
   modificarForm: FormGroup;
-  
+
   // UI States
   loading = false;
   loadingCartera = false;
   error = '';
   successMessage = '';
-  
+
   // Modal states
   showAgregarModal = false;
   showModificarModal = false;
   entradaParaModificar: CarteraClase | null = null;
-  
+
   private subscriptions: Subscription[] = [];
   // Selected package id to show classes in the new column
   selectedPackageId: number | null = null;
@@ -54,8 +57,9 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   constructor(
     private carteraService: CarteraClasesService,
     private usersService: UsersService,
-  private fb: FormBuilder,
-  private packagesService: PackagesService
+    private fb: FormBuilder,
+    private packagesService: PackagesService,
+    private classTypesService: ClassTypesService
   ) {
     this.agregarForm = this.fb.group({
       usuario_id: ['', Validators.required],
@@ -76,10 +80,26 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.buscarUsuarios(true);
     this.cargarPackages();
+    this.loadClassTypes();
   }
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+
+  loadClassTypes() {
+    const sub = this.classTypesService.getAll().subscribe({
+      next: (types) => {
+        this.classTypes = types;
+      },
+      error: (err) => console.error('Error fetching class types:', err)
+    });
+    this.subscriptions.push(sub);
+  }
+
+  getAdditionalClassTypeName(id: number): string {
+    const type = this.classTypes.find(t => t.id === id);
+    return type ? type.name : `ID ${id}`;
   }
 
   private buscarUsuarios(reset = false) {
@@ -205,13 +225,13 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
       this.error = 'Selecciona un usuario primero';
       return;
     }
-  this.showAgregarModal = true;
-  this.agregarForm.reset();
-  // Prefijar usuario y una caducidad por defecto (último día del mes siguiente)
-  const today = new Date();
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0); // día 0 del mes+2 = último día del mes siguiente
-  const defaultExp = nextMonth.toISOString().split('T')[0];
-  this.agregarForm.patchValue({ usuario_id: this.usuarioSeleccionado.id, expiration_date: defaultExp });
+    this.showAgregarModal = true;
+    this.agregarForm.reset();
+    // Prefijar usuario y una caducidad por defecto (último día del mes siguiente)
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0); // día 0 del mes+2 = último día del mes siguiente
+    const defaultExp = nextMonth.toISOString().split('T')[0];
+    this.agregarForm.patchValue({ usuario_id: this.usuarioSeleccionado.id, expiration_date: defaultExp });
   }
 
   cerrarModalAgregar() {
@@ -303,7 +323,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   eliminarPackage(entrada: CarteraClase) {
-  if (!confirm('Confirmar: ELIMINAR este bono si no tiene reservas asociadas. Si existen bookings asociados, la operación fallará.')) {
+    if (!confirm('Confirmar: ELIMINAR este bono si no tiene reservas asociadas. Si existen bookings asociados, la operación fallará.')) {
       return;
     }
 
@@ -383,7 +403,7 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
     const today = new Date();
     const exp = new Date(entrada.fecha_expiracion);
     // Normalizar horas para evitar sesgos por zona horaria
-    const diffMs = exp.setHours(0,0,0,0) - today.setHours(0,0,0,0);
+    const diffMs = exp.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
     return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   }
 
@@ -451,20 +471,25 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
   }
 
   getPackagesByType(classType: 'MAT_FUNCIONAL' | 'REFORMER'): Package[] {
-    const typeIdMap = {
-      MAT_FUNCIONAL: 2,
-      REFORMER: 3
-    };
-    return this.packagesDisponibles.filter(p => p.class_type === typeIdMap[classType]);
+    // Map internal types to DB class_type IDs
+    // MAT_FUNCIONAL covers type 2 and type 28
+    if (classType === 'MAT_FUNCIONAL') {
+      return this.packagesDisponibles.filter(p => p.class_type === 2 || p.class_type === 28);
+    }
+    // REFORMER covers type 3
+    if (classType === 'REFORMER') {
+      return this.packagesDisponibles.filter(p => p.class_type === 3);
+    }
+    return [];
   }
 
   getRolloverStatus(entrada: CarteraClase): string {
-  if (!entrada.expires_at) return 'Sin fecha de rollover';
+    if (!entrada.expires_at) return 'Sin fecha de rollover';
 
-  const today = new Date();
-  const rolloverDate = new Date(entrada.expires_at as string);
+    const today = new Date();
+    const rolloverDate = new Date(entrada.expires_at as string);
     const daysLeft = Math.ceil((rolloverDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysLeft > 0) {
       return `${daysLeft} días hasta rollover`;
     } else if (daysLeft === 0) {

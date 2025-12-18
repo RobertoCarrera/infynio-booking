@@ -20,36 +20,36 @@
           <!-- Lista de usuarios -->
           <div *ngIf="!loading" class="usuarios-list">
             <div class="mb-3">
-    <input type="text" 
-      class="form-control" 
-      placeholder="Buscar usuario (prefijo de email, nombre o apellidos)..." 
-      [(ngModel)]="filterText"
-      (keyup)="onFilterKey($event)">
+              <input type="text" class="form-control"
+                placeholder="Buscar usuario (prefijo de email, nombre o apellidos)..." [(ngModel)]="filterText"
+                (keyup)="onFilterKey($event)">
               <div class="form-text" *ngIf="!loading && filteredUsuarios.length === 0">
                 No se encontraron usuarios (o no han completado nombre, apellidos y teléfono).
               </div>
             </div>
-            
+
             <div class="usuarios-scroll">
-        <div *ngFor="let usuario of filteredUsuarios; trackBy: trackUser" 
-                   class="usuario-item" 
-                   [class.selected]="usuarioSeleccionado?.id === usuario.id"
-                   (click)="seleccionarUsuario(usuario)">
+              <div *ngFor="let usuario of filteredUsuarios; trackBy: trackUser" class="usuario-item"
+                [class.selected]="usuarioSeleccionado?.id === usuario.id" (click)="seleccionarUsuario(usuario)">
                 <div class="d-flex align-items-center">
                   <div class="avatar me-2">
                     <i class="fas fa-user-circle fa-2x text-muted"></i>
                   </div>
                   <div class="flex-grow-1">
-                    <h6 class="mb-0">{{ usuario.full_name || (usuario.name + ' ' + usuario.surname) || usuario.email }}</h6>
+                    <h6 class="mb-0">{{ usuario.full_name || (usuario.name + ' ' + usuario.surname) || usuario.email }}
+                    </h6>
                     <small class="text-muted">{{ usuario.email }}</small>
                   </div>
                 </div>
               </div>
-              <div class="mt-2 text-center" *ngIf="!loading && filteredUsuarios.length > 0 && lastPageCount === PAGE_SIZE">
-                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cargarMasUsuarios()">Cargar más</button>
+              <div class="mt-2 text-center"
+                *ngIf="!loading && filteredUsuarios.length > 0 && lastPageCount === PAGE_SIZE">
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cargarMasUsuarios()">Cargar
+                  más</button>
               </div>
               <div class="mt-2 text-center" *ngIf="!loading && filterDirty && !autoSearching">
-                <button type="button" class="btn btn-link btn-sm" (click)="triggerSearch()">Buscar "{{ filterText }}"</button>
+                <button type="button" class="btn btn-link btn-sm" (click)="triggerSearch()">Buscar "{{ filterText
+                  }}"</button>
               </div>
             </div>
           </div>
@@ -57,21 +57,20 @@
       </div>
     </div>
 
-  <!-- Panel de cartera -->
-  <div class="col-md-4 bonos-info">
+    <!-- Panel de cartera -->
+    <div class="col-md-4 bonos-info">
       <div class="card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div class="d-flex align-items-center gap-3">
             <h5 class="mb-0">Bonos</h5>
             <div class="form-check form-switch m-0" title="Mostrar también los bonos expirados">
-              <input class="form-check-input" type="checkbox" id="toggleExpired" [checked]="showExpired" (change)="toggleShowExpired()">
+              <input class="form-check-input" type="checkbox" id="toggleExpired" [checked]="showExpired"
+                (change)="toggleShowExpired()">
               <label class="form-check-label small" for="toggleExpired">Ver expirados</label>
             </div>
           </div>
           <div>
-            <button *ngIf="usuarioSeleccionado" 
-              class="btn btn-primary btn-sm" 
-              (click)="abrirModalAgregar()">
+            <button *ngIf="usuarioSeleccionado" class="btn btn-primary btn-sm" (click)="abrirModalAgregar()">
               <i class="bi bi-plus"></i>
               Agregar Bono
             </button>
@@ -101,61 +100,67 @@
               <p class="text-muted">Este usuario no tiene bonos de clases activos</p>
             </div>
 
-      <div *ngIf="carteraUsuario.length > 0">
+            <div *ngIf="carteraUsuario.length > 0">
               <div class="cartera-scroll">
                 <div class="table-responsive">
                   <table class="table">
-                  <tbody>
-        <tr *ngFor="let entrada of carteraUsuario" [class.selected]="entrada.id === selectedPackageId" (click)="abrirDetalleBono(entrada)">
-                      <!-- Columna compacta: tipo, subtipo, clases y barra -->
-                      <td>
-                        <div class="me-3 d-flex flex-column flex-md-row align-items-start align-items-md-center">
-                          <span class="badge me-2 mb-2" [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
-                            {{ entrada.bono_type }}
-                          </span>
-                          <small class="text-muted">{{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}</small>
-                        </div>
-
-                        <div class="flex-grow-1">
-                          <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                              <strong>{{ entrada.clases_disponibles }}</strong>
-                              / {{ entrada.clases_totales }} clases restantes
-                            </div>
+                    <tbody>
+                      <tr *ngFor="let entrada of carteraUsuario" [class.selected]="entrada.id === selectedPackageId"
+                        (click)="abrirDetalleBono(entrada)">
+                        <!-- Columna compacta: tipo, subtipo, clases y barra -->
+                        <td>
+                          <div class="me-3 d-flex flex-column flex-md-row align-items-start align-items-md-center">
+                            <span class="badge me-2 mb-2"
+                              [class]="'badge-' + (entrada.bono_type === 'MAT-FUNCIONAL' ? 'mat' : 'reformer')">
+                              {{ entrada.bono_type }}
+                            </span>
+                            <small class="text-muted">{{ entrada.bono_subtype === 'CLASE-PERSONALIZADA' ?
+                              'Personalizada' : 'Normal' }}</small>
                           </div>
-                          <div class="mt-1">
-                            <div class="progress" style="height:8px; background-color: rgba(0,0,0,0.06);">
-                              <div class="progress-bar" role="progressbar"
-                                   [style.width.%]="getProgressPercentage(entrada)"
-                                   [style.backgroundColor]="getProgressColorHex(getProgressPercentage(entrada))">
+
+                          <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                              <div>
+                                <strong>{{ entrada.clases_disponibles }}</strong>
+                                / {{ entrada.clases_totales }} clases restantes
+                              </div>
+                            </div>
+                            <div class="mt-1">
+                              <div class="progress" style="height:8px; background-color: rgba(0,0,0,0.06);">
+                                <div class="progress-bar" role="progressbar"
+                                  [style.width.%]="getProgressPercentage(entrada)"
+                                  [style.backgroundColor]="getProgressColorHex(getProgressPercentage(entrada))">
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <!-- Columna expiración -->
-                      <td>
-                        <ng-container *ngIf="getExpirationStatus(entrada) as exp">
-                          <span [ngStyle]="{ color: exp.color, 'font-weight': exp.isExpired ? '600' : '500' }">{{ exp.label }}</span>
-                        </ng-container>
-                      </td>
+                        <!-- Columna expiración -->
+                        <td>
+                          <ng-container *ngIf="getExpirationStatus(entrada) as exp">
+                            <span [ngStyle]="{ color: exp.color, 'font-weight': exp.isExpired ? '600' : '500' }">{{
+                              exp.label }}</span>
+                          </ng-container>
+                        </td>
 
-                      <!-- Columna acciones -->
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <button class="btn btn-outline-primary" (click)="abrirModalModificar(entrada)" title="Modificar clases disponibles">
-                            <i class="fas fa-edit me-1"></i>
-                            Editar
-                          </button>
-                          <button class="btn btn-outline-danger" (click)="eliminarPackage(entrada)" title="Eliminar este bono">
-                            <i class="fas fa-ban me-1"></i>
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
+                        <!-- Columna acciones -->
+                        <td>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" (click)="abrirModalModificar(entrada)"
+                              title="Modificar clases disponibles">
+                              <i class="fas fa-edit me-1"></i>
+                              Editar
+                            </button>
+                            <button class="btn btn-outline-danger" (click)="eliminarPackage(entrada)"
+                              title="Eliminar este bono">
+                              <i class="fas fa-ban me-1"></i>
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -186,7 +191,8 @@
 </div>
 
 <!-- Modal Agregar Bono -->
-<div class="modal fade admin-modal" [class.show]="showAgregarModal" [style.display]="showAgregarModal ? 'block' : 'none'" *ngIf="showAgregarModal">
+<div class="modal fade admin-modal" [class.show]="showAgregarModal"
+  [style.display]="showAgregarModal ? 'block' : 'none'" *ngIf="showAgregarModal">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
@@ -200,25 +206,22 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Usuario:</label>
-            <input type="text" class="form-control" 
-                   [value]="usuarioSeleccionado?.full_name || usuarioSeleccionado?.email" 
-                   readonly>
+            <input type="text" class="form-control"
+              [value]="usuarioSeleccionado?.full_name || usuarioSeleccionado?.email" readonly>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Package:</label>
             <select class="form-select" formControlName="package_id">
               <option value="">Seleccionar package...</option>
-              <optgroup label="MAT-FUNCIONAL">
-                <option *ngFor="let package of getPackagesByType('MAT_FUNCIONAL')" 
-                        [value]="package.id">
+              <optgroup [label]="'MAT-FUNCIONAL (y ' + getAdditionalClassTypeName(28) + ')'">
+                <option *ngFor="let package of getPackagesByType('MAT_FUNCIONAL')" [value]="package.id">
                   {{ package.name }} - {{ package.class_count }} clases - €{{ package.price }}
                   <span *ngIf="package.is_personal"> (Personal)</span>
                 </option>
               </optgroup>
               <optgroup label="REFORMER">
-                <option *ngFor="let package of getPackagesByType('REFORMER')" 
-                        [value]="package.id">
+                <option *ngFor="let package of getPackagesByType('REFORMER')" [value]="package.id">
                   {{ package.name }} - {{ package.class_count }} clases - €{{ package.price }}
                   <span *ngIf="package.is_personal"> (Personal)</span>
                 </option>
@@ -230,7 +233,8 @@
             <label class="form-label">Fecha de Caducidad (obligatoria):</label>
             <input type="date" class="form-control" formControlName="expiration_date">
             <div class="form-text">
-              La activación es inmediata. Selecciona la fecha de caducidad del bono. Al abrir el calendario, verás por defecto el mes siguiente.
+              La activación es inmediata. Selecciona la fecha de caducidad del bono. Al abrir el calendario, verás por
+              defecto el mes siguiente.
             </div>
           </div>
         </div>
@@ -247,7 +251,8 @@
 </div>
 
 <!-- Modal Modificar Bono -->
-<div class="modal fade admin-modal" [class.show]="showModificarModal" [style.display]="showModificarModal ? 'block' : 'none'" *ngIf="showModificarModal">
+<div class="modal fade admin-modal" [class.show]="showModificarModal"
+  [style.display]="showModificarModal ? 'block' : 'none'" *ngIf="showModificarModal">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
@@ -261,7 +266,7 @@
         <div class="modal-body">
           <div *ngIf="entradaParaModificar" class="mb-3">
             <div class="alert alert-info">
-              <strong>{{ entradaParaModificar.bono_type }}</strong> - 
+              <strong>{{ entradaParaModificar.bono_type }}</strong> -
               {{ entradaParaModificar.bono_subtype === 'CLASE-PERSONALIZADA' ? 'Personalizada' : 'Normal' }}
               <br>
               <small>Total: {{ entradaParaModificar.clases_totales }} clases</small>

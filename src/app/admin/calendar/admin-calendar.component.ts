@@ -22,7 +22,7 @@ import { Subscription, forkJoin, firstValueFrom } from 'rxjs';
 })
 export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('calendar') calendarComponent!: FullCalendarComponent;
-  
+
   calendarOptions: CalendarOptions;
   events: any[] = [];
   // Keep an unfiltered snapshot of current range events to apply filters locally without refetching
@@ -43,12 +43,12 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   // Levels
   availableLevels: Level[] = [];
   private levelsMap: Map<number, Level> = new Map();
-  
+
   // Modal states
   showModal = false;
   isEditing = false;
   selectedSession: ClassSession | null = null;
-  
+
   // Attendees management modal
   showAttendeesModal = false;
   sessionAttendees: any[] = []; // Cambiar a any[] para permitir estructura de Supabase con joins
@@ -57,17 +57,17 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   selectedUserToAdd: any = null;
   showAddUserSection = false;
   attendeesLoading = false;
-  
+
   // Add package modal
   showAddPackageModal = false;
   selectedUserForPackage: any = null;
   packageForm: FormGroup;
   packagesDisponibles: Package[] = [];
   packagePreselected = false;
-  
+
   // Form
   sessionForm: FormGroup;
-  
+
   // UI states
   loading = false;
   error = '';
@@ -77,12 +77,12 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   checkingPackageAvailability = false;
   // If user has any package but none matching the session month
   selectedUserHasPackageButNotForMonth = false;
-  
+
   // Toast notification system
   showToast = false;
   toastMessage = '';
   toastType: 'success' | 'error' = 'success';
-  
+
   // Background progress for bulk (recurring) creation
   bulkActive = false;
   bulkTotal = 0;
@@ -105,17 +105,17 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   }
   dismissBulkProgress() {
     this.bulkActive = false;
-  this.stopRenderPhaseTimer();
+    this.stopRenderPhaseTimer();
     this.stopFakeProgress();
   }
-  
+
   // Calendar state preservation
   currentCalendarDate: Date | null = null;
   currentCalendarView: string | null = null;
   // Freeze updates while modal is open to avoid jumping back to 'Hoy'
   private freezeCalendarUpdates = false;
   private pendingEvents: any[] | null = null;
-  
+
   private subscriptions: Subscription[] = [];
   // touch bindings added at runtime to support swipe navigation
   private _touchBindings: Array<{ el: Element; name: string; handler: any }> = [];
@@ -126,9 +126,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   constructor(
     private classSessionsService: ClassSessionsService,
     private classTypesService: ClassTypesService,
-  private carteraService: CarteraClasesService,
+    private carteraService: CarteraClasesService,
     private supabaseService: SupabaseService,
-  private levelsService: LevelsService,
+    private levelsService: LevelsService,
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef
   ) {
@@ -136,14 +136,14 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       class_type_id: ['', Validators.required],
       schedule_date: ['', Validators.required],
       schedule_time: ['', Validators.required],
-  // Capacidad por defecto; el límite máximo se ajusta dinámicamente según el tipo
-  capacity: [8, [Validators.required, Validators.min(1), Validators.max(10)]], // se recalibra en onClassTypeChange
-  // Nuevo: nivel (opcional)
-  level_id: [''],
+      // Capacidad por defecto; el límite máximo se ajusta dinámicamente según el tipo
+      capacity: [8, [Validators.required, Validators.min(1), Validators.max(10)]], // se recalibra en onClassTypeChange
+      // Nuevo: nivel (opcional)
+      level_id: [''],
       recurring: [false],
       recurring_type: [''],
-  recurring_end_date: [''],
-  user_id: ['']
+      recurring_end_date: [''],
+      user_id: ['']
     });
 
     this.packageForm = this.fb.group({
@@ -151,17 +151,17 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       expiration_date: ['', Validators.required]
     });
 
-  // Configuración del calendario adaptada para admin
-  const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
-  this.isMobile = isMobile;
-  this.calendarOptions = {
+    // Configuración del calendario adaptada para admin
+    const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+    this.isMobile = isMobile;
+    this.calendarOptions = {
       ...FULLCALENDAR_OPTIONS,
       selectable: true,
       selectMirror: true,
       select: this.onDateSelect.bind(this),
-  dateClick: this.onDateClick.bind(this),
+      dateClick: this.onDateClick.bind(this),
       eventClick: this.onEventClick.bind(this),
-  editable: true,
+      editable: true,
       eventDrop: this.onEventDrop.bind(this),
       eventResizableFromStart: false,
       eventDurationEditable: false,
@@ -177,8 +177,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       eventContent: this.renderEventContent.bind(this),
       headerToolbar: false,
       datesSet: (arg: any) => this.onDatesSet(arg),
-  // Ajuste: forzar vista semanal también en móvil para consistencia
-  initialView: 'timeGridWeek',
+      // Ajuste: forzar vista semanal también en móvil para consistencia
+      initialView: 'timeGridWeek',
       buttonText: {
         today: 'Hoy',
         month: 'Mes',
@@ -187,8 +187,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       // Forzar selección en móvil para admin
       selectAllow: () => true,
-  /* Visual config inherits from FULLCALENDAR_OPTIONS for parity with user calendar */
-  slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
+      /* Visual config inherits from FULLCALENDAR_OPTIONS for parity with user calendar */
+      slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
     };
   }
 
@@ -196,10 +196,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // Toolbar handlers (match user calendar API usage)
   onPrev() {
-    try { const api = this.calendarComponent?.getApi(); api?.prev(); } catch {}
+    try { const api = this.calendarComponent?.getApi(); api?.prev(); } catch { }
   }
   onNext() {
-    try { const api = this.calendarComponent?.getApi(); api?.next(); } catch {}
+    try { const api = this.calendarComponent?.getApi(); api?.next(); } catch { }
   }
   // Precise swipe navigation: move by 1 day/week/month based on currentView
   private onSwipePrev() {
@@ -215,7 +215,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       else if (mode === 'week') d.setDate(d.getDate() - 7);
       else /* month */ d.setMonth(d.getMonth() - 1);
       api.gotoDate(d);
-    } catch {}
+    } catch { }
   }
   private onSwipeNext() {
     try {
@@ -230,16 +230,16 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       else if (mode === 'week') d.setDate(d.getDate() + 7);
       else /* month */ d.setMonth(d.getMonth() + 1);
       api.gotoDate(d);
-    } catch {}
+    } catch { }
   }
   goToday() {
-    try { const api = this.calendarComponent?.getApi(); api?.today(); } catch {}
+    try { const api = this.calendarComponent?.getApi(); api?.today(); } catch { }
   }
   setView(view: string) {
     const map: any = { day: 'timeGridDay', week: 'timeGridWeek', month: 'dayGridMonth' };
     const fc = map[view];
     if (!fc) return;
-    try { const api = this.calendarComponent?.getApi(); api?.changeView(fc); } catch {}
+    try { const api = this.calendarComponent?.getApi(); api?.changeView(fc); } catch { }
   }
 
   onToggleFiltersNoop() { /* no-op in admin; toolbar button kept for visual parity */ }
@@ -251,18 +251,18 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         return;
       }
       this.desktopFiltersOpen = !this.desktopFiltersOpen;
-    } catch {}
+    } catch { }
   }
 
   setMobileFiltersOpen(open: boolean) {
-    try { if (this.mobileFiltersTimeout) clearTimeout(this.mobileFiltersTimeout); } catch {}
+    try { if (this.mobileFiltersTimeout) clearTimeout(this.mobileFiltersTimeout); } catch { }
     this.mobileFiltersOpen = open;
     if (open) {
       this.mobileFiltersTimeout = setTimeout(() => {
         try {
           const first = document.querySelector('.offcanvas .filter-row') as HTMLElement | null;
           if (first) first.focus();
-        } catch {}
+        } catch { }
       }, 200);
     }
   }
@@ -271,7 +271,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     try {
       this.desktopFiltersOpen = false;
       this.setMobileFiltersOpen(false);
-    } catch {}
+    } catch { }
   }
 
   private onDatesSet(arg: any) {
@@ -281,31 +281,31 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       if (t === 'timeGridDay') this.currentView = 'day';
       else if (t === 'timeGridWeek') this.currentView = 'week';
       else if (t === 'dayGridMonth') this.currentView = 'month';
-    } catch {}
+    } catch { }
     // Build range label (es-ES)
     try {
       const s = new Date(arg.start);
       const e = new Date(arg.end);
-      const fmt = (d: Date, monthStyle: 'short'|'long' = 'long') => {
+      const fmt = (d: Date, monthStyle: 'short' | 'long' = 'long') => {
         const parts = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: monthStyle }).formatToParts(d);
         let wd = '', day = '', mon = '';
-        for (const p of parts) { if (p.type==='weekday') wd=p.value; if (p.type==='day') day=p.value; if (p.type==='month') mon=p.value; }
-        const cap = wd ? (wd.charAt(0).toUpperCase()+wd.slice(1)) : '';
-        return `${cap} ${day} ${mon ? 'de '+mon : ''}`.trim();
+        for (const p of parts) { if (p.type === 'weekday') wd = p.value; if (p.type === 'day') day = p.value; if (p.type === 'month') mon = p.value; }
+        const cap = wd ? (wd.charAt(0).toUpperCase() + wd.slice(1)) : '';
+        return `${cap} ${day} ${mon ? 'de ' + mon : ''}`.trim();
       };
-      const monthStyle: 'short'|'long' = (this.currentView==='day') ? 'long' : (this.isMobile ? 'short':'long');
+      const monthStyle: 'short' | 'long' = (this.currentView === 'day') ? 'long' : (this.isMobile ? 'short' : 'long');
       let label: string;
-      if (this.currentView==='day') label = fmt(s, monthStyle);
+      if (this.currentView === 'day') label = fmt(s, monthStyle);
       else {
         const left = fmt(s, monthStyle);
-        const right = fmt(new Date(e.getTime()-1), monthStyle);
+        const right = fmt(new Date(e.getTime() - 1), monthStyle);
         label = `${left} - ${right}`;
       }
       Promise.resolve().then(() => {
         this.currentRangeLabel = label;
-        try { this.cdr.detectChanges(); } catch {}
+        try { this.cdr.detectChanges(); } catch { }
       });
-    } catch {}
+    } catch { }
   }
 
   onDateClick(clickInfo: any) {
@@ -313,26 +313,26 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     try {
       const dt = new Date(clickInfo.date);
       const scheduleDate = dt.toISOString().split('T')[0];
-      const scheduleTime = dt.toTimeString().slice(0,5);
+      const scheduleTime = dt.toTimeString().slice(0, 5);
       this.openCreateModal(scheduleDate, scheduleTime);
     } catch (e) {
-  // onDateClick non-fatal
+      // onDateClick non-fatal
     }
   }
 
   ngOnInit() {
-  // Load levels list and then other data
-  try {
-    const sub = this.levelsService.getAll().subscribe({
-      next: (lvls) => {
-        this.availableLevels = lvls || [];
-        this.levelsMap = new Map((lvls || []).map(l => [l.id, l]));
-        this.loadData();
-      },
-      error: () => { this.loadData(); }
-    });
-    this.subscriptions.push(sub);
-  } catch { this.loadData(); }
+    // Load levels list and then other data
+    try {
+      const sub = this.levelsService.getAll().subscribe({
+        next: (lvls) => {
+          this.availableLevels = lvls || [];
+          this.levelsMap = new Map((lvls || []).map(l => [l.id, l]));
+          this.loadData();
+        },
+        error: () => { this.loadData(); }
+      });
+      this.subscriptions.push(sub);
+    } catch { this.loadData(); }
   }
 
   ngAfterViewInit() {
@@ -360,21 +360,21 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
     // Attach swipe gesture handlers (parity with user calendar)
     try {
-      const tryAttach = () => { try { this.findAndAttachScrollEl(); } catch {} };
+      const tryAttach = () => { try { this.findAndAttachScrollEl(); } catch { } };
       tryAttach();
       setTimeout(tryAttach, 120);
       setTimeout(tryAttach, 420);
       // No global fallback: sólo horas
-    } catch {}
+    } catch { }
   }
 
   // ==== Swipe gesture helpers (mobile) ====
   private clearTouchBindings() {
     try {
       for (const t of this._touchBindings) {
-        try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
+        try { t.el.removeEventListener(t.name, t.handler as any); } catch { }
       }
-    } catch {}
+    } catch { }
     this._touchBindings = [];
   }
 
@@ -406,10 +406,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         const ty = ev.touches[0].clientY;
         const dx = tx - startX;
         const dy = ty - startY;
-  // Tolerancia: permitir algo de vertical, pero sólo interceptar cuando es claramente horizontal
-  const absDx = Math.abs(dx), absDy = Math.abs(dy);
-  if (absDy > absDx * 1.25) { tracking = false; return; }
-  if (absDx > 24 && absDx > absDy) { try { ev.preventDefault(); } catch {} }
+        // Tolerancia: permitir algo de vertical, pero sólo interceptar cuando es claramente horizontal
+        const absDx = Math.abs(dx), absDy = Math.abs(dy);
+        if (absDy > absDx * 1.25) { tracking = false; return; }
+        if (absDx > 24 && absDx > absDy) { try { ev.preventDefault(); } catch { } }
       };
       const onTouchEnd = (ev: TouchEvent) => {
         if (!tracking || startX == null || startY == null) { startX = null; startY = null; tracking = false; return; }
@@ -419,7 +419,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         const dy = endY - startY;
         const absDx = Math.abs(dx);
         const absDy = Math.abs(dy);
-  if (absDx > 40 && absDx > absDy * 1.1) { if (dx < 0) this.onSwipeNext(); else this.onSwipePrev(); }
+        if (absDx > 40 && absDx > absDy * 1.1) { if (dx < 0) this.onSwipeNext(); else this.onSwipePrev(); }
         startX = null; startY = null; tracking = false;
       };
       const onTouchCancel = () => { startX = null; startY = null; tracking = false; };
@@ -433,7 +433,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       this._touchBindings.push({ el: target, name: 'touchmove', handler: onTouchMove });
       this._touchBindings.push({ el: target, name: 'touchend', handler: onTouchEnd });
       this._touchBindings.push({ el: target, name: 'touchcancel', handler: onTouchCancel });
-    } catch {}
+    } catch { }
   }
 
   private attachPointerHandlersTo(target: HTMLElement) {
@@ -454,30 +454,30 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) return;
         if (Date.now() < this.suppressPointerUntil) return; // ignore follow-up pointer moves
         const dx = ev.clientX - startX; const dy = ev.clientY - startY;
-  const absDx = Math.abs(dx), absDy = Math.abs(dy);
-  if (absDy > absDx * 1.25) { tracking = false; return; }
-  if (absDx > 24 && absDx > absDy) { try { ev.preventDefault(); } catch {} }
+        const absDx = Math.abs(dx), absDy = Math.abs(dy);
+        if (absDy > absDx * 1.25) { tracking = false; return; }
+        if (absDx > 24 && absDx > absDy) { try { ev.preventDefault(); } catch { } }
       };
       const onUp = (ev: PointerEvent) => {
         if (!tracking || activePointerId !== ev.pointerId || startX == null || startY == null) { startX = null; startY = null; tracking = false; activePointerId = null; return; }
         if (Date.now() < this.suppressPointerUntil) { startX = null; startY = null; tracking = false; activePointerId = null; return; }
-  const dx = ev.clientX - (startX as number); const dy = ev.clientY - (startY as number);
-  const absDx = Math.abs(dx); const absDy = Math.abs(dy);
-  if (absDx > 40 && absDx > absDy * 1.1) { if (dx < 0) this.onSwipeNext(); else this.onSwipePrev(); }
+        const dx = ev.clientX - (startX as number); const dy = ev.clientY - (startY as number);
+        const absDx = Math.abs(dx); const absDy = Math.abs(dy);
+        if (absDx > 40 && absDx > absDy * 1.1) { if (dx < 0) this.onSwipeNext(); else this.onSwipePrev(); }
         startX = null; startY = null; tracking = false; activePointerId = null;
       };
       const onCancel = () => { startX = null; startY = null; tracking = false; activePointerId = null; };
 
-  target.addEventListener('pointerdown', onDown as any, { passive: false, capture: true });
-  target.addEventListener('pointermove', onMove as any, { passive: false, capture: true });
-  target.addEventListener('pointerup', onUp as any, { passive: false, capture: true });
-  target.addEventListener('pointercancel', onCancel as any, { passive: false, capture: true });
+      target.addEventListener('pointerdown', onDown as any, { passive: false, capture: true });
+      target.addEventListener('pointermove', onMove as any, { passive: false, capture: true });
+      target.addEventListener('pointerup', onUp as any, { passive: false, capture: true });
+      target.addEventListener('pointercancel', onCancel as any, { passive: false, capture: true });
 
       this._touchBindings.push({ el: target, name: 'pointerdown', handler: onDown });
       this._touchBindings.push({ el: target, name: 'pointermove', handler: onMove });
       this._touchBindings.push({ el: target, name: 'pointerup', handler: onUp });
       this._touchBindings.push({ el: target, name: 'pointercancel', handler: onCancel });
-    } catch {}
+    } catch { }
   }
 
   private findAndAttachScrollEl() {
@@ -504,7 +504,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         this.attachTouchHandlersTo(target);
         this.attachPointerHandlersTo(target);
       }
-    } catch {}
+    } catch { }
   }
 
   // Global touch handlers eliminados: sólo swipe en zona de horas
@@ -517,19 +517,19 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       if (color.startsWith('#')) {
         const hex = color.substring(1);
         if (hex.length >= 6) {
-          const r = parseInt(hex.substring(0,2), 16);
-          const g = parseInt(hex.substring(2,4), 16);
-          const b = parseInt(hex.substring(4,6), 16);
-          const yiq = (r*299 + g*587 + b*114) / 1000;
+          const r = parseInt(hex.substring(0, 2), 16);
+          const g = parseInt(hex.substring(2, 4), 16);
+          const b = parseInt(hex.substring(4, 6), 16);
+          const yiq = (r * 299 + g * 587 + b * 114) / 1000;
           return yiq >= 128 ? '#000000' : '#ffffff';
         }
       } else if (color.startsWith('rgb')) {
         const nums = color.replace(/[rgba\(\)\s]/g, '').split(',').map(s => parseFloat(s));
-        const [r,g,b] = [nums[0]||0, nums[1]||0, nums[2]||0];
-        const yiq = (r*299 + g*587 + b*114) / 1000;
+        const [r, g, b] = [nums[0] || 0, nums[1] || 0, nums[2] || 0];
+        const yiq = (r * 299 + g * 587 + b * 114) / 1000;
         return yiq >= 128 ? '#000000' : '#ffffff';
       }
-    } catch {}
+    } catch { }
     return '#ffffff';
   }
 
@@ -547,7 +547,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       if (!name) return '';
       return name
         .split(/\s+/)
-        .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0,3).replace(/\W+$/, '') + '.')))
+        .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0, 3).replace(/\W+$/, '') + '.')))
         .join(' ');
     } catch { return name; }
   }
@@ -626,22 +626,22 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
-  this.stopRenderPhaseTimer();
-  this.stopFakeProgress();
+    this.stopRenderPhaseTimer();
+    this.stopFakeProgress();
     // Remove any touch/pointer listeners we registered for swipe gestures
     try {
       for (const t of this._touchBindings) {
-        try { t.el.removeEventListener(t.name, t.handler as any); } catch {}
+        try { t.el.removeEventListener(t.name, t.handler as any); } catch { }
       }
       this._touchBindings = [];
-    } catch {}
+    } catch { }
   }
 
   loadData() {
     this.loading = true;
-  // Preservar estado actual antes de recargar datos
-  this.saveCalendarState();
-    
+    // Preservar estado actual antes de recargar datos
+    this.saveCalendarState();
+
     // Cargar tipos de clase y paquetes; las sesiones se cargan por lazy-load
     const classTypes$ = this.classTypesService.getAll();
     const packages$ = this.carteraService.getPackages();
@@ -653,13 +653,34 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       next: ({ classTypes, packages }) => {
         this.classTypes = classTypes;
         this.packagesDisponibles = packages;
+
+        // Asegurar que todos los tipos de clase (no personales) estén visibles por defecto en los filtros
+        // Esto corrige el problema donde tipos nuevos (ej. id=28) salían ocultos si no estaban en el set inicial
+        try {
+          const allNames = classTypes.map(ct => ct.name).filter(n => !!n);
+          // Usar la lógica de isPersonalType para filtrar
+          const nonPersonal = allNames.filter(name => {
+            const ct = classTypes.find(c => c.name === name);
+            return ct ? !this.isPersonalType(ct.id) : true;
+          });
+
+          if (this.filteredClassTypes.size === 0) {
+            this.filteredClassTypes = new Set(nonPersonal);
+          } else {
+            // Si ya existen filtros, añadir cualquier nuevo tipo encontrado en la BD que no tuviéramos
+            nonPersonal.forEach(n => this.filteredClassTypes.add(n));
+          }
+        } catch (e) {
+          console.warn('Error initializing filters from classTypes:', e);
+        }
+
         this.loading = false;
         this.cdr.detectChanges();
-  // FullCalendar event source will fetch automatically; just restore view state
+        // FullCalendar event source will fetch automatically; just restore view state
         this.restoreCalendarState();
       },
       error: (err: any) => {
-  // Error loading data; UI handles message
+        // Error loading data; UI handles message
         this.error = 'Error al cargar los datos';
         this.loading = false;
       }
@@ -683,7 +704,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const className = session.class_type_name || this.getClassTypeName(session.class_type_id);
       const safeSession: ClassSession = { ...session, class_type_name: className };
       const colors = this.classSessionsService.getEventColors(safeSession);
-      const time = session.schedule_time?.slice(0,5) || '';
+      const time = session.schedule_time?.slice(0, 5) || '';
       return {
         id: session.id.toString(),
         title: `${time} • ${className} • (${bookingCount}/${session.capacity})`,
@@ -699,8 +720,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         }
       };
     });
-  // Actualizar eventos sin perder la vista/fecha actual (o encolarlos si está congelado)
-  this.setEventsPreservingOrQueue(this.events);
+    // Actualizar eventos sin perder la vista/fecha actual (o encolarlos si está congelado)
+    this.setEventsPreservingOrQueue(this.events);
   }
 
   // Actualiza los eventos en el calendario preservando la vista (semana/día) y la fecha actual
@@ -708,13 +729,13 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     try {
       const api = this.calendarComponent?.getApi?.();
       if (api) {
-    // Con event source simple, siempre refetch
-    api.refetchEvents();
+        // Con event source simple, siempre refetch
+        api.refetchEvents();
         this.cdr.detectChanges();
         return;
       }
     } catch (e) {
-  // Fallback applied
+      // Fallback applied
     }
     // Fallback: actualizar options con los eventos
     this.calendarOptions = { ...this.calendarOptions, events: [...events] };
@@ -722,7 +743,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // Event source function for FullCalendar
   private fetchEventsForRange(info: { startStr: string; endStr: string }, success: (evs: any[]) => void, failure: (err: any) => void) {
-  // source: range load
+    // source: range load
     // FullCalendar end is exclusive; restar 1 día para inclusivo
     const startDate = this.formatDate(new Date(info.startStr));
     const endExcl = new Date(info.endStr);
@@ -748,7 +769,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
                 if (!(this.isMobile && this.currentView === 'week')) return name;
                 return name
                   .split(/\s+/)
-                  .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0,3).replace(/\W+$/, '') + '.')))
+                  .map(w => (w.length <= 3 ? (w.charAt(0).toUpperCase() + w.slice(1)) : (w.substring(0, 3).replace(/\W+$/, '') + '.')))
                   .join(' ');
               } catch { return session.class_type_name || ''; }
             })();
@@ -781,13 +802,13 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         } catch (mapErr) {
           console.error('[admin] event mapping error', mapErr);
           // Ensure FullCalendar stops its loading spinner
-          try { success([]); } catch { try { failure(mapErr); } catch {} }
+          try { success([]); } catch { try { failure(mapErr); } catch { } }
         }
       },
       error: (err: any) => {
         console.error('[admin] source error', err);
         // Ensure FullCalendar stops its loading spinner
-        try { failure(err); } catch { try { success([]); } catch {} }
+        try { failure(err); } catch { try { success([]); } catch { } }
       }
     });
     this.subscriptions.push(sub);
@@ -807,7 +828,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     const startDate = new Date(selectInfo.start);
     const scheduleDate = startDate.toISOString().split('T')[0];
     const scheduleTime = startDate.toTimeString().slice(0, 5);
-    
+
     this.openCreateModal(scheduleDate, scheduleTime);
     selectInfo.view.calendar.unselect();
   }
@@ -819,10 +840,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       console.warn('[admin] Click en evento sin sesión asociada. Ignorado.');
       return;
     }
-  // Guardar estado antes de abrir el modal para evitar saltos de vista
-  this.saveCalendarState();
-  // Congelar actualizaciones del calendario mientras el modal esté abierto
-  this.freezeCalendarUpdates = true;
+    // Guardar estado antes de abrir el modal para evitar saltos de vista
+    this.saveCalendarState();
+    // Congelar actualizaciones del calendario mientras el modal esté abierto
+    this.freezeCalendarUpdates = true;
     this.openAttendeesModal(session);
   }
 
@@ -908,15 +929,15 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       this.events = filtered;
       const api = this.calendarComponent?.getApi?.();
       if (api) {
-        try { api.removeAllEvents(); } catch {}
+        try { api.removeAllEvents(); } catch { }
         for (const ev of filtered) {
-          try { api.addEvent(ev); } catch {}
+          try { api.addEvent(ev); } catch { }
         }
       } else {
         // Fallback: push into options
         this.calendarOptions = { ...this.calendarOptions, events: filtered };
       }
-    } catch {}
+    } catch { }
   }
 
   toggleClassTypeFilter(typeName: string) {
@@ -925,7 +946,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       if (current.has(typeName)) current.delete(typeName); else current.add(typeName);
       this.filteredClassTypes = current;
       this.updateCalendarEvents();
-    } catch {}
+    } catch { }
   }
 
   isClassTypeVisible(typeName: string): boolean {
@@ -936,7 +957,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.isEditing = false;
     this.selectedSession = null;
     this.sessionForm.reset();
-    
+
     if (date) {
       this.sessionForm.patchValue({
         schedule_date: date,
@@ -944,29 +965,29 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         capacity: 8 // Capacidad por defecto hasta que se seleccione tipo
       });
     }
-    
-  // Load users for potential personalized sessions
-  this.sessionForm.patchValue({ user_id: '' });
-  this.loadAllUsers().catch(e => console.warn('No se pudieron cargar usuarios:', e));
-  this.showModal = true;
+
+    // Load users for potential personalized sessions
+    this.sessionForm.patchValue({ user_id: '' });
+    this.loadAllUsers().catch(e => console.warn('No se pudieron cargar usuarios:', e));
+    this.showModal = true;
     this.clearMessages();
-  // Ensure availability state is fresh
-  try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
+    // Ensure availability state is fresh
+    try { this.onSelectedUserOrTypeOrDateChange(); } catch { }
   }
 
   openEditModal(session: ClassSession) {
     this.isEditing = true;
     this.selectedSession = session;
-    
+
     this.sessionForm.patchValue({
       class_type_id: session.class_type_id,
       schedule_date: session.schedule_date,
       schedule_time: session.schedule_time,
       capacity: session.capacity
     });
-  // Asegurar que los validadores de capacidad respeten el tipo seleccionado
-  this.onClassTypeChange();
-    
+    // Asegurar que los validadores de capacidad respeten el tipo seleccionado
+    this.onClassTypeChange();
+
     // Si el modal de asistentes está abierto, cerrarlo primero
     if (this.showAttendeesModal) {
       this.showAttendeesModal = false;
@@ -977,7 +998,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     } else {
       this.showModal = true;
     }
-    
+
     this.clearMessages();
   }
 
@@ -1014,8 +1035,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         class_type_id: formData.class_type_id,
         schedule_date: formData.schedule_date,
         schedule_time: formData.schedule_time,
-  capacity: formData.capacity,
-  level_id: formData.level_id || null
+        capacity: formData.capacity,
+        level_id: formData.level_id || null
       };
 
       const sub = this.classSessionsService.updateSession(this.selectedSession.id, updateData).subscribe({
@@ -1033,10 +1054,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             this.updateCalendarEventCounts(updatedId, currentBookings);
           } else {
             // Si no está cargado, refrescar sólo el rango visible
-            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
           }
           // Refrescar eventos para garantizar consistencia inmediata
-          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
           this.loading = false;
         },
         error: (err: any) => {
@@ -1062,8 +1083,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       class_type_id: formData.class_type_id,
       schedule_date: formData.schedule_date,
       schedule_time: formData.schedule_time,
-  capacity: formData.capacity,
-  level_id: formData.level_id || null
+      capacity: formData.capacity,
+      level_id: formData.level_id || null
     };
     // If personalized type, include personal_user_id (DB column name)
     if (this.isPersonalType(formData.class_type_id)) {
@@ -1105,7 +1126,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             backgroundColor: colors.background,
             borderColor: colors.border,
             textColor: this.getContrastColor(colors.background || colors.border || '#ffffff'),
-              extendedProps: {
+            extendedProps: {
               session: createdSession,
               capacity: createdSession.capacity,
               bookings: bookingCount
@@ -1113,17 +1134,17 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
           };
           this.events = [...this.events, event];
           this.applyEventsPreservingView(this.events);
-            // If we used the RPC, it will return the booking linked; handle both shapes
-            if (createdSession && createdSession.booking_row) {
-              try {
-                const booking = createdSession.booking_row;
-                // Update local counts
-                this.updateCalendarEventCounts(createdSession.session_row.id, 1);
-                this.showToastNotification('Sesión y reserva creadas correctamente', 'success');
-              } catch {}
-            }
+          // If we used the RPC, it will return the booking linked; handle both shapes
+          if (createdSession && createdSession.booking_row) {
+            try {
+              const booking = createdSession.booking_row;
+              // Update local counts
+              this.updateCalendarEventCounts(createdSession.session_row.id, 1);
+              this.showToastNotification('Sesión y reserva creadas correctamente', 'success');
+            } catch { }
+          }
         }
-        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
         this.loading = false;
       },
       error: (err: any) => {
@@ -1155,8 +1176,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.bulkDone = 0;
     this.bulkErrors = 0;
     this.bulkStartedAt = Date.now();
-  this.fakeProgress = 0;
-  this.startFakeProgress();
+    this.fakeProgress = 0;
+    this.startFakeProgress();
     // No bloquear la UI global
     this.loading = false;
 
@@ -1231,7 +1252,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             this.successMessage = `${createdCount} sesiones recurrentes creadas correctamente`;
             // Trigger a final refetch and wait for eventsSet to finish before closing
             this.awaitingBulkSync = true;
-            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
           }
         },
         error: (err: any) => {
@@ -1243,7 +1264,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             this.error = `Se crearon ${totalSessions - this.bulkErrors} sesiones. ${this.bulkErrors} fallaron.`;
             // Synchronize with calendar rendering
             this.awaitingBulkSync = true;
-            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
           }
         }
       });
@@ -1264,8 +1285,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         class_type_id: formData.class_type_id,
         schedule_date: currentDate.toISOString().split('T')[0],
         schedule_time: formData.schedule_time,
-  capacity: formData.capacity,
-  level_id: formData.level_id || null
+        capacity: formData.capacity,
+        level_id: formData.level_id || null
       });
 
       // Avanzar según el tipo de recurrencia
@@ -1305,9 +1326,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     this.loading = true;
-  // Capturar ID antes de cerrar el modal para evitar null access
-  const toRemoveId = this.selectedSession.id;
-  const sub = this.classSessionsService.deleteSession(toRemoveId).subscribe({
+    // Capturar ID antes de cerrar el modal para evitar null access
+    const toRemoveId = this.selectedSession.id;
+    const sub = this.classSessionsService.deleteSession(toRemoveId).subscribe({
       next: () => {
         // Apagar spinner inmediatamente para evitar quedarse colgado si hay errores posteriores
         this.loading = false;
@@ -1321,11 +1342,11 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             const api = this.calendarComponent?.getApi?.();
             const fcEvent = api?.getEventById(String(removedId));
             if (fcEvent) fcEvent.remove();
-          } catch {}
+          } catch { }
           // Mantener snapshot local coherente
           this.events = (this.events || []).filter(e => e && e.id !== String(removedId));
           // Refresca la ventana actual para garantizar consistencia inmediata
-          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
         } catch (innerErr) {
           console.warn('Post-delete UI update failed (ignorable):', innerErr);
         }
@@ -1342,16 +1363,16 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   onClassTypeChange() {
     const classTypeId = this.sessionForm.get('class_type_id')?.value;
     if (classTypeId) {
-  const capacity = this.getClassTypeCapacity(classTypeId);
-  // Establecer capacidad por defecto según el tipo seleccionado
-  this.sessionForm.patchValue({ capacity });
+      const capacity = this.getClassTypeCapacity(classTypeId);
+      // Establecer capacidad por defecto según el tipo seleccionado
+      this.sessionForm.patchValue({ capacity });
 
-  // Ajustar validadores para respetar el máximo por tipo
-  const capacityControl = this.sessionForm.get('capacity');
-  capacityControl?.setValidators([Validators.required, Validators.min(1), Validators.max(capacity)]);
-  capacityControl?.updateValueAndValidity();
+      // Ajustar validadores para respetar el máximo por tipo
+      const capacityControl = this.sessionForm.get('capacity');
+      capacityControl?.setValidators([Validators.required, Validators.min(1), Validators.max(capacity)]);
+      capacityControl?.updateValueAndValidity();
 
-  // Capacidad automática establecida (silenciado en consola)
+      // Capacidad automática establecida (silenciado en consola)
     }
     // If the selected type is a personalized one (4,22,23), show user selector and disable recurring
     if (this.isPersonalType(classTypeId)) {
@@ -1381,8 +1402,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       });
       this.subscriptions.push(sub);
     } catch { this.availableLevels = []; this.sessionForm.patchValue({ level_id: '' }); }
-  // Re-evaluate package availability when class type changes
-  try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
+    // Re-evaluate package availability when class type changes
+    try { this.onSelectedUserOrTypeOrDateChange(); } catch { }
   }
 
   getClassTypeCapacity(classTypeId: number): number {
@@ -1429,7 +1450,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         });
         if (hasPersonalPackage) return true;
       }
-    } catch {}
+    } catch { }
     const name = (ct as any).name || '';
     return /personal|individual/i.test(name);
   }
@@ -1443,7 +1464,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       // Hacer campos obligatorios cuando está activada la recurrencia
       recurringTypeControl?.setValidators([Validators.required]);
       recurringEndDateControl?.setValidators([Validators.required]);
-      
+
       // Establecer fecha por defecto (1 mes desde la fecha de inicio)
       const startDate = this.sessionForm.get('schedule_date')?.value;
       if (startDate) {
@@ -1506,10 +1527,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       1: '#FF6B6B',  // Rojo coral - Barre
       2: '#4CAF50',  // Verde - Mat
       3: '#2196F3',  // Azul - Reformer
-  4: '#9C27B0',  // Morado - Mat Personalizada
-  9: '#FF9800',  // Naranja - Funcional
-  22: '#8BC34A', // Verde claro - Funcional Personalizada
-  23: '#00BCD4'  // Cian - Reformer Personalizada
+      4: '#9C27B0',  // Morado - Mat Personalizada
+      9: '#FF9800',  // Naranja - Funcional
+      22: '#8BC34A', // Verde claro - Funcional Personalizada
+      23: '#00BCD4'  // Cian - Reformer Personalizada
     };
     return colorMap[classTypeId] || '#9E9E9E';
   }
@@ -1517,10 +1538,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   calculateEndTime(date: string, time: string, classTypeId: number): string {
     const classType = this.classTypes.find(ct => ct.id === classTypeId);
     const duration = classType?.duration_minutes || 60;
-    
+
     const startDateTime = new Date(`${date}T${time}`);
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
-    
+
     return endDateTime.toISOString();
   }
 
@@ -1537,7 +1558,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.toastMessage = message;
     this.toastType = type;
     this.showToast = true;
-    
+
     // Auto-ocultar después de 3 segundos
     setTimeout(() => {
       this.hideToast();
@@ -1553,7 +1574,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // Acción auxiliar para el botón de refresco en progreso bulk
   refetchCalendarSafely() {
-    try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+    try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
   }
 
   // FullCalendar lifecycle hooks to sync bulk progress with visual rendering
@@ -1566,10 +1587,10 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       // Calendar has applied events after our final refetch
       this.awaitingBulkSync = false;
       // Ensure 100% is visible briefly before dismissing
-  this.bulkDone = this.bulkTotal;
-  this.fakeProgress = 100;
+      this.bulkDone = this.bulkTotal;
+      this.fakeProgress = 100;
       this.stopRenderPhaseTimer();
-  this.stopFakeProgress();
+      this.stopFakeProgress();
       setTimeout(() => {
         this.bulkActive = false;
       }, 1000);
@@ -1585,7 +1606,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this._renderTickElapsed = 0;
     this.renderTick = setInterval(() => {
       this._renderTickElapsed = Date.now() - (this._renderTickStart as number);
-      try { this.cdr.detectChanges(); } catch {}
+      try { this.cdr.detectChanges(); } catch { }
     }, 100);
   }
 
@@ -1623,7 +1644,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     if (dist <= 0.1) return; // close enough to cap; wait for next state change
     const step = Math.max(0.3, dist * 0.05); // smaller steps near cap
     this.fakeProgress = Math.min(targetCap, this.fakeProgress + step);
-    try { this.cdr.detectChanges(); } catch {}
+    try { this.cdr.detectChanges(); } catch { }
   }
 
   // ==============================================
@@ -1635,7 +1656,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const calendarApi = this.calendarComponent.getApi();
       this.currentCalendarDate = calendarApi.getDate();
       this.currentCalendarView = calendarApi.view.type;
-  // Estado del calendario guardado
+      // Estado del calendario guardado
     }
   }
 
@@ -1644,7 +1665,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       setTimeout(() => {
         try {
           const calendarApi = this.calendarComponent.getApi();
-          
+
           // Restaurar la vista si es diferente a la actual
           if (this.currentCalendarView && calendarApi.view.type !== this.currentCalendarView) {
             calendarApi.changeView(this.currentCalendarView);
@@ -1653,7 +1674,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
           if (this.currentCalendarDate) {
             calendarApi.gotoDate(this.currentCalendarDate);
           }
-          
+
           // Estado del calendario restaurado
         } catch (error) {
           // Error restaurando estado del calendario (no crítico)
@@ -1689,9 +1710,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   async openAttendeesModal(session: ClassSession) {
     this.selectedSession = session;
     this.showAttendeesModal = true;
-  this.attendeesLoading = true;
+    this.attendeesLoading = true;
     this.clearMessages();
-    
+
     try {
       // Cargar asistentes de la sesión
       await this.loadSessionAttendees(session.id);
@@ -1725,7 +1746,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       throw error;
     }
 
-  // Asistentes cargados
+    // Asistentes cargados
 
     this.sessionAttendees = data || [];
 
@@ -1777,8 +1798,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
   get filteredUsers() {
     if (!this.searchTerm) return this.allUsers;
-    
-    return this.allUsers.filter(user => 
+
+    return this.allUsers.filter(user =>
       user.name?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       user.surname?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(this.searchTerm.toLowerCase())
@@ -1799,15 +1820,15 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   async removeAttendee(booking: any) {
     // Acceder correctamente a la estructura de datos de Supabase
     const userName = booking.users?.name || 'Usuario';
-    
-    
+
+
     if (!confirm(`¿Estás seguro de que quieres eliminar a ${userName} de esta clase?`)) {
       return;
     }
 
-  this.loading = true;
-  // Capture session id upfront to avoid null access if modal closes
-  const sessionId = this.selectedSession?.id ?? booking.class_session_id;
+    this.loading = true;
+    // Capture session id upfront to avoid null access if modal closes
+    const sessionId = this.selectedSession?.id ?? booking.class_session_id;
     try {
       // Cancelar la reserva: si el usuario es admin, forzar cancelación sin restricciones
       let result: any;
@@ -1821,22 +1842,22 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         // Fallback: método estándar con validaciones por si el RPC no está desplegado todavía
         result = await firstValueFrom(this.classSessionsService.cancelBooking(booking.id, booking.user_id));
       }
-      
-  // Resultado de cancelación
-      
+
+      // Resultado de cancelación
+
       // Mostrar notificación inmediatamente
       this.showToastNotification(`${userName} eliminado correctamente. Bono devuelto.`, 'success');
-      
+
       // Actualizar UI local inmediatamente - remover de la lista
       this.sessionAttendees = this.sessionAttendees.filter(attendee => attendee.id !== booking.id);
-      
+
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
       if (sessionId != null) {
         this.updateCalendarEventCounts(sessionId, this.sessionAttendees.length);
       }
       // Close attendees modal and refresh calendar immediately so user sees the change
-      try { this.closeAttendeesModal(); } catch {}
-      try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+      try { this.closeAttendeesModal(); } catch { }
+      try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
       // Incrementar available_spots si lo tenemos en selectedSession
       if (this.selectedSession && typeof this.selectedSession.available_spots === 'number') {
         this.selectedSession.available_spots = Math.max(0, (this.selectedSession.available_spots || 0) + 1);
@@ -1873,8 +1894,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             if (delRes) {
               this.showToastNotification('Sesión personalizada eliminada tras borrar al usuario', 'success');
               // Close attendees modal (we're in the attendees flow) and remove event from calendar
-              try { this.closeAttendeesModal(); } catch {}
-              try { const api = this.calendarComponent?.getApi?.(); const fcEvent = api?.getEventById(String(sessionId)); if (fcEvent) fcEvent.remove(); api?.refetchEvents?.(); } catch {}
+              try { this.closeAttendeesModal(); } catch { }
+              try { const api = this.calendarComponent?.getApi?.(); const fcEvent = api?.getEventById(String(sessionId)); if (fcEvent) fcEvent.remove(); api?.refetchEvents?.(); } catch { }
               // Also remove locally from events array
               this.events = (this.events || []).filter(e => e && e.id !== String(sessionId));
               // Done — no need to reload attendees
@@ -1904,7 +1925,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
           await this.loadSessionAttendees(sessionId);
         }
       }, 100);
-      
+
     } catch (error: any) {
       console.error('Error removing attendee:', error);
       console.error('Booking data:', booking);
@@ -1927,7 +1948,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         .from('bookings')
         .select('id')
         .eq('user_id', user.id)
-  .eq('class_session_id', sessionId)
+        .eq('class_session_id', sessionId)
         .eq('status', 'CONFIRMED')
         .maybeSingle();
 
@@ -1945,7 +1966,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const { data: currentBookingsData, error: countError } = await this.supabaseService.supabase
         .from('bookings')
         .select('id', { count: 'exact' })
-  .eq('class_session_id', sessionId)
+        .eq('class_session_id', sessionId)
         .eq('status', 'CONFIRMED');
 
       if (countError) {
@@ -1960,12 +1981,12 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       }
 
       // Verificar si el usuario tiene bono para este tipo de clase
-  const classTypeName = this.getClassTypeName(classTypeIdCtx);
-    // Verificar usando servicio que conoce los mapeos (2<->9 y 4<->22) y personales
-  const isPersonal = this.isPersonalType(this.selectedSession.class_type_id);
+      const classTypeName = this.getClassTypeName(classTypeIdCtx);
+      // Verificar usando servicio que conoce los mapeos (2<->9 y 4<->22) y personales
+      const isPersonal = this.isPersonalType(this.selectedSession.class_type_id);
       const hasPackage = await new Promise<boolean>((resolve) => {
         const sub = this.carteraService
-  .tieneClasesDisponibles(user.id, classTypeIdCtx, isPersonal)
+          .tieneClasesDisponibles(user.id, classTypeIdCtx, isPersonal)
           .subscribe({ next: (ok) => { resolve(ok); sub.unsubscribe(); }, error: () => { resolve(false); sub.unsubscribe(); } });
       });
 
@@ -1996,7 +2017,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
       if (functionError) {
         console.warn('Función SQL no disponible, usando método manual:', functionError);
-        
+
         // FALLBACK: Método manual si la función no existe aún
         await this.createBookingManuallyFallback(user);
         return;
@@ -2016,43 +2037,43 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       if (bookingDataError || !bookingData || bookingData.length === 0) {
         console.warn('No se pudo obtener datos completos, recargando asistentes...');
       } else {
-      // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
-      const completeBooking = bookingData[0];
-      const newBooking: any = {
-        id: completeBooking.id,
-        user_id: completeBooking.user_id,
-        class_session_id: completeBooking.class_session_id,
-        booking_date_time: completeBooking.booking_date_time,
-        status: completeBooking.status,
-        cancellation_time: completeBooking.cancellation_time || '',
-        users: {  // Usar 'users' (plural) para consistencia con Supabase
-          name: completeBooking.user_name,
-          surname: completeBooking.user_surname,
-          email: completeBooking.user_email
-        }
-      };
-      
-      // Agregar a la lista local inmediatamente
-      this.sessionAttendees.push(newBooking);
-    }
-    
-    // Mostrar notificación inmediatamente
-    this.showToastNotification(`${user.name} añadido correctamente a la clase`, 'success');
-    
-    // ACTUALIZAR también el evento en el calendario local para UI inmediata
-    this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
-    
-    // Recargar asistentes desde la BD de forma asíncrona para confirmar
-    setTimeout(async () => {
-      if (this.selectedSession) {
-        await this.loadSessionAttendees(this.selectedSession.id);
+        // AGREGAR inmediatamente el usuario a la lista local para UI inmediata
+        const completeBooking = bookingData[0];
+        const newBooking: any = {
+          id: completeBooking.id,
+          user_id: completeBooking.user_id,
+          class_session_id: completeBooking.class_session_id,
+          booking_date_time: completeBooking.booking_date_time,
+          status: completeBooking.status,
+          cancellation_time: completeBooking.cancellation_time || '',
+          users: {  // Usar 'users' (plural) para consistencia con Supabase
+            name: completeBooking.user_name,
+            surname: completeBooking.user_surname,
+            email: completeBooking.user_email
+          }
+        };
+
+        // Agregar a la lista local inmediatamente
+        this.sessionAttendees.push(newBooking);
       }
-    }, 100);
-    
-    // Resetear búsqueda
-    this.searchTerm = '';
-    this.showAddUserSection = false;
-    
+
+      // Mostrar notificación inmediatamente
+      this.showToastNotification(`${user.name} añadido correctamente a la clase`, 'success');
+
+      // ACTUALIZAR también el evento en el calendario local para UI inmediata
+      this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+
+      // Recargar asistentes desde la BD de forma asíncrona para confirmar
+      setTimeout(async () => {
+        if (this.selectedSession) {
+          await this.loadSessionAttendees(this.selectedSession.id);
+        }
+      }, 100);
+
+      // Resetear búsqueda
+      this.searchTerm = '';
+      this.showAddUserSection = false;
+
     } catch (error: any) {
       console.error('Error adding attendee:', error);
       this.showToastNotification(error.message || 'Error al añadir asistente', 'error');
@@ -2077,9 +2098,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.searchTerm = '';
     this.showAddUserSection = false;
     this.clearMessages();
-  // Descongelar y aplicar actualizaciones pendientes preservando la vista actual
-  this.freezeCalendarUpdates = false;
-  this.applyPendingIfAny();
+    // Descongelar y aplicar actualizaciones pendientes preservando la vista actual
+    this.freezeCalendarUpdates = false;
+    this.applyPendingIfAny();
   }
 
   // ==============================================
@@ -2089,8 +2110,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   async openAddPackageModal(user: any, classTypeName: string) {
     this.selectedUserForPackage = user;
     this.showAddPackageModal = true;
-  this.packagePreselected = false;
-    
+    this.packagePreselected = false;
+
     // Establecer fecha de caducidad por defecto: último día DEL MES ACTUAL
     // (antes era fin del mes siguiente; se ajusta a la nueva petición para agilizar creación)
     const base = this.selectedSession?.schedule_date
@@ -2101,7 +2122,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.packageForm.patchValue({
       expiration_date: defaultExpiration
     });
-    
+
     this.clearMessages();
 
     // Try to auto-select a matching package for this class type (personal)
@@ -2113,7 +2134,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         try {
           const pkgs = await firstValueFrom(this.carteraService.getPackages());
           this.packagesDisponibles = pkgs || [];
-        } catch {}
+        } catch { }
       }
       if (classTypeId && this.packagesDisponibles && this.packagesDisponibles.length > 0) {
         const acceptable = await firstValueFrom(this.classTypesService.equivalentGroup(Number(classTypeId)));
@@ -2125,7 +2146,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         }
         if (matches.length >= 1) {
           // Heuristic: pick the package with largest class_count (more general)
-          matches.sort((a,b) => (Number(b.class_count)||0) - (Number(a.class_count)||0));
+          matches.sort((a, b) => (Number(b.class_count) || 0) - (Number(a.class_count) || 0));
           this.packageForm.patchValue({ package_id: matches[0].id });
           this.packagePreselected = true;
         }
@@ -2140,8 +2161,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.selectedUserForPackage = null;
     this.packageForm.reset();
     this.clearMessages();
-  // Re-run availability check in case admin just added a package
-  try { this.onSelectedUserOrTypeOrDateChange(); } catch {}
+    // Re-run availability check in case admin just added a package
+    try { this.onSelectedUserOrTypeOrDateChange(); } catch { }
   }
 
   async addPackageToUser() {
@@ -2152,28 +2173,28 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.loading = true;
     try {
       const formData = this.packageForm.value;
-      
+
       const createData: CreateUserPackage = {
         user_id: this.selectedUserForPackage.id,
         package_id: formData.package_id,
         expiration_date: formData.expiration_date
       };
 
-  await firstValueFrom(this.carteraService.agregarPackageAUsuario(createData));
-      
+      await firstValueFrom(this.carteraService.agregarPackageAUsuario(createData));
+
       this.successMessage = `Bono añadido correctamente a ${this.selectedUserForPackage.name}`;
-      
+
       // Guardar referencia del usuario antes de cerrar modal
       const userToAdd = this.selectedUserForPackage;
-      
+
       // Cerrar modal de paquetes
       this.closeAddPackageModal();
-      
+
       // Intentar añadir al usuario a la clase ahora que tiene bono
       if (this.selectedSession && userToAdd) {
         await this.addAttendeeWithPackage(userToAdd);
       }
-      
+
     } catch (error: any) {
       console.error('Error adding package:', error);
       this.error = error.message || 'Error al añadir el bono';
@@ -2186,7 +2207,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     if (!this.selectedSession) return;
 
     try {
-    const sessionId = this.selectedSession.id;
+      const sessionId = this.selectedSession.id;
       // MÉTODO MEJORADO: Usar función SQL atómica para validaciones
       const { data: result, error: functionError } = await this.supabaseService.supabase
         .rpc('admin_create_booking_for_user', {
@@ -2197,7 +2218,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
       if (functionError) {
         console.warn('Función SQL no disponible, usando método manual:', functionError);
-        
+
         // FALLBACK: Método manual si la función no existe aún
         await this.addAttendeeWithPackageFallback(user);
         return;
@@ -2232,27 +2253,27 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
             email: completeBooking.user_email
           }
         };
-        
+
         // Agregar a la lista local inmediatamente
         this.sessionAttendees.push(newBooking);
       }
-      
+
       this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
-      
+
       // ACTUALIZAR también el evento en el calendario local para UI inmediata
       this.updateCalendarEventCounts(sessionId, this.sessionAttendees.length);
-      
+
       // Recargar asistentes desde la BD de forma asíncrona para confirmar
       setTimeout(async () => {
         if (sessionId != null) {
           await this.loadSessionAttendees(sessionId);
         }
       }, 100);
-      
-  // Resetear búsqueda
-  this.searchTerm = '';
-  this.showAddUserSection = false;
-      
+
+      // Resetear búsqueda
+      this.searchTerm = '';
+      this.showAddUserSection = false;
+
     } catch (error: any) {
       console.error('Error adding attendee with package:', error);
       this.error = error.message || 'Error al añadir asistente';
@@ -2419,14 +2440,14 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       }
     };
 
-  // Update UI with the booking returned from the server
-  this.sessionAttendees.push(newBooking);
-  this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
-  this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
-  await this.loadSessionAttendees(this.selectedSession.id);
-  // Reset search/UI
-  this.searchTerm = '';
-  this.showAddUserSection = false;
+    // Update UI with the booking returned from the server
+    this.sessionAttendees.push(newBooking);
+    this.successMessage = `${user.name} añadido correctamente a la clase con su nuevo bono`;
+    this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+    await this.loadSessionAttendees(this.selectedSession.id);
+    // Reset search/UI
+    this.searchTerm = '';
+    this.showAddUserSection = false;
   }
 
   // ==============================================
@@ -2434,13 +2455,13 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   // ==============================================
 
   async onEventDrop(dropInfo: EventDropArg) {
-  // Variables para poder revertir el estado local en caso de error
-  let originalDateStr = '';
-  let originalTimeStr = '';
+    // Variables para poder revertir el estado local en caso de error
+    let originalDateStr = '';
+    let originalTimeStr = '';
     try {
       const sessionId = parseInt(dropInfo.event.id);
       const newDate = dropInfo.event.start;
-      
+
       if (!newDate) {
         console.error('Nueva fecha no válida');
         dropInfo.revert();
@@ -2450,17 +2471,17 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       // Guardar estado del calendario ANTES de cualquier operación
       this.saveCalendarState();
 
-  // Obtener datos del evento original
-  const originalEvent = this.events.find(event => event.id === sessionId.toString());
-  if (!originalEvent || !originalEvent?.extendedProps?.session) {
+      // Obtener datos del evento original
+      const originalEvent = this.events.find(event => event.id === sessionId.toString());
+      if (!originalEvent || !originalEvent?.extendedProps?.session) {
         console.error('No se encontró el evento original');
         dropInfo.revert();
         return;
       }
 
-  // Guardar valores originales para posible revert local
-  originalDateStr = originalEvent.extendedProps.session.schedule_date;
-  originalTimeStr = originalEvent.extendedProps.session.schedule_time;
+      // Guardar valores originales para posible revert local
+      originalDateStr = originalEvent.extendedProps.session.schedule_date;
+      originalTimeStr = originalEvent.extendedProps.session.schedule_time;
 
       // Formatear la nueva fecha en formato YYYY-MM-DD (sin problemas de zona horaria)
       const year = newDate.getFullYear();
@@ -2473,27 +2494,27 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const minutes = newDate.getMinutes().toString().padStart(2, '0');
       const formattedTime = `${hours}:${minutes}`;
 
-  // Datos del movimiento (silenciado)
+      // Datos del movimiento (silenciado)
 
       // Actualizar el evento local INMEDIATAMENTE para UI responsive
-  const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
-  if (eventIndex !== -1 && this.events[eventIndex]?.extendedProps?.session) {
-  // Actualizar todas las propiedades del evento
-  this.events[eventIndex].start = dropInfo.event.start;
-  // Recalcular end según duración de la clase tras el cambio
-  const session = this.events[eventIndex].extendedProps.session;
-  const newEndIso = this.calculateEndTime(formattedDate, formattedTime, session.class_type_id);
-  this.events[eventIndex].end = newEndIso;
-        
+      const eventIndex = this.events.findIndex(event => event.id === sessionId.toString());
+      if (eventIndex !== -1 && this.events[eventIndex]?.extendedProps?.session) {
+        // Actualizar todas las propiedades del evento
+        this.events[eventIndex].start = dropInfo.event.start;
+        // Recalcular end según duración de la clase tras el cambio
+        const session = this.events[eventIndex].extendedProps.session;
+        const newEndIso = this.calculateEndTime(formattedDate, formattedTime, session.class_type_id);
+        this.events[eventIndex].end = newEndIso;
+
         // Actualizar también los datos internos de la sesión
         this.events[eventIndex].extendedProps.session.schedule_date = formattedDate;
         this.events[eventIndex].extendedProps.session.schedule_time = formattedTime;
-        
-  // Refrescar SOLO este evento (título con la nueva hora y conteo actual)
-  const currentBookings = this.events[eventIndex].extendedProps.bookings ?? 0;
-  this.updateCalendarEventCounts(sessionId, currentBookings);
-        
-  // Evento local actualizado inmediatamente
+
+        // Refrescar SOLO este evento (título con la nueva hora y conteo actual)
+        const currentBookings = this.events[eventIndex].extendedProps.bookings ?? 0;
+        this.updateCalendarEventCounts(sessionId, currentBookings);
+
+        // Evento local actualizado inmediatamente
       }
 
       // Mostrar notificación de éxito INMEDIATAMENTE
@@ -2505,27 +2526,27 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         schedule_time: formattedTime
       };
 
-  // Actualizando en BD
+      // Actualizando en BD
 
-  const result = await firstValueFrom(this.classSessionsService.updateSession(sessionId, updateData));
+      const result = await firstValueFrom(this.classSessionsService.updateSession(sessionId, updateData));
 
-  // Resultado de la actualización
+      // Resultado de la actualización
 
       const ok = (Array.isArray(result) && result.length > 0)
         || (!!result && (result.success === true || typeof result === 'object'));
       if (ok) {
-  // Sesión actualizada exitosamente en BD
-        
+        // Sesión actualizada exitosamente en BD
+
         // Actualizar notificación de éxito
         this.showToastNotification('Evento movido exitosamente', 'success');
-        
-  // NO recargar todo el calendario - mantener la vista actual
-  // Actualizar usando API para preservar vista/fecha
-  this.applyEventsPreservingView(this.events);
-  try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
-  // Lazy-load eliminado
-        
-  } else {
+
+        // NO recargar todo el calendario - mantener la vista actual
+        // Actualizar usando API para preservar vista/fecha
+        this.applyEventsPreservingView(this.events);
+        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
+        // Lazy-load eliminado
+
+      } else {
         throw new Error('La actualización no devolvió datos válidos');
       }
 
@@ -2533,14 +2554,14 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       console.error('=== ERROR AL MOVER EVENTO ===');
       console.error('Error completo:', error);
       console.error('Mensaje:', error.message);
-      
+
       // Mostrar notificación de error
       this.showToastNotification(`Error al mover el evento: ${error.message}`, 'error');
-      
+
       // Revertir cambios locales en el modelo
       try {
-  const eventIndex = this.events.findIndex(e => e.id === dropInfo.event.id);
-  if (eventIndex !== -1 && this.events[eventIndex]?.extendedProps?.session) {
+        const eventIndex = this.events.findIndex(e => e.id === dropInfo.event.id);
+        if (eventIndex !== -1 && this.events[eventIndex]?.extendedProps?.session) {
           // Restaurar fecha/hora originales en el modelo
           this.events[eventIndex].extendedProps.session.schedule_date = originalDateStr;
           this.events[eventIndex].extendedProps.session.schedule_time = originalTimeStr;
@@ -2548,7 +2569,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
           const currentBookings = this.events[eventIndex].extendedProps.bookings ?? 0;
           this.updateCalendarEventCounts(parseInt(dropInfo.event.id), currentBookings);
         }
-      } catch {}
+      } catch { }
 
       dropInfo.revert(); // Revertir el cambio visual si hay error
     }
@@ -2565,14 +2586,14 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       const session = this.events[eventIndex]?.extendedProps?.session;
       if (!session) {
         // Si no hay sesión asociada, hacer un refetch seguro y salir
-        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch {}
+        try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
         return;
       }
       // Mantener solo el conteo en extendedProps; no tocar el título para respetar el formato actual
       if (this.events[eventIndex].extendedProps) {
         this.events[eventIndex].extendedProps.bookings = bookingCount;
       }
-      
+
       // Actualizar solo ese evento a través de la API para evitar recarga completa
       try {
         const api = this.calendarComponent?.getApi?.();

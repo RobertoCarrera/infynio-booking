@@ -47,11 +47,11 @@ export class ClassTypesService {
       const target = list.find((a: any) => Number(a.id) === Number(classTypeId));
       if (!target) return [classTypeId];
       const name = (target.name || '').toLowerCase();
-      if (/mat|funcional/.test(name)) {
-        return list.filter((a: any) => /mat|funcional/.test(((a.name||'') as string).toLowerCase())).map((a: any) => a.id);
+      if (/mat|funcional|syncro/.test(name)) {
+        return list.filter((a: any) => /mat|funcional|syncro/.test(((a.name || '') as string).toLowerCase())).map((a: any) => a.id);
       }
       if (/reformer/.test(name)) {
-        return list.filter((a: any) => /reformer/.test(((a.name||'') as string).toLowerCase())).map((a: any) => a.id);
+        return list.filter((a: any) => /reformer/.test(((a.name || '') as string).toLowerCase())).map((a: any) => a.id);
       }
       return [classTypeId];
     }));

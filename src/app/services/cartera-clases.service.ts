@@ -2,15 +2,15 @@ import { Injectable } from '@angular/core';
 import { Observable, from, map, switchMap, forkJoin, firstValueFrom } from 'rxjs';
 import { SupabaseService } from './supabase.service';
 import { ClassTypesService } from './class-types.service';
-import { 
-  CarteraClase, 
-  UserPackage, 
-  UserPackageDetailed, 
-  Package, 
-  CreateUserPackage, 
+import {
+  CarteraClase,
+  UserPackage,
+  UserPackageDetailed,
+  Package,
+  CreateUserPackage,
   UpdateUserPackage,
   CarteraResumen,
-  mapUserPackageToCarteraClase 
+  mapUserPackageToCarteraClase
 } from '../models/cartera-clases';
 
 @Injectable({
@@ -18,7 +18,7 @@ import {
 })
 export class CarteraClasesService {
 
-  constructor(private supabaseService: SupabaseService, private classTypesService: ClassTypesService) {}
+  constructor(private supabaseService: SupabaseService, private classTypesService: ClassTypesService) { }
 
   /**
    * MAPA DE CONVERSIÓN CORREGIDO - class_type números a strings
@@ -34,6 +34,7 @@ export class CarteraClasesService {
       case 4: // Mat Personalizada
       case 9: // Funcional
       case 22: // Funcional Personalizada
+      case 28: // Syncro
       default:
         return 'MAT_FUNCIONAL';
     }
@@ -52,7 +53,7 @@ export class CarteraClasesService {
 
     return from((async () => {
       const acceptableTypes = (() => {
-        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 2 || classTypeId === 9 || classTypeId === 28) return [2, 9, 28];
         if (classTypeId === 4 || classTypeId === 22) return [4, 22];
         if (classTypeId === 23) return [23];
         if (classTypeId === 3) return [3];
@@ -137,13 +138,13 @@ export class CarteraClasesService {
         if (!pkg) continue;
         const personalMatch = pkg.is_personal === isPersonal;
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === ((classTypeId === 9) ? 2 : classTypeId);
-          if (personalMatch && typeMatch) {
-            hasAny = true;
-            if (row.expires_at && sessionDate <= new Date(row.expires_at)) {
-              matchesMonth = true;
-              break;
-            }
+        if (personalMatch && typeMatch) {
+          hasAny = true;
+          if (row.expires_at && sessionDate <= new Date(row.expires_at)) {
+            matchesMonth = true;
+            break;
           }
+        }
       }
 
       return { hasAny, matchesMonth };
@@ -199,16 +200,16 @@ export class CarteraClasesService {
             is_personal
           )
         `)
-  .eq('user_id', userId)
-  .in('status', ['active','depleted'])
+        .eq('user_id', userId)
+        .in('status', ['active', 'depleted'])
         .order('purchase_date', { ascending: false })
     ).pipe(
       map(response => {
         if (response.error) throw response.error;
-        
+
         return (response.data || []).map(item => {
           const packageData = item.packages as any;
-          
+
           return {
             ...item,
             package_name: packageData.name,
@@ -217,7 +218,7 @@ export class CarteraClasesService {
             package_price: packageData.price,
             package_is_single_class: packageData.is_single_class,
             package_is_personal: packageData.is_personal,
-            days_until_rollover: item.expires_at ? Math.ceil((new Date(item.expires_at).getTime() - Date.now()) / (1000*60*60*24)) : null,
+            days_until_rollover: item.expires_at ? Math.ceil((new Date(item.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null,
             rollover_status: item.expires_at ? (new Date(item.expires_at) > new Date() ? 'active' : 'expired') : 'pending'
           } as UserPackageDetailed;
         });
@@ -241,7 +242,7 @@ export class CarteraClasesService {
     return this.supabaseService.getCurrentUser().pipe(
       switchMap(user => {
         if (!user) throw new Error('Usuario no autenticado');
-        
+
         return from(
           this.supabaseService.supabase
             .from('users')
@@ -264,22 +265,22 @@ export class CarteraClasesService {
   agregarPackageAUsuario(createData: CreateUserPackage): Observable<UserPackage> {
     const nowIso = new Date().toISOString();
     // Validación básica: expiration_date requerido (YYYY-MM-DD)
-  // Normalize expiration date to YYYY-MM-DD (strip time if provided)
-  const expRaw = createData.expiration_date;
-  const expDateOnly = expRaw ? expRaw.split('T')[0] : expRaw;
-  const exp = expDateOnly;
+    // Normalize expiration date to YYYY-MM-DD (strip time if provided)
+    const expRaw = createData.expiration_date;
+    const expDateOnly = expRaw ? expRaw.split('T')[0] : expRaw;
+    const exp = expDateOnly;
     if (!exp || !/^\d{4}-\d{2}-\d{2}$/.test(exp)) {
       throw new Error('La fecha de caducidad es obligatoria y debe tener formato YYYY-MM-DD');
     }
     // Activation es inmediata
-  const newUserPackage: any = {
+    const newUserPackage: any = {
       user_id: createData.user_id,
       package_id: createData.package_id,
       purchase_date: nowIso,
       activation_date: nowIso,
       current_classes_remaining: 0, // Se establecerá según el package
       classes_used_this_month: 0,
-  expires_at: exp,
+      expires_at: exp,
       status: 'active'
     };
 
@@ -292,10 +293,10 @@ export class CarteraClasesService {
     ).pipe(
       switchMap(packageResponse => {
         if (packageResponse.error) throw packageResponse.error;
-        
-  newUserPackage.current_classes_remaining = packageResponse.data.class_count;
-  // ensure date-only and EOM
-  newUserPackage.expires_at = exp;
+
+        newUserPackage.current_classes_remaining = packageResponse.data.class_count;
+        // ensure date-only and EOM
+        newUserPackage.expires_at = exp;
 
         return from(
           this.supabaseService.supabase
@@ -306,8 +307,8 @@ export class CarteraClasesService {
         );
       }),
       map(response => {
-  if (response.error) throw response.error;
-  console.debug('agregarPackageAUsuario: inserted expires_at=', response.data?.expires_at);
+        if (response.error) throw response.error;
+        console.debug('agregarPackageAUsuario: inserted expires_at=', response.data?.expires_at);
         return response.data;
       })
     );
@@ -322,7 +323,7 @@ export class CarteraClasesService {
         package_id_param: userPackageId,
         current_classes_remaining_param: updateData.current_classes_remaining,
         classes_used_this_month_param: updateData.classes_used_this_month,
-  expires_at_param: updateData.expires_at,
+        expires_at_param: updateData.expires_at,
         status_param: updateData.status
       })
     ).pipe(
@@ -354,7 +355,7 @@ export class CarteraClasesService {
   /**
    * FUNCIÓN CORREGIDA - Consume una clase de un user_package específico
    */
-  consumirClase(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<{success: boolean, message?: string}> {
+  consumirClase(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<{ success: boolean, message?: string }> {
     // CORRECCIÓN: Usar la nueva función de base de datos
     return from(
       this.supabaseService.supabase.rpc('consume_class_from_user_package', {
@@ -364,12 +365,12 @@ export class CarteraClasesService {
       })
     ).pipe(
       map(response => {
-        
+
         if (response.error) {
           console.error('❌ Error en consume_class_from_user_package:', response.error);
           throw response.error;
         }
-        
+
         const result = response.data;
         if (result && result.success) {
           return { success: true, message: result.message };
@@ -385,8 +386,8 @@ export class CarteraClasesService {
    */
   tieneClasesDisponibles(userId: number, classTypeId: number, isPersonal: boolean = false): Observable<boolean> {
     return from((async () => {
-  // Obtain acceptable equivalent types from ClassTypesService (handles legacy groupings)
-  const acceptableTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
+      // Obtain acceptable equivalent types from ClassTypesService (handles legacy groupings)
+      const acceptableTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
       // Intento 1: usar mapeo explícito
       const mapped = await this.supabaseService.supabase
         .from('user_packages')
@@ -407,7 +408,7 @@ export class CarteraClasesService {
 
       if (!mapped.error) {
         const rows = mapped.data || [];
-  const acceptableTypeLegacy = acceptableTypes[0] || classTypeId;
+        const acceptableTypeLegacy = acceptableTypes[0] || classTypeId;
         return rows.some((row: any) => {
           const pkg = row.packages;
           if (!pkg) return false;
@@ -422,7 +423,7 @@ export class CarteraClasesService {
       console.warn('⚠️ Fallback disponibilidad (sin mapeo por RLS?):', mapped.error);
 
       // Intento 2 (fallback): usar solamente el class_type del paquete
-  const acceptableType = (await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId)))[0] || classTypeId;
+      const acceptableType = (await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId)))[0] || classTypeId;
       const fallback = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
@@ -446,7 +447,7 @@ export class CarteraClasesService {
       const fallbackTypes = (() => {
         if (classTypeId === 23) return [23, 3]; // Reformer Personal puede venir como 3 en datos antiguos
         if (classTypeId === 4 || classTypeId === 22) return [4, 22, 2, 9]; // Personal Mat/Funcional puede venir como 2/9
-        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 2 || classTypeId === 9 || classTypeId === 28) return [2, 9, 28];
         if (classTypeId === 3) return [3];
         return acceptableTypes;
       })();
@@ -477,15 +478,15 @@ export class CarteraClasesService {
     // Reutilizar el primer intento con mapping completo
     return from((async () => {
       const acceptableTypes = (() => {
-        if (classTypeId === 2 || classTypeId === 9) return [2, 9];
+        if (classTypeId === 2 || classTypeId === 9 || classTypeId === 28) return [2, 9, 28];
         if (classTypeId === 4 || classTypeId === 22) return [4, 22];
         if (classTypeId === 23) return [23];
         if (classTypeId === 3) return [3];
         return [classTypeId];
       })();
 
-    // Intento 1: con mapping y obtención de expires_at
-    const mapped = await this.supabaseService.supabase
+      // Intento 1: con mapping y obtención de expires_at
+      const mapped = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
           id,
@@ -527,7 +528,7 @@ export class CarteraClasesService {
 
       // Fallback: sin mapping, solo class_type directo y caducidad
       const acceptableType = (classTypeId === 9) ? 2 : classTypeId;
-    const fallback = await this.supabaseService.supabase
+      const fallback = await this.supabaseService.supabase
         .from('user_packages')
         .select(`
           current_classes_remaining,
@@ -547,14 +548,14 @@ export class CarteraClasesService {
         return false;
       }
       const rows = fallback.data || [];
-  // Expand fallback types using equivalentGroup as well
-  const fallbackTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
-    return rows.some((row: any) => {
+      // Expand fallback types using equivalentGroup as well
+      const fallbackTypes = await firstValueFrom(this.classTypesService.equivalentGroup(classTypeId));
+      return rows.some((row: any) => {
         const pkg = row.packages;
         if (!pkg) return false;
         const personalMatch = pkg.is_personal === isPersonal;
         const typeMatch = fallbackTypes.includes(pkg.class_type) || pkg.class_type === acceptableType;
-  return personalMatch && typeMatch && checkExpiry(row);
+        return personalMatch && typeMatch && checkExpiry(row);
       });
     })());
   }
@@ -598,7 +599,7 @@ export class CarteraClasesService {
    */
   processRollover(): Observable<boolean> {
     const today = new Date().toISOString().split('T')[0];
-    
+
     return from(
       this.supabaseService.supabase
         .from('user_packages')
@@ -608,9 +609,9 @@ export class CarteraClasesService {
     ).pipe(
       switchMap(response => {
         if (response.error) throw response.error;
-        
+
         const packagesToUpdate = response.data || [];
-        
+
         if (packagesToUpdate.length === 0) {
           return from([true]);
         }
@@ -619,11 +620,11 @@ export class CarteraClasesService {
         const updates = packagesToUpdate.map(userPackage => {
           const nextMonth = new Date();
           nextMonth.setMonth(nextMonth.getMonth() + 1, 7);
-          
+
           return this.modificarUserPackage(userPackage.id, {
-              classes_used_this_month: 0,
-              expires_at: nextMonth.toISOString().split('T')[0]
-            });
+            classes_used_this_month: 0,
+            expires_at: nextMonth.toISOString().split('T')[0]
+          });
         });
 
         return forkJoin(updates);
