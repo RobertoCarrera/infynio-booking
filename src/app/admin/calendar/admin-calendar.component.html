@@ -133,16 +133,16 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label">Capacidad:</label>
-                <div class="form-control-plaintext capacity-display">
-                  <span *ngIf="sessionForm.get('class_type_id')?.value" class="badge bg-primary">
-                    {{ getClassTypeCapacity(sessionForm.get('class_type_id')?.value) }} personas
-                  </span>
-                  <span *ngIf="!sessionForm.get('class_type_id')?.value" class="text-muted">
-                    Automática
-                  </span>
+                <div class="input-group">
+                  <input type="number" 
+                         class="form-control" 
+                         formControlName="capacity"
+                         min="1">
+                  <span class="input-group-text">personas</span>
                 </div>
-                <!-- Campo oculto para la capacidad -->
-                <input type="hidden" formControlName="capacity">
+                <div class="form-text" *ngIf="sessionForm.get('class_type_id')?.value">
+                  Por defecto: {{ getClassTypeCapacity(sessionForm.get('class_type_id')?.value) }}
+                </div>
               </div>
             </div>
           </div>

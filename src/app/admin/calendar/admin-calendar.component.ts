@@ -136,8 +136,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       class_type_id: ['', Validators.required],
       schedule_date: ['', Validators.required],
       schedule_time: ['', Validators.required],
-      // Capacidad por defecto; el límite máximo se ajusta dinámicamente según el tipo
-      capacity: [8, [Validators.required, Validators.min(1), Validators.max(10)]], // se recalibra en onClassTypeChange
+      // Capacidad por defecto; se permite editar libremente
+      capacity: [8, [Validators.required, Validators.min(1)]], // se pre-rellena en onClassTypeChange
       // Nuevo: nivel (opcional)
       level_id: [''],
       recurring: [false],
@@ -1367,9 +1367,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       // Establecer capacidad por defecto según el tipo seleccionado
       this.sessionForm.patchValue({ capacity });
 
-      // Ajustar validadores para respetar el máximo por tipo
+      // Ajustar validadores (permitir editar libremente, solo min 1)
       const capacityControl = this.sessionForm.get('capacity');
-      capacityControl?.setValidators([Validators.required, Validators.min(1), Validators.max(capacity)]);
+      capacityControl?.setValidators([Validators.required, Validators.min(1)]);
       capacityControl?.updateValueAndValidity();
 
       // Capacidad automática establecida (silenciado en consola)
