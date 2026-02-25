@@ -201,7 +201,7 @@ export class CarteraClasesService {
           )
         `)
         .eq('user_id', userId)
-        .in('status', ['active', 'depleted'])
+        .in('status', ['active', 'depleted', 'inactive'])
         .order('purchase_date', { ascending: false })
     ).pipe(
       map(response => {

@@ -4,10 +4,11 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { FullCalendarModule, FullCalendarComponent } from '@fullcalendar/angular';
 import { CalendarToolbarComponent } from '../../components/calendar/calendar-toolbar.component';
 import { CalendarOptions, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
-import { ClassSessionsService, ClassSession, Booking } from '../../services/class-sessions.service';
+import { ClassSessionsService, ClassSession, Booking, WaitingListEntry } from '../../services/class-sessions.service';
 import { ClassTypesService, ClassType } from '../../services/class-types.service';
 import { LevelsService, Level } from '../../services/levels.service';
 import { CarteraClasesService } from '../../services/cartera-clases.service';
+import { WaitingListService } from '../../services/waiting-list.service';
 import { Package, CreateUserPackage } from '../../models/cartera-clases';
 import { SupabaseService } from '../../services/supabase.service';
 import { FULLCALENDAR_OPTIONS } from '../../components/calendar/fullcalendar-config';
@@ -52,6 +53,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   // Attendees management modal
   showAttendeesModal = false;
   sessionAttendees: any[] = []; // Cambiar a any[] para permitir estructura de Supabase con joins
+  sessionWaitingList: WaitingListEntry[] = [];
   allUsers: any[] = [];
   searchTerm = '';
   selectedUserToAdd: any = null;
@@ -81,7 +83,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   // Toast notification system
   showToast = false;
   toastMessage = '';
-  toastType: 'success' | 'error' = 'success';
+  toastType: 'success' | 'error' | 'warning' = 'success';
 
   // Background progress for bulk (recurring) creation
   bulkActive = false;
@@ -127,6 +129,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     private classSessionsService: ClassSessionsService,
     private classTypesService: ClassTypesService,
     private carteraService: CarteraClasesService,
+    private waitingListService: WaitingListService,
     private supabaseService: SupabaseService,
     private levelsService: LevelsService,
     private fb: FormBuilder,
@@ -1554,7 +1557,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   // SISTEMA DE NOTIFICACIONES TOAST
   // ==============================================
 
-  showToastNotification(message: string, type: 'success' | 'error' = 'success') {
+  showToastNotification(message: string, type: 'success' | 'error' | 'warning' = 'success') {
     this.toastMessage = message;
     this.toastType = type;
     this.showToast = true;
@@ -1711,11 +1714,14 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     this.selectedSession = session;
     this.showAttendeesModal = true;
     this.attendeesLoading = true;
+    this.sessionWaitingList = [];
     this.clearMessages();
 
     try {
       // Cargar asistentes de la sesión
       await this.loadSessionAttendees(session.id);
+      // Cargar lista de espera de la sesión
+      await this.loadWaitingList(session.id);
       // Cargar todos los usuarios para poder añadir nuevos
       await this.loadAllUsers();
     } catch (error: any) {
@@ -1785,6 +1791,38 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       this.selectedSession.bookings = this.sessionAttendees;
       // Refrescar contador del evento en el calendario
       this.updateCalendarEventCounts(this.selectedSession.id, this.sessionAttendees.length);
+    }
+  }
+
+  async loadWaitingList(sessionId: number) {
+    try {
+      this.sessionWaitingList = await this.classSessionsService.getWaitingList(sessionId);
+    } catch (error) {
+      console.error('Error loading waiting list:', error);
+      this.sessionWaitingList = [];
+      this.error = 'Error al cargar la lista de espera';
+    }
+  }
+
+  async removeFromWaitingList(entry: WaitingListEntry) {
+    const userName = entry.user?.name || entry.user?.full_name || 'Usuario';
+    if (!confirm(`¿Estás seguro de que quieres quitar a ${userName} de la lista de espera?`)) {
+      return;
+    }
+
+    this.loading = true;
+    try {
+      await firstValueFrom(this.waitingListService.removeFromWaitingList(entry.user_id, entry.class_session_id));
+      this.showToastNotification(`${userName} ha sido quitado de la lista de espera`, 'success');
+      // Recargar lista de espera
+      if (this.selectedSession) {
+        await this.loadWaitingList(this.selectedSession.id);
+      }
+    } catch (error: any) {
+      console.error('Error removing from waiting list:', error);
+      this.showToastNotification(error.message || 'Error al quitar de la lista de espera', 'error');
+    } finally {
+      this.loading = false;
     }
   }
 
@@ -1975,9 +2013,8 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
 
       const currentBookingsCount = currentBookingsData?.length || 0;
       if (currentBookingsCount >= this.selectedSession.capacity) {
-        this.error = `La clase está completa (${currentBookingsCount}/${this.selectedSession.capacity})`;
-        this.loading = false;
-        return;
+        // En lugar de error, añadir a lista de espera
+        return this.addAttendeeToWaitingList(user, sessionId);
       }
 
       // Verificar si el usuario tiene bono para este tipo de clase
@@ -2078,6 +2115,53 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
       console.error('Error adding attendee:', error);
       this.showToastNotification(error.message || 'Error al añadir asistente', 'error');
     } finally {
+      this.loading = false;
+    }
+  }
+
+  private async addAttendeeToWaitingList(user: any, sessionId: number) {
+    try {
+      // 1. Verificar si ya está en la lista de espera
+      const { data: existingWL, error: wlError } = await this.supabaseService.supabase
+        .from('waiting_list')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('class_session_id', sessionId)
+        .eq('status', 'waiting')
+        .maybeSingle();
+
+      if (wlError) {
+        throw new Error(`Error verificando lista de espera: ${wlError.message}`);
+      }
+
+      if (existingWL) {
+        this.showToastNotification(`${user.name} ya está en la lista de espera`, 'warning');
+        this.loading = false;
+        return;
+      }
+
+      // 2. Añadir a la lista de espera
+      const sub = this.waitingListService.joinWaitingList({
+        user_id: user.id,
+        class_session_id: sessionId,
+        status: 'waiting'
+      }).subscribe({
+        next: () => {
+          this.showToastNotification(`${user.name} ha sido añadido a la lista de espera correctamente.`, 'success');
+          this.loadSessionAttendees(sessionId);
+          this.loading = false;
+          // Limpiar búsqueda
+          this.searchTerm = '';
+          this.showAddUserSection = false;
+        },
+        error: (err) => {
+          this.showToastNotification(`Error al añadir a lista de espera: ${err.message || err}`, 'error');
+          this.loading = false;
+        }
+      });
+      this.subscriptions.push(sub);
+    } catch (e: any) {
+      this.showToastNotification(`Error: ${e.message || e}`, 'error');
       this.loading = false;
     }
   }

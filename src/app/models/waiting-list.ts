@@ -9,7 +9,7 @@ export interface WaitingListEntry {
 }
 
 export interface CreateWaitingListRequest {
-  user_id: number;
+  user_id: number | string;
   class_session_id: number;
   status: string;
 }

@@ -32,6 +32,24 @@ export interface ClassSession {
   self_cancellation_time?: string | null;
   // For personalized sessions: optional FK to users
   personal_user_id?: number | null;
+  // For waiting list
+  is_in_waiting_list?: boolean;
+  waiting_list_priority?: number;
+}
+
+export interface WaitingListEntry {
+  id: number;
+  user_id: number;
+  class_session_id: number;
+  join_date_time: string;
+  user?: {
+    id: string;
+    full_name?: string;
+    name?: string;
+    surname?: string;
+    email: string;
+    avatar_url?: string;
+  };
 }
 
 export interface Booking {
@@ -683,6 +701,22 @@ export class ClassSessionsService {
       console.error('Error generando sesiones recurrentes:', error);
       throw error;
     }
+    return data || [];
+  }
+
+  async getWaitingList(sessionId: number): Promise<WaitingListEntry[]> {
+    const { data, error } = await this.supabaseService.supabase
+      .from('waiting_list')
+      .select('*, user:users(*)')
+      .eq('class_session_id', sessionId)
+      .eq('status', 'waiting')
+      .order('join_date_time', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching waiting list:', error);
+      throw error;
+    }
+
     return data || [];
   }
 }

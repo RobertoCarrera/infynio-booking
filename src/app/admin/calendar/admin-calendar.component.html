@@ -392,6 +392,10 @@
                       {{ selectedSession.capacity - sessionAttendees.length }} libres
                     </span>
                   </div>
+                  <div class="col-md-3">
+                    <strong>Lista de espera:</strong><br>
+                    <span class="badge bg-info text-dark">{{ sessionWaitingList.length }} usuarios</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -446,6 +450,47 @@
             </div>
           </div>
 
+          <!-- Lista de Espera -->
+          <div class="attendees-section mb-4">
+            <h6 class="mb-3 d-flex align-items-center gap-2">
+              <i class="fas fa-clock me-2"></i>
+              Lista de Espera ({{ sessionWaitingList.length }})
+            </h6>
+
+            <div *ngIf="sessionWaitingList.length === 0" class="alert alert-secondary">
+              <i class="fas fa-hourglass-half me-2"></i>
+              No hay usuarios en la lista de espera para esta clase.
+            </div>
+
+            <div *ngIf="sessionWaitingList.length > 0" class="attendees-list">
+              <div *ngFor="let entry of sessionWaitingList; let i = index"
+                   class="attendee-item d-flex justify-content-between align-items-center mb-2 p-3 border rounded bg-white">
+                <div class="attendee-info d-flex align-items-center gap-3">
+                  <span class="badge bg-light text-dark">#{{ i + 1 }}</span>
+                  <div class="d-flex align-items-center">
+                    <i class="fas fa-user-clock me-2 text-secondary"></i>
+                    <div>
+                      <strong class="text-dark">{{ entry.user?.full_name || ((entry.user?.name || '') + (entry.user?.surname ? ' ' + entry.user?.surname : '')) || 'Usuario' }}</strong>
+                      <div class="text-muted small">{{ entry.user?.email || 'Sin email' }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="text-muted small">
+                    {{ entry.join_date_time | date:'dd/MM HH:mm' }}
+                  </div>
+                  <button class="btn btn-danger btn-sm" 
+                          (click)="removeFromWaitingList(entry)"
+                          [disabled]="loading"
+                          title="Quitar de la lista de espera">
+                    <i class="fas fa-times me-1"></i>
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Sección para Añadir Usuarios -->
           <div class="add-user-section">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -455,7 +500,7 @@
               </h6>
               <button class="btn btn-outline-primary btn-sm" 
                       (click)="toggleAddUserSection()"
-                      [disabled]="attendeesLoading || sessionAttendees.length >= selectedSession?.capacity!">
+                      [disabled]="attendeesLoading">
                 <i class="fas fa-plus me-1"></i>
                 {{ showAddUserSection ? 'Cancelar' : 'Añadir Usuario' }}
               </button>
@@ -703,10 +748,10 @@
   }
 </style>
 <div class="toast-container" [class.show]="showToast">
-  <div class="toast" [class.toast-success]="toastType === 'success'" [class.toast-error]="toastType === 'error'">
+  <div class="toast" [class.toast-success]="toastType === 'success'" [class.toast-error]="toastType === 'error'" [class.toast-warning]="toastType === 'warning'">
     <div class="toast-content">
       <i class="fas fa-check-circle" *ngIf="toastType === 'success'"></i>
-      <i class="fas fa-exclamation-triangle" *ngIf="toastType === 'error'"></i>
+      <i class="fas fa-exclamation-triangle" *ngIf="toastType === 'error' || toastType === 'warning'"></i>
       <span>{{ toastMessage }}</span>
     </div>
     <button class="toast-close" (click)="hideToast()">

@@ -887,6 +887,10 @@ full-calendar {
   border-left-color: #dc3545;
 }
 
+.toast-warning {
+  border-left-color: #ffc107;
+}
+
 .toast-content {
   display: flex;
   align-items: center;

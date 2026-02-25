@@ -46,7 +46,7 @@ export class CarteraInfoComponent implements OnInit, OnDestroy {
 
     this.subscription = this.carteraService.getCarteraUsuarioActual().subscribe({
       next: (cartera) => {
-        this.carteraClases = cartera;
+        this.carteraClases = cartera.filter(c => c.status !== 'inactive');
         this.calcularResumen();
         this.loading = false;
       },

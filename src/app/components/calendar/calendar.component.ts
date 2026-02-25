@@ -1494,7 +1494,8 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
           level_name: (session as any).level_name ?? null,
           level_color: (session as any).level_color ?? null,
           available: !isFull,
-          availableSpots: availableSpots
+          availableSpots: availableSpots,
+          is_in_waiting_list: (session as any).is_in_waiting_list // Propagate waiting list status
         },
         classNames: [
   'notranslate',
@@ -1958,9 +1959,22 @@ export class CalendarComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loadingModal = true;
     this.modalError = '';
     this.modalSuccess = '';
+    // Inicialmente false, se validará asíncronamente
     this.userCanBook = false;
 
-    // Verificar si el usuario ya está en la lista de espera
+    // Verificar si tiene bono válido (igual que para reservar normal)
+    // Esto habilitará el botón "Unirse a lista de espera" si tiene bono
+    this.checkUserClassAvailability(session);
+    
+    // Set waitlist status immediately from loaded data to prevent flicker
+    if (session.is_in_waiting_list !== undefined) {
+      this.isInWaitingList = session.is_in_waiting_list;
+      if (typeof session.waiting_list_priority === 'number') {
+        this.waitingListPosition = session.waiting_list_priority || 0;
+      }
+    }
+
+    // Verificar si el usuario ya está en la lista de espera (refetch to be sure)
     const sub1 = this.waitingListService.isUserInWaitingList(this.userNumericId, session.id)
       .subscribe({
         next: (isInList) => {

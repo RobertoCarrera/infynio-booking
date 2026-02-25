@@ -17,13 +17,13 @@ export class WaitingListService {
     return new Observable(observer => {
       // Prefer RPC (SECURITY DEFINER) to avoid RLS issues
       this.supabaseService.supabase
-        .rpc('join_waiting_list', {
+        .rpc('join_waiting_list_v2', {
           p_user_id: request.user_id,
           p_class_session_id: request.class_session_id
         })
         .then(({ data, error }) => {
           if (error) {
-            console.warn('RPC join_waiting_list failed, trying direct insert:', error);
+            console.warn('RPC join_waiting_list_v2 failed, trying direct insert:', error);
             // Fallback to direct insert (will work if RLS policies allow it)
             this.supabaseService.supabase
               .from('waiting_list')
@@ -65,13 +65,13 @@ export class WaitingListService {
         .eq('user_id', userId)
         .eq('class_session_id', classSessionId)
         .eq('status', 'waiting')
-        .single()
+        .maybeSingle()
         .then(({ data, error }) => {
-          if (error && error.code !== 'PGRST116') {
-            // PGRST116 es "not found", que es esperado si no está en la lista
+          if (error) {
             console.error('Error checking waiting list:', error);
             observer.error(error);
           } else {
+            // data será null si no existe, o el objeto si existe
             observer.next(!!data);
             observer.complete();
           }
@@ -143,6 +143,28 @@ export class WaitingListService {
               });
           } else {
             observer.next((data as any) ?? 0);
+            observer.complete();
+          }
+        });
+    });
+  }
+
+  /**
+   * Elimina definitivamente una entrada de la lista de espera (admin)
+   */
+  removeFromWaitingList(userId: number, classSessionId: number): Observable<void> {
+    return new Observable(observer => {
+      this.supabaseService.supabase
+        .from('waiting_list')
+        .delete()
+        .eq('user_id', userId)
+        .eq('class_session_id', classSessionId)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error removing from waiting list (direct delete):', error);
+            observer.error(error);
+          } else {
+            observer.next();
             observer.complete();
           }
         });

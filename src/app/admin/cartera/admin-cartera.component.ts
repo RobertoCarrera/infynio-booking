@@ -141,6 +141,8 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
 
   triggerSearch() {
     this.autoSearching = true;
+    // IMPORTANTE: Al buscar, reiniciamos la lista (reset=true) para que el offset empiece en 0
+    // y traiga los resultados que coinciden con el término desde el principio.
     this.buscarUsuarios(true);
     this.filterDirty = false;
     setTimeout(() => this.autoSearching = false, 50);
@@ -207,14 +209,29 @@ export class AdminCarteraComponent implements OnInit, OnDestroy {
 
   private aplicarFiltroExpired() {
     if (this.showExpired) {
+      // Si el usuario quiere ver "Expirados", mostramos TODO el histórico:
+      // Active, Depleted, Inactive
       this.carteraUsuario = [...this.carteraUsuarioAll];
       return;
     }
+
+    // Si NO quiere ver expirados, mostramos solo lo vigente:
+    // 1. Status 'active' (clases disponibles y en fecha)
+    // 2. Status 'depleted' (se gastó, pero técnicamente no está "expirado" por fecha, o quizás sí)
+    //    Usualmente un bono gastado se quiere ver para saber "qué acaba de gastar".
+    //    Pero si está 'inactive' (caducado con clases pendientes) lo ocultamos.
+    //    También ocultamos si la fecha ya pasó, aunque el status sea active (doble check).
+    
     this.carteraUsuario = this.carteraUsuarioAll.filter(entry => {
+      // Si ya está inactivo explícitamente, ocultar
+      if (entry.status === 'inactive') return false;
+      
+      // Si la fecha ya pasó, ocultar (equivale a estar expirado visualmente)
       const days = this.computeDaysUntilExpiration(entry);
-      if (days === null) return false;
-      if (days < 0) return false;
+      if (days !== null && days < 0) return false;
       if (days === 0 && this.isAfterBusinessEnd(entry)) return false;
+
+      // Se muestran 'active' y 'depleted' vigentes
       return true;
     });
   }
