@@ -22,9 +22,11 @@ serve(async (req) => {
     const { type, record, old_record } = await req.json();
 
     // Determine event type
+    // Detect join: INSERT with status waiting, or UPDATE to waiting from not waiting
     const isJoin = (type === "INSERT" && record?.status === "waiting") ||
                    (type === "UPDATE" && record?.status === "waiting" && (old_record?.status !== "waiting" || record.join_date_time !== old_record?.join_date_time));
     
+    // Detect leave: DELETE, or UPDATE status away from waiting
     const isLeave = (type === "DELETE" && old_record?.status === "waiting") ||
                     (type === "UPDATE" && record?.status !== "waiting" && old_record?.status === "waiting");
 
@@ -35,6 +37,7 @@ serve(async (req) => {
     // Use record for Join, old_record for Leave (DELETE)
     const activeRecord = isJoin ? record : old_record;
     const { user_id, class_session_id } = activeRecord;
+
 
     // Fetch User, Session, and Class Type details
     const { data: sessionData, error: sessionError } = await supabase

@@ -34,34 +34,76 @@ export class AdminPackageClassesComponent implements OnChanges {
     }
     this.loading = true;
     try {
-      // There's no direct RPC for classes by user_package_id; use bookings table join via Supabase directly
       const supabase = (this.classSessions as any).supabaseService?.supabase;
       if (!supabase) throw new Error('Supabase no disponible');
-      const rows = await supabase
+
+      // 1. Fetch BOOKINGS
+      const bookingsPromise = supabase
         .from('bookings')
         .select(`*, class_sessions(*, class_types(name))`)
-  .eq('user_package_id', this.userPackageId)
-  .in('status', ['CONFIRMED', 'CANCELLED'])
+        .eq('user_package_id', this.userPackageId)
+        .in('status', ['CONFIRMED', 'CANCELLED'])
         .order('booking_date_time', { ascending: true });
-      if (rows.error) throw rows.error;
-      this.classes = (rows.data || []).map((r: any) => ({
-        id: r.id,
-        status: r.status,
-        booking_date_time: r.booking_date_time,
-        class_name: r.class_sessions && r.class_sessions.class_types ? r.class_sessions.class_types.name : undefined,
-        class_type_name: r.class_sessions && r.class_sessions.class_types ? r.class_sessions.class_types.name : undefined,
-        schedule_date: r.class_sessions ? r.class_sessions.schedule_date : undefined,
-        schedule_time: r.class_sessions ? r.class_sessions.schedule_time : undefined
-      }));
+
+      // 2. Fetch WAITLIST (new logic)
+      const waitlistPromise = supabase
+        .from('waiting_list')
+        .select(`*, class_sessions(*, class_types(name))`)
+        .eq('user_package_id', this.userPackageId)
+        .order('join_date_time', { ascending: true });
+
+      const [bookingsRes, waitlistRes] = await Promise.all([bookingsPromise, waitlistPromise]);
+
+      if (bookingsRes.error) throw bookingsRes.error;
+      if (waitlistRes.error) throw waitlistRes.error;
+
+      const bookings = (bookingsRes.data || []).map((r: any) => {
+        const sess = r.class_sessions || {};
+        const typeName = sess.class_types?.name || 'Clase';
+        return {
+          id: r.id,
+          status: r.status,
+          booking_date_time: r.booking_date_time,
+          schedule_date: sess.schedule_date,
+          schedule_time: sess.schedule_time,
+          class_name: typeName,
+          class_type_name: typeName,
+          type: 'booking'
+        };
+      });
+
+      const waitlist = (waitlistRes.data || []).map((r: any) => {
+        const sess = r.class_sessions || {};
+        const typeName = sess.class_types?.name || 'Clase';
+        return {
+          id: r.id,
+          status: 'WAITING',
+          booking_date_time: r.join_date_time,
+          schedule_date: sess.schedule_date,
+          schedule_time: sess.schedule_time,
+          class_name: typeName + ' (En espera)',
+          class_type_name: typeName + ' (En espera)',
+          type: 'waitlist'
+        };
+      });
+
+      // Combine and sort
+      this.classes = [...bookings, ...waitlist].sort((a, b) => {
+        const da = new Date(a.booking_date_time).getTime();
+        const db = new Date(b.booking_date_time).getTime();
+        return da - db;
+      });
+
     } catch (e: any) {
-      console.error('Error cargando clases del bono:', e);
-      this.error = 'Error al cargar las clases del bono';
+      console.error('Error loading package classes:', e);
+      this.error = e.message || 'Error cargando historial del bono';
     } finally {
       this.loading = false;
     }
   }
 
   formatWhen(c: any): string {
+
     const date = c.schedule_date || (c.booking_date_time ? new Date(c.booking_date_time).toISOString().slice(0,10) : null);
     const time = c.schedule_time || (c.booking_date_time ? new Date(c.booking_date_time).toLocaleTimeString() : '');
     if (!date) return '';

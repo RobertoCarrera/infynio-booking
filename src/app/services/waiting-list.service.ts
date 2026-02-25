@@ -207,4 +207,38 @@ export class WaitingListService {
         });
     });
   }
+
+  /**
+   * Obtiene las clases en las que un usuario está en lista de espera
+   */
+  getUserWaitingList(userId: number): Observable<any[]> {
+    return new Observable(observer => {
+      this.supabaseService.supabase
+        .from('waiting_list')
+        .select(`
+          id,
+          status,
+          join_date_time,
+          class_session_id,
+          class_sessions (
+            id,
+            schedule_date,
+            schedule_time,
+            class_types ( name )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'waiting')
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error getting user waiting list:', error);
+            observer.error(error);
+          } else {
+            observer.next(data || []);
+            observer.complete();
+          }
+        });
+    });
+  }
 }
+

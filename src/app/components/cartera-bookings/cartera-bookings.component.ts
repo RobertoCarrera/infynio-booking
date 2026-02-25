@@ -1,7 +1,8 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription, from } from 'rxjs';
+import { Subscription, from, forkJoin } from 'rxjs';
 import { SupabaseService } from '../../services/supabase.service';
+import { WaitingListService } from '../../services/waiting-list.service';
 import { ClassSessionsService, Booking } from '../../services/class-sessions.service';
 
 interface UpcomingBooking {
@@ -11,6 +12,8 @@ interface UpcomingBooking {
   scheduleTime: string; // HH:mm:ss
   className: string;
   cancellationTime?: string | null; // ISO string
+  isWaitlist?: boolean;
+  class_session_id?: number;
 }
 
 @Component({
@@ -29,7 +32,8 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
 
   constructor(
     private supabaseService: SupabaseService,
-    private classSessions: ClassSessionsService
+    private classSessions: ClassSessionsService,
+    private waitingList: WaitingListService
   ) {}
 
   ngOnInit(): void {
@@ -61,11 +65,15 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
       if (uErr || !userRow) throw uErr || new Error('Usuario no encontrado');
       this.userNumericId = userRow.id;
 
-  const sub = this.classSessions.getUserBookings(this.userNumericId as number).subscribe({
-        next: (rows) => {
+      const sub = forkJoin({
+        bookings: this.classSessions.getUserBookings(this.userNumericId as number),
+        waitlist: this.waitingList.getUserWaitingList(this.userNumericId as number)
+      }).subscribe({
+        next: ({ bookings, waitlist }) => {
           const now = new Date();
-          // Build upcoming list from bookings + joined class_sessions
-          const mapped: UpcomingBooking[] = (rows || [])
+          
+          // 1. Process CONFIRMED bookings
+          const confirmedBookings: UpcomingBooking[] = (bookings || [])
             .filter((b: any) => (b.status || '').toUpperCase() === 'CONFIRMED')
             .map((b: any) => {
               const sess = b.class_sessions || {};
@@ -79,8 +87,36 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
                 scheduleTime: scheduleTime,
                 className,
                 cancellationTime: b.cancellation_time || null,
+                isWaitlist: false
               } as UpcomingBooking;
+            });
+
+          // 2. Process WAITING LIST
+          const waitlistEntries: UpcomingBooking[] = (waitlist || [])
+            .map((w: any) => {
+              const sess = w.class_sessions || {};
+              // For waiting list, sess is populated via join in service
+              const scheduleDate: string = sess.schedule_date || null;
+              const scheduleTime: string = sess.schedule_time || '00:00:00';
+              const className: string = sess.class_types?.name || 'Clase (Lista de espera)';
+              
+              if (!scheduleDate) return null; // Skip if no session data
+
+              return {
+                id: w.id, // waitlist entry id
+                status: 'WAITING',
+                scheduleDate: scheduleDate,
+                scheduleTime: scheduleTime,
+                className,
+                cancellationTime: null,
+                isWaitlist: true,
+                class_session_id: sess.id // Keep session id for cancellation/actions if needed
+              } as any; // Cast to any to add extra props if needed, then filter nulls
             })
+            .filter((w: any) => w !== null);
+
+          // 3. Combine and Filter Future
+          const combined = [...confirmedBookings, ...waitlistEntries]
             .filter(u => {
               const dt = this.combineDateTime(u.scheduleDate, u.scheduleTime);
               return !!dt && dt.getTime() >= now.getTime();
@@ -90,7 +126,8 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
               const db = this.combineDateTime(b.scheduleDate, b.scheduleTime)?.getTime() || 0;
               return da - db;
             });
-          this.upcoming = mapped;
+
+          this.upcoming = combined;
           this.loading = false;
         },
         error: (err) => {
@@ -135,8 +172,13 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
   }
 
   canCancel(u: UpcomingBooking): boolean {
-  const cutoff = this.getCutoff(u);
-  return !!cutoff && cutoff.getTime() > Date.now();
+    if (u.isWaitlist) {
+      // Permitir salir de lista de espera hasta que empiece la clase
+      const dt = this.combineDateTime(u.scheduleDate, u.scheduleTime);
+      return !!dt && dt.getTime() > Date.now();
+    }
+    const cutoff = this.getCutoff(u);
+    return !!cutoff && cutoff.getTime() > Date.now();
   }
 
   cancelling: { [id: number]: boolean } = {};
@@ -146,18 +188,40 @@ export class CarteraBookingsComponent implements OnInit, OnDestroy {
     if (!this.userNumericId || !this.canCancel(u) || this.cancelling[u.id]) return;
     this.cancelling[u.id] = true;
     this.cancelError[u.id] = '';
-    const sub = this.classSessions.cancelBooking(u.id, this.userNumericId).subscribe({
-      next: () => {
-        // Remove from list after successful cancellation
-        this.upcoming = this.upcoming.filter(x => x.id !== u.id);
+    
+    // DIFFERENTIATE WAITING LIST vs BOOKING
+    let sub: Subscription;
+    if (u.isWaitlist) {
+      if (!u.class_session_id) {
+        this.cancelError[u.id] = 'Error: falta class_session_id';
         this.cancelling[u.id] = false;
-      },
-      error: (err) => {
-        console.error('Fallo al cancelar reserva:', err);
-        this.cancelError[u.id] = err?.message || 'No se pudo cancelar';
-        this.cancelling[u.id] = false;
+        return;
       }
-    });
+      sub = this.waitingList.removeFromWaitingList(this.userNumericId, u.class_session_id).subscribe({
+        next: () => {
+          this.upcoming = this.upcoming.filter(x => x.id !== u.id);
+          this.cancelling[u.id] = false;
+        },
+        error: (err) => {
+          console.error('Fallo al salir de lista de espera:', err);
+          this.cancelError[u.id] = err?.message || 'No se pudo salir de la lista de espera';
+          this.cancelling[u.id] = false;
+        }
+      });
+    } else {
+      sub = this.classSessions.cancelBooking(u.id, this.userNumericId).subscribe({
+        next: () => {
+          // Remove from list after successful cancellation
+          this.upcoming = this.upcoming.filter(x => x.id !== u.id);
+          this.cancelling[u.id] = false;
+        },
+        error: (err) => {
+          console.error('Fallo al cancelar reserva:', err);
+          this.cancelError[u.id] = err?.message || 'No se pudo cancelar';
+          this.cancelling[u.id] = false;
+        }
+      });
+    }
     this.subs.push(sub);
   }
 
