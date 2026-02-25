@@ -123,6 +123,9 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   private suppressPointerUntil = 0; // timestamp ms until which pointer handlers are ignored after a touch
   private lastSwipeAt = 0; // throttle swipes
 
+  // Recurring update logic
+  recurrenceEditMode: 'single' | 'future' = 'single';
+  
   constructor(
     private classSessionsService: ClassSessionsService,
     private classTypesService: ClassTypesService,
@@ -321,12 +324,30 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngOnInit() {
+
+    // Update availability logic for levels when data loads or changes
+    try {
+      if (!this.availableLevels || !this.availableLevels.length) {
+         this.sessionForm.get('level_id')?.disable();
+      } else {
+         this.sessionForm.get('level_id')?.enable();
+      }
+    } catch {}
+
     // Load levels list and then other data
     try {
       const sub = this.levelsService.getAll().subscribe({
         next: (lvls) => {
           this.availableLevels = lvls || [];
           this.levelsMap = new Map((lvls || []).map(l => [l.id, l]));
+          
+          // Reactive disable
+          if (!this.availableLevels.length) {
+             this.sessionForm.get('level_id')?.disable();
+          } else {
+             this.sessionForm.get('level_id')?.enable();
+          }
+
           this.loadData();
         },
         error: () => { this.loadData(); }
@@ -978,6 +999,7 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
   openEditModal(session: ClassSession) {
     this.isEditing = true;
     this.selectedSession = session;
+    this.recurrenceEditMode = 'single';
 
     this.sessionForm.patchValue({
       class_type_id: session.class_type_id,
@@ -1039,22 +1061,37 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
         level_id: formData.level_id || null
       };
 
-      const sub = this.classSessionsService.updateSession(this.selectedSession.id, updateData).subscribe({
-        next: () => {
+      let updateObs;
+      // If user selected 'future', use the recurring update RPC
+      if (this.recurrenceEditMode === 'future') {
+        updateObs = this.classSessionsService.updateRecurringSchedule(this.selectedSession.id, updateData, 'future');
+      } else {
+        // Default single update
+        updateObs = this.classSessionsService.updateSession(this.selectedSession.id, updateData);
+      }
+
+      const sub = updateObs.subscribe({
+        next: (res: any) => {
           this.successMessage = 'Sesión actualizada correctamente';
           // Capturar ID antes de cerrar modal para evitar null access
           const updatedId = this.selectedSession!.id;
+          
           this.closeModal();
-          // Refrescar solo el evento afectado en el calendario
-          const idx = this.events.findIndex(e => e.id === String(updatedId));
-          if (idx !== -1) {
-            const s = { ...this.events[idx].extendedProps.session, ...updateData };
-            this.events[idx].extendedProps.session = s;
-            const currentBookings = this.events[idx].extendedProps.bookings ?? 0;
-            this.updateCalendarEventCounts(updatedId, currentBookings);
+
+          if (this.recurrenceEditMode === 'future') {
+             // For recurring updates, strict refetch is needed as multiple events changed
+             try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
           } else {
-            // Si no está cargado, refrescar sólo el rango visible
-            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
+              // Refrescar solo el evento afectado en el calendario (optimización local)
+              const idx = this.events.findIndex(e => e.id === String(updatedId));
+              if (idx !== -1) {
+                const s = { ...this.events[idx].extendedProps.session, ...updateData };
+                this.events[idx].extendedProps.session = s;
+                const currentBookings = this.events[idx].extendedProps.bookings ?? 0;
+                this.updateCalendarEventCounts(updatedId, currentBookings);
+              } else {
+                try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
+              }
           }
           // Refrescar eventos para garantizar consistencia inmediata
           try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
@@ -1326,27 +1363,43 @@ export class AdminCalendarComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     this.loading = true;
-    // Capturar ID antes de cerrar el modal para evitar null access
     const toRemoveId = this.selectedSession.id;
-    const sub = this.classSessionsService.deleteSession(toRemoveId).subscribe({
+    
+    // Check if we should use the new recurring delete logic
+    // We reuse the 'recurrenceEditMode' selected by the user in the UI (visible when isEditing is true)
+    // Default is 'single'
+    const mode = this.recurrenceEditMode || 'single';
+
+    let deleteObs;
+    if (mode === 'future') {
+      deleteObs = this.classSessionsService.deleteRecurringSession(toRemoveId, 'future');
+    } else {
+      // Default / Single
+      deleteObs = this.classSessionsService.deleteRecurringSession(toRemoveId, 'single');
+    }
+
+    const sub = deleteObs.subscribe({
       next: () => {
         // Apagar spinner inmediatamente para evitar quedarse colgado si hay errores posteriores
         this.loading = false;
         try {
-          this.successMessage = 'Sesión eliminada correctamente';
+          this.successMessage = 'Sesión(es) eliminada(s) correctamente';
           this.closeModal();
-          // Quitar el evento del calendario local si existe
-          const removedId = toRemoveId;
-          // Remover del FullCalendar primero para evitar refs obsoletas
-          try {
-            const api = this.calendarComponent?.getApi?.();
-            const fcEvent = api?.getEventById(String(removedId));
-            if (fcEvent) fcEvent.remove();
-          } catch { }
-          // Mantener snapshot local coherente
-          this.events = (this.events || []).filter(e => e && e.id !== String(removedId));
-          // Refresca la ventana actual para garantizar consistencia inmediata
-          try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
+          
+          if (mode === 'future') {
+            // If we deleted future events, we MUST refetch to clean up the calendar
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
+          } else {
+            // Single delete optimization: remove locally
+            const removedId = toRemoveId;
+            try {
+              const api = this.calendarComponent?.getApi?.();
+              const fcEvent = api?.getEventById(String(removedId));
+              if (fcEvent) fcEvent.remove();
+            } catch { }
+            this.events = (this.events || []).filter(e => e && e.id !== String(removedId));
+            try { this.calendarComponent?.getApi?.().refetchEvents(); } catch { }
+          }
         } catch (innerErr) {
           console.warn('Post-delete UI update failed (ignorable):', innerErr);
         }

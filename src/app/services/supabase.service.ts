@@ -15,12 +15,17 @@ export class SupabaseService {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        // Avoid Navigator lock contention in dev by bypassing cross-tab locking
+        // Avoid Navigator lock contention in dev by bypassing cross-tab locking or using non-exclusive locks
         debug: false,
-        // Reducir problemas de lock en desarrollo
         storageKey: 'sb-auth-token',
         storage: window.localStorage,
-        flowType: 'pkce'
+        flowType: 'pkce',
+        // Fix for "NavigatorLockAcquireTimeoutError"
+        // Force the client to use a basic memory lock or disable the lock to prevent timeouts in development/some browsers
+        // LockFunc signature: (name: string, acquireTimeout: number, fn: () => Promise<R>) => Promise<R>
+        lock: (name: string, acquireTimeout: number, fn: () => Promise<any>) => { 
+          return fn();
+        }
       },
       // Configuración para desarrollo
       global: {
