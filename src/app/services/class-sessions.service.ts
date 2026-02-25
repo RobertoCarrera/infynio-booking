@@ -12,6 +12,7 @@ export interface ClassType {
 
 export interface ClassSession {
   id: number;
+  schedule_id?: number | null;
   class_type_id: number;
   capacity: number;
   schedule_date: string;
@@ -562,6 +563,24 @@ export class ClassSessionsService {
     return from(this.performUpdateSession(sessionId, sessionData));
   }
 
+  /**
+   * Actualiza una sesión individual o recurrente (mode='future').
+   */
+  public updateRecurringSchedule(sessionId: number, sessionData: Partial<ClassSession>, mode: 'single' | 'future'): Observable<any> {
+    const payload = {
+      p_session_id: sessionId,
+      p_new_capacity: sessionData.capacity,
+      p_new_start_time: sessionData.schedule_time,
+      p_new_class_type_id: sessionData.class_type_id,
+      p_mode: mode
+    };
+    return from(this.supabaseService.supabase.rpc('update_recurring_schedule', payload)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        return data;
+      }));
+  }
+
   private async performUpdateSession(sessionId: number, sessionData: Partial<ClassSession>): Promise<any> {
     const hasDate = Object.prototype.hasOwnProperty.call(sessionData, 'schedule_date');
     const hasTime = Object.prototype.hasOwnProperty.call(sessionData, 'schedule_time');
@@ -650,6 +669,27 @@ export class ClassSessionsService {
    * Safe delete a session via RPC which deletes bookings first then session to avoid FK issues
    */
   // (implemented above) use the single safeDeleteSession implementation
+
+  /**
+   * Delete a recurring session with mode 'single' or 'future'.
+   */
+  public deleteRecurringSession(sessionId: number, mode: 'single' | 'future'): Observable<any> {
+    return from(this.performDeleteRecurringSession(sessionId, mode));
+  }
+
+  private async performDeleteRecurringSession(sessionId: number, mode: 'single' | 'future'): Promise<any> {
+    const { data, error } = await this.supabaseService.supabase
+      .rpc('delete_recurring_schedule', {
+        p_session_id: sessionId,
+        p_mode: mode
+      });
+    
+    if (error) {
+      console.error('Error deleting recurring session:', error);
+      throw error;
+    }
+    return data;
+  }
 
   /**
    * Genera sesiones recurrentes para un tipo de clase, día de la semana y rango de fechas
