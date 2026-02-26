@@ -152,7 +152,7 @@
             <div class="col-md-6">
               <div class="mb-3">
                 <label class="form-label">Nivel:</label>
-                <select class="form-select" formControlName="level_id" [disabled]="!availableLevels.length">
+                <select class="form-select" formControlName="level_id">
                   <option value="">Sin nivel</option>
                   <option *ngFor="let lvl of availableLevels" [value]="lvl.id">{{ lvl.name }}</option>
                 </select>
@@ -264,6 +264,23 @@
               <i class="fas fa-info-circle me-2"></i>
               <strong>Vista previa:</strong> {{ getRecurringPreview() }}
             </div>
+          </div>
+
+          <!-- Opciones de actualización para evento recurrente -->
+          <div *ngIf="isEditing" class="mb-3 border-top pt-3">
+             <label class="form-label d-block fw-bold">Aplicar cambios a:</label>
+             <div class="form-check">
+               <input class="form-check-input" type="radio" name="recurrenceMode" id="modeSingle" value="single" [(ngModel)]="recurrenceEditMode" [ngModelOptions]="{standalone: true}">
+               <label class="form-check-label" for="modeSingle">
+                 Solo esta sesión
+               </label>
+             </div>
+             <div class="form-check">
+               <input class="form-check-input" type="radio" name="recurrenceMode" id="modeFuture" value="future" [(ngModel)]="recurrenceEditMode" [ngModelOptions]="{standalone: true}">
+               <label class="form-check-label" for="modeFuture">
+                 Esta sesión y las siguientes (actualiza patrón recurrente)
+               </label>
+             </div>
           </div>
 
           <!-- Error messages -->

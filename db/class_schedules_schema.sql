@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS class_schedules (
     CONSTRAINT valid_time_range CHECK (start_time < end_time),
     
     -- Índice único para evitar duplicados exactos
-    UNIQUE(class_type_id, day_of_week, start_time)
+    -- Eliminado para permitir gestión avanzada de recurrencia (historico/futuro)
+    -- UNIQUE(class_type_id, day_of_week, start_time)
 );
 
 -- Índices para mejorar el rendimiento
